@@ -27,6 +27,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 | D-019 | 2026-08-31 | Import every published district, but keep the product query and UI focused on Paphos. | National ingestion avoids a future database/import redesign without adding a district selector or expanding current product scope. |
 | D-020 | 2026-08-31 | Use the checked-in normalized official snapshot when Supabase is unconfigured; keep synthetic fixtures only in tests and the development seed. | Local inspection gets traceable official identities and rota dates without requiring premature cloud credentials. Partial or failed configured Supabase access remains a visible error. |
 | D-021 | 2026-08-31 | Keep coordinates nullable and treat geocoding as a future separately sourced enrichment. | The official resources publish addresses but not coordinates. Imported pharmacies remain usable through address-based directions; distance is omitted rather than invented. |
+| D-022 | 2026-09-01 | Preserve an official house-phone field as raw text plus an ordered array of distinct valid E.164 values; populate the existing singular value only when exactly one distinct number exists. | Four directory fields contain multiple valid numbers with no stated priority. Keeping all values avoids data loss, while leaving the singular field null prevents an arbitrary Call target. The current UI remains conservative and continues to call only the separately published pharmacy telephone. |
 
 ## Current assumptions requiring validation
 

@@ -5,6 +5,7 @@ import {
   filterOfficialPharmaciesByDistrict,
   normalizeCyprusPhone,
   normalizeCyprusPhoneField,
+  normalizeCyprusPhoneValues,
   normalizeOfficialResources,
   parseOfficialDate,
 } from "./normalize";
@@ -48,6 +49,18 @@ describe("official normalization", () => {
     expect(normalizeCyprusPhone("0")).toBeNull();
     expect(normalizeCyprusPhoneField("99526653\n99526653")).toBe("+35799526653");
     expect(normalizeCyprusPhoneField("99348621\n97417411")).toBeNull();
+    expect(normalizeCyprusPhoneValues("22424025 - 22510096")).toEqual([
+      "+35722424025",
+      "+35722510096",
+    ]);
+    expect(normalizeCyprusPhoneValues("99318764 97688587")).toEqual([
+      "+35799318764",
+      "+35797688587",
+    ]);
+    expect(normalizeCyprusPhoneValues("22429210-22429429")).toEqual([
+      "+35722429210",
+      "+35722429429",
+    ]);
   });
 
   it("uses registration number as stable identity and produces date-only duty facts", () => {
@@ -113,6 +126,8 @@ describe("official normalization", () => {
       "2026-08-31T12:00:00.000Z",
     );
     expect(repeated.pharmacies[0].housePhoneE164).toBe("+35799111111");
+    expect(repeated.pharmacies[0].housePhoneRaw).toBe("99111111\n99111111");
+    expect(repeated.pharmacies[0].housePhoneE164Values).toEqual(["+35799111111"]);
     expect(repeated.report.issues).toHaveLength(0);
 
     const ambiguousPhone = repeatedPhone.replace("99111111\n99111111", "99111111\n99222222");
@@ -121,6 +136,11 @@ describe("official normalization", () => {
       "2026-08-31T12:00:00.000Z",
     );
     expect(ambiguous.pharmacies[0].housePhoneE164).toBeNull();
+    expect(ambiguous.pharmacies[0].housePhoneRaw).toBe("99111111\n99222222");
+    expect(ambiguous.pharmacies[0].housePhoneE164Values).toEqual([
+      "+35799111111",
+      "+35799222222",
+    ]);
     expect(ambiguous.report).toMatchObject({
       pharmaciesPrepared: 2,
       recordsSkipped: 0,

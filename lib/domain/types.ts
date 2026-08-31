@@ -33,6 +33,8 @@ export interface Pharmacy {
   longitude: number | null;
   phoneE164: string | null;
   housePhoneE164: string | null;
+  housePhoneRaw: string | null;
+  housePhoneE164Values: string[];
   officialRegistrationNumber: string | null;
   pharmacistGivenName: string | null;
   pharmacistSurname: string | null;

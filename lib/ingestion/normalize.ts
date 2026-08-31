@@ -43,6 +43,8 @@ export interface NormalizedOfficialPharmacy {
   district: string;
   postalCode: string | null;
   phoneE164: string | null;
+  housePhoneRaw: string;
+  housePhoneE164Values: string[];
   housePhoneE164: string | null;
   latitude: null;
   longitude: null;
@@ -113,15 +115,27 @@ export function normalizeCyprusPhone(value: string): string | null {
   return null;
 }
 
+export function normalizeCyprusPhoneValues(value: string): string[] {
+  const single = normalizeCyprusPhone(value);
+  if (single) return [single];
+
+  const source = cleaned(value);
+  if (source === "" || source === "0") return [];
+  const candidates = source.match(/(?:\+357|357)?\d{8}/g) ?? [];
+  const remainder = source
+    .replace(/(?:\+357|357)?\d{8}/g, "")
+    .replace(/[\s,;|/-]/g, "");
+  if (candidates.length === 0 || remainder !== "") return [];
+
+  const normalized = candidates
+    .map(normalizeCyprusPhone)
+    .filter((candidate): candidate is string => candidate !== null);
+  return [...new Set(normalized)];
+}
+
 export function normalizeCyprusPhoneField(value: string): string | null {
-  const candidates = cleaned(value)
-    .split(/\r?\n/)
-    .map((candidate) => candidate.trim())
-    .filter(Boolean);
-  const normalized = candidates.map(normalizeCyprusPhone);
-  if (normalized.some((candidate) => candidate === null)) return null;
-  const unique = new Set(normalized as string[]);
-  return unique.size === 1 ? [...unique][0] : null;
+  const values = normalizeCyprusPhoneValues(value);
+  return values.length === 1 ? values[0] : null;
 }
 
 export function parseOfficialDate(value: string): string | null {
@@ -179,6 +193,8 @@ function createPharmacy(
   const givenName = cleaned(values.Name);
   const addressLine = cleaned(values.Address);
   const locality = cleaned(values["Muniuciplity / Community"]);
+  const housePhoneRaw = values["House Tel. No."] ?? "";
+  const housePhoneE164Values = normalizeCyprusPhoneValues(housePhoneRaw);
   if (!registrationNumber || !surname || !givenName || !addressLine || !locality || !district) {
     return null;
   }
@@ -194,7 +210,9 @@ function createPharmacy(
     district,
     postalCode: optionalText(values.PC),
     phoneE164: normalizeCyprusPhoneField(values["Pharmacy Tel. No."]),
-    housePhoneE164: normalizeCyprusPhoneField(values["House Tel. No."]),
+    housePhoneRaw,
+    housePhoneE164Values,
+    housePhoneE164: housePhoneE164Values.length === 1 ? housePhoneE164Values[0] : null,
     latitude: null,
     longitude: null,
     source: "cyprus_open_data",
@@ -317,12 +335,20 @@ export function normalizeOfficialResources(
       }
 
       const rawHousePhone = optionalText(record.values["House Tel. No."]);
-      if (rawHousePhone && !normalizeCyprusPhoneField(rawHousePhone)) {
+      const housePhoneValues = normalizeCyprusPhoneValues(rawHousePhone ?? "");
+      if (rawHousePhone && housePhoneValues.length === 0) {
         issues.push({
           resourceId: resource.id,
           rowNumber: record.rowNumber,
           severity: "warning",
-          message: `Multiple or unrecognized house telephone values: ${rawHousePhone.replace(/\r?\n/g, " | ")}`,
+          message: `Unrecognized house telephone value: ${rawHousePhone.replace(/\r?\n/g, " | ")}`,
+        });
+      } else if (housePhoneValues.length > 1) {
+        issues.push({
+          resourceId: resource.id,
+          rowNumber: record.rowNumber,
+          severity: "warning",
+          message: `Multiple distinct house telephone values preserved without priority: ${housePhoneValues.join(", ")}`,
         });
       }
     }

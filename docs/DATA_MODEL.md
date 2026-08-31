@@ -26,7 +26,9 @@ One row represents one pharmacy location. The internal identity remains `id`; `o
 | `district` | `text` | no | Import district such as Paphos, Limassol, Larnaca, Nicosia, or Famagusta. |
 | `postal_code` | `text` | no | Postal code when published. |
 | `phone_e164` | `text` | no | Pharmacy telephone normalized to E.164 when valid. |
-| `house_phone_e164` | `text` | no | Published house/contact telephone. It is preserved but is not automatically treated as an on-call instruction. |
+| `house_phone_raw` | `text` | no | Exact decoded `House Tel. No.` source-field content, preserving separators and embedded line breaks. |
+| `house_phone_e164_values` | `text[]` | yes | Distinct valid normalized numbers in source order; defaults to an empty array. Multiple values have no implied priority. |
+| `house_phone_e164` | `text` | no | Conservative singular convenience value, populated only when the source field resolves to exactly one distinct valid number. It is not automatically treated as an on-call instruction. |
 | `latitude` / `longitude` | `double precision` | no | Nullable WGS84 enrichment. The official files do not publish coordinates. |
 | `source` | `text` | yes | Constrained provenance category: `legacy`, `synthetic_fixture`, `cyprus_open_data`, `pharmacy_confirmed`, or `third_party`. |
 | `source_dataset` | `text` | no | Human-readable source dataset name. |
@@ -37,6 +39,8 @@ One row represents one pharmacy location. The internal identity remains `id`; `o
 | `created_at` / `updated_at` | `timestamptz` | yes | Audit timestamps. |
 
 Names and addresses are not identity keys. Coordinates, postal codes, and telephone numbers remain nullable rather than being invented or blocking ingestion.
+
+The 2026 official directory contains four `House Tel. No.` fields with multiple distinct valid numbers, using spaces, hyphens, or a line break as separators. The importer preserves the exact decoded field in `house_phone_raw` and every distinct valid number in `house_phone_e164_values`. It leaves `house_phone_e164` null for those rows rather than choosing a preferred number without a source-backed rule. The current UI Call action continues to use the separate singular pharmacy telephone and does not expose or prioritize these house-number alternatives.
 
 ## `availability_intervals`
 

@@ -57,6 +57,8 @@ function pharmacyRow(pharmacy: NormalizedOfficialPharmacy) {
     address_additional: pharmacy.addressAdditional,
     district: pharmacy.district,
     house_phone_e164: pharmacy.housePhoneE164,
+    house_phone_raw: pharmacy.housePhoneRaw,
+    house_phone_e164_values: pharmacy.housePhoneE164Values,
     source: pharmacy.source,
     source_dataset: pharmacy.sourceDataset,
     source_record_identifier: pharmacy.sourceRecordIdentifier,

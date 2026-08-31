@@ -45,6 +45,8 @@ interface SupabasePharmacyRow {
   longitude: number | null;
   phone_e164: string | null;
   house_phone_e164: string | null;
+  house_phone_raw: string | null;
+  house_phone_e164_values: string[];
   official_registration_number: string | null;
   pharmacist_given_name: string | null;
   pharmacist_surname: string | null;
@@ -102,6 +104,8 @@ function mapPharmacy(row: SupabasePharmacyRow): Pharmacy {
     longitude: row.longitude,
     phoneE164: row.phone_e164,
     housePhoneE164: row.house_phone_e164,
+    housePhoneRaw: row.house_phone_raw,
+    housePhoneE164Values: row.house_phone_e164_values,
     officialRegistrationNumber: row.official_registration_number,
     pharmacistGivenName: row.pharmacist_given_name,
     pharmacistSurname: row.pharmacist_surname,
@@ -151,6 +155,8 @@ function getOfficialSnapshotDataset(): PharmacyDataset {
       longitude: pharmacy.longitude,
       phoneE164: pharmacy.phoneE164,
       housePhoneE164: pharmacy.housePhoneE164,
+      housePhoneRaw: pharmacy.housePhoneRaw,
+      housePhoneE164Values: pharmacy.housePhoneE164Values,
       officialRegistrationNumber: pharmacy.officialRegistrationNumber,
       pharmacistGivenName: pharmacy.pharmacistGivenName,
       pharmacistSurname: pharmacy.pharmacistSurname,
@@ -189,7 +195,7 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
   const { data, error } = await supabase
     .from("pharmacies")
     .select(
-      "id,name,address_line,address_additional,locality,district,postal_code,latitude,longitude,phone_e164,house_phone_e164,official_registration_number,pharmacist_given_name,pharmacist_surname,source,source_dataset,source_resource_url,source_retrieved_at,availability_intervals(id,pharmacy_id,starts_at,ends_at,schedule_kind,service_mode),duty_assignments(id,pharmacy_id,duty_date,source_dataset,source_record_identifier,source_resource_url,source_retrieved_at)",
+      "id,name,address_line,address_additional,locality,district,postal_code,latitude,longitude,phone_e164,house_phone_e164,house_phone_raw,house_phone_e164_values,official_registration_number,pharmacist_given_name,pharmacist_surname,source,source_dataset,source_resource_url,source_retrieved_at,availability_intervals(id,pharmacy_id,starts_at,ends_at,schedule_kind,service_mode),duty_assignments(id,pharmacy_id,duty_date,source_dataset,source_record_identifier,source_resource_url,source_retrieved_at)",
     )
     .eq("is_active", true)
     .eq("district", "Paphos")

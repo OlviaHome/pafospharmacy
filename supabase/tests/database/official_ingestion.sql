@@ -1,12 +1,14 @@
 begin;
 
-select plan(9);
+select plan(11);
 
 select has_table('public', 'duty_assignments');
 select col_is_pk('public', 'duty_assignments', 'id');
 select hasnt_column('public', 'duty_assignments', 'service_mode');
 select has_column('public', 'pharmacies', 'official_registration_number');
 select has_column('public', 'pharmacies', 'district');
+select has_column('public', 'pharmacies', 'house_phone_raw');
+select has_column('public', 'pharmacies', 'house_phone_e164_values');
 select col_is_null('public', 'pharmacies', 'latitude');
 select col_is_null('public', 'pharmacies', 'longitude');
 select has_index(
