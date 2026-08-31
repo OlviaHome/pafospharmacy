@@ -85,7 +85,110 @@
         "Nicosia",
         "Paphos"
       ],
-      "issues": []
+      "issues": [
+        {
+          "resourceId": "private-pharmacies-2026",
+          "rowNumber": 131,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 22424025 - 22510096"
+        },
+        {
+          "resourceId": "private-pharmacies-2026",
+          "rowNumber": 179,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99318764 97688587"
+        },
+        {
+          "resourceId": "private-pharmacies-2026",
+          "rowNumber": 236,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 22429210-22429429"
+        },
+        {
+          "resourceId": "private-pharmacies-2026",
+          "rowNumber": 275,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99348621 | 97417411"
+        },
+        {
+          "resourceId": "duty-limassol-2026-05-09",
+          "rowNumber": 98,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99348621 | 97417411"
+        },
+        {
+          "resourceId": "duty-limassol-2026-05-09",
+          "rowNumber": 277,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99348621 | 97417411"
+        },
+        {
+          "resourceId": "duty-limassol-2026-05-09",
+          "rowNumber": 431,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99348621 | 97417411"
+        },
+        {
+          "resourceId": "duty-limassol-2026-05-09",
+          "rowNumber": 506,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99348621 | 97417411"
+        },
+        {
+          "resourceId": "duty-nicosia-2026-05-09",
+          "rowNumber": 138,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 22429210-22429429"
+        },
+        {
+          "resourceId": "duty-nicosia-2026-05-09",
+          "rowNumber": 146,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99318764 97688587"
+        },
+        {
+          "resourceId": "duty-nicosia-2026-05-09",
+          "rowNumber": 336,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 22429210-22429429"
+        },
+        {
+          "resourceId": "duty-nicosia-2026-05-09",
+          "rowNumber": 362,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99318764 97688587"
+        },
+        {
+          "resourceId": "duty-nicosia-2026-05-09",
+          "rowNumber": 564,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 22429210-22429429"
+        },
+        {
+          "resourceId": "duty-nicosia-2026-05-09",
+          "rowNumber": 626,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99318764 97688587"
+        },
+        {
+          "resourceId": "duty-nicosia-2026-05-09",
+          "rowNumber": 704,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99318764 97688587"
+        },
+        {
+          "resourceId": "duty-nicosia-2026-05-09",
+          "rowNumber": 780,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 22429210-22429429"
+        },
+        {
+          "resourceId": "duty-nicosia-2026-05-09",
+          "rowNumber": 854,
+          "severity": "warning",
+          "message": "Multiple or unrecognized house telephone values: 99318764 97688587"
+        }
+      ]
     }
   },
   "pharmacies": [
@@ -7780,7 +7883,7 @@
       "district": "Limassol",
       "postalCode": "3022",
       "phoneE164": "+35725828890",
-      "housePhoneE164": null,
+      "housePhoneE164": "+35799526653",
       "latitude": null,
       "longitude": null,
       "source": "cyprus_open_data",
@@ -10280,7 +10383,7 @@
       "district": "Paphos",
       "postalCode": "8560",
       "phoneE164": "+35726100103",
-      "housePhoneE164": null,
+      "housePhoneE164": "+35726621488",
       "latitude": null,
       "longitude": null,
       "source": "cyprus_open_data",

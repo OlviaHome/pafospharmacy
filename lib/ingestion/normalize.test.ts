@@ -4,6 +4,7 @@ import type { OfficialCsvResource } from "./official-sources";
 import {
   filterOfficialPharmaciesByDistrict,
   normalizeCyprusPhone,
+  normalizeCyprusPhoneField,
   normalizeOfficialResources,
   parseOfficialDate,
 } from "./normalize";
@@ -45,6 +46,8 @@ describe("official normalization", () => {
     expect(parseOfficialDate("31/02/26")).toBeNull();
     expect(normalizeCyprusPhone("26 999999")).toBe("+35726999999");
     expect(normalizeCyprusPhone("0")).toBeNull();
+    expect(normalizeCyprusPhoneField("99526653\n99526653")).toBe("+35799526653");
+    expect(normalizeCyprusPhoneField("99348621\n97417411")).toBeNull();
   });
 
   it("uses registration number as stable identity and produces date-only duty facts", () => {
@@ -98,6 +101,34 @@ describe("official normalization", () => {
 
     expect(second).toEqual(first);
     expect(filterOfficialPharmaciesByDistrict(first.pharmacies, "paphos")).toHaveLength(1);
+  });
+
+  it("collapses repeated multiline phone values and reports genuinely ambiguous values", () => {
+    const repeatedPhone = directoryCsv.replace(
+      "Paphos,123,Παπαδοπούλου,Μαρία,\"Οδός 1, Πάφος\",Κοντά στην αγορά,Πάφος,8010,26999999,0",
+      "Paphos,123,Παπαδοπούλου,Μαρία,\"Οδός 1, Πάφος\",Κοντά στην αγορά,Πάφος,8010,26999999,\"99111111\n99111111\"",
+    );
+    const repeated = normalizeOfficialResources(
+      [{ resource: directory, text: repeatedPhone }],
+      "2026-08-31T12:00:00.000Z",
+    );
+    expect(repeated.pharmacies[0].housePhoneE164).toBe("+35799111111");
+    expect(repeated.report.issues).toHaveLength(0);
+
+    const ambiguousPhone = repeatedPhone.replace("99111111\n99111111", "99111111\n99222222");
+    const ambiguous = normalizeOfficialResources(
+      [{ resource: directory, text: ambiguousPhone }],
+      "2026-08-31T12:00:00.000Z",
+    );
+    expect(ambiguous.pharmacies[0].housePhoneE164).toBeNull();
+    expect(ambiguous.report).toMatchObject({
+      pharmaciesPrepared: 2,
+      recordsSkipped: 0,
+      malformedRecords: 0,
+    });
+    expect(ambiguous.report.issues).toEqual([
+      expect.objectContaining({ severity: "warning", rowNumber: 2 }),
+    ]);
   });
 
   it("skips malformed rows and reports them", () => {

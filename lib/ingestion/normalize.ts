@@ -113,6 +113,17 @@ export function normalizeCyprusPhone(value: string): string | null {
   return null;
 }
 
+export function normalizeCyprusPhoneField(value: string): string | null {
+  const candidates = cleaned(value)
+    .split(/\r?\n/)
+    .map((candidate) => candidate.trim())
+    .filter(Boolean);
+  const normalized = candidates.map(normalizeCyprusPhone);
+  if (normalized.some((candidate) => candidate === null)) return null;
+  const unique = new Set(normalized as string[]);
+  return unique.size === 1 ? [...unique][0] : null;
+}
+
 export function parseOfficialDate(value: string): string | null {
   const match = /^(\d{2})\/(\d{2})\/(\d{2})$/.exec(cleaned(value));
   if (!match) return null;
@@ -182,8 +193,8 @@ function createPharmacy(
     locality,
     district,
     postalCode: optionalText(values.PC),
-    phoneE164: normalizeCyprusPhone(values["Pharmacy Tel. No."]),
-    housePhoneE164: normalizeCyprusPhone(values["House Tel. No."]),
+    phoneE164: normalizeCyprusPhoneField(values["Pharmacy Tel. No."]),
+    housePhoneE164: normalizeCyprusPhoneField(values["House Tel. No."]),
     latitude: null,
     longitude: null,
     source: "cyprus_open_data",
@@ -296,12 +307,22 @@ export function normalizeOfficialResources(
       }
 
       const rawPharmacyPhone = optionalText(record.values["Pharmacy Tel. No."]);
-      if (rawPharmacyPhone && !normalizeCyprusPhone(rawPharmacyPhone)) {
+      if (rawPharmacyPhone && !normalizeCyprusPhoneField(rawPharmacyPhone)) {
         issues.push({
           resourceId: resource.id,
           rowNumber: record.rowNumber,
           severity: "warning",
           message: `Unrecognized pharmacy telephone format: ${rawPharmacyPhone}`,
+        });
+      }
+
+      const rawHousePhone = optionalText(record.values["House Tel. No."]);
+      if (rawHousePhone && !normalizeCyprusPhoneField(rawHousePhone)) {
+        issues.push({
+          resourceId: resource.id,
+          rowNumber: record.rowNumber,
+          severity: "warning",
+          message: `Multiple or unrecognized house telephone values: ${rawHousePhone.replace(/\r?\n/g, " | ")}`,
         });
       }
     }
