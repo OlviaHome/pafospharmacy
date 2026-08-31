@@ -1,50 +1,39 @@
 # Roadmap
 
-The roadmap is deliberately narrow. Move work between sections only when the product requirement is accepted; do not promote a feature merely because the stack can support it.
+The roadmap stays narrow. Availability claims expand only when a trustworthy source can support them.
 
-## NOW — first vertical slice
+## COMPLETED — foundation and official ingestion
 
-1. **Foundation**
-   - Keep this knowledge base current.
-   - Scaffold Next.js App Router with TypeScript and Tailwind CSS.
-   - Add PWA manifest/install metadata without offline schedule promises.
-2. **Trusted data shape**
-   - Set up local Supabase configuration and reproducible migrations.
-   - Create only `pharmacies` and `availability_intervals`, including valid-pair and same-kind non-overlap constraints, indexes, grants, and RLS.
-   - Add clearly labeled synthetic Paphos-area seed records covering ordinary/open, duty/open, duty/on-call, and duty/unknown.
-3. **Domain slice**
-   - Implement and test Cyprus day windows, half-open interval evaluation, constrained state derivation, filters, and Haversine distance as presentation-independent functions.
-   - Add a server-only repository/data-access boundary.
-4. **Mobile experience**
-   - Build the actionable home list with Today/Tomorrow, Open Now, and On Duty behavior defined in the product document.
-   - Request geolocation in context and degrade cleanly when unavailable.
-   - Add call and directions actions.
-5. **Verification**
-   - Test time boundaries, overnight periods, adjacent mode transitions, allowed cross-kind overlaps, rejected same-kind overlaps, RLS/grants, and inactive records.
-   - Verify the core journey on narrow mobile screens with location granted and denied.
-   - Confirm synthetic data cannot be confused with live production advice.
+- Mobile-first Next.js/PWA-ready pharmacy finder with Today/Tomorrow, call, directions, optional location, and truthful status language.
+- Reproducible Supabase migrations for `pharmacies`, timed `availability_intervals`, and date-only `duty_assignments`, with constraints, indexes, grants, and RLS.
+- `Europe/Nicosia` day windows, half-open interval logic, separate open/duty/on-call derivation, and focused automated tests.
+- Cyprus Pharmaceutical Services ingestion pipeline for the current 2026 private-pharmacy directory and May–September 2026 rota resources.
+- Registration-number identity, pragmatic provenance, idempotent upsert keys, validation/reporting, and a checked-in normalized snapshot.
+- All published districts retained in data; the UI remains Paphos-only and displays 90 real pharmacy identities with applicable official date-only assignments.
+- Nullable coordinates, address-based Directions, and no invented ordinary hours, duty hours, opening mode, or on-call mode.
 
-The slice is complete when a mobile user can open the app, understand each pharmacy's exact state, optionally see approximate distance, and call or request directions without an account.
+## NOW — validate the official-data experience
 
-## NEXT — validate trust and market fit
+- Verify the source refresh cadence and define behavior before the published duty coverage ends on 2026-09-30.
+- User-test the “On Duty, exact hours not published—call first” wording with residents, expats, and tourists.
+- Confirm how corrections and disappeared/renumbered pharmacy records should be reconciled before automating imports.
+- Keep source, coverage, and retrieval information visible enough for users to understand the data limit.
 
-- Confirm and license an authoritative Cyprus pharmacy/duty data source.
-- Define provenance, freshness, validation, failure, and correction behavior before importing official data.
-- Replace synthetic data with a verified ingestion path and visible freshness/source information.
-- Test the urgent-answer UX with residents, expats, and tourists; refine copy and ranking without merging the three states.
-- Decide the next language based on validated user need, then design the translation/content boundary.
-- Evaluate map view only if user testing shows the list and directions handoff are insufficient.
+## NEXT — improve actionable availability
+
+- Find and validate a pharmacy-specific ordinary-opening source before enabling real-data Open Now filtering.
+- Find a trustworthy timed source for `duty/open` or `duty/on_call`; keep those facts in `availability_intervals` only.
+- Evaluate a geocoding enrichment with its own provenance, accuracy review, and correction path; do not overwrite the meaning of official address data.
+- Schedule the existing importer only after refresh, failure, alerting, and reconciliation behavior are accepted.
+- Decide the next language based on validated need and design the translation/content boundary.
 
 ## LATER — expansion and B2B
 
-- Expand from Paphos to the rest of Cyprus.
+- Add district selection when product scope expands beyond Paphos.
 - Greek, Russian, and Arabic support.
-- Automatic official-data synchronization and reconciliation.
 - Pharmacy verification and business accounts.
 - Pharmacy profile, product, and service information.
-- Push notifications.
-- SEO landing pages and privacy-respecting analytics.
-- B2B pharmacy profiles, verification, analytics, and business features.
-- Evaluate server-side geospatial search when national scale requires it.
+- Push notifications, SEO pages, and privacy-respecting analytics.
+- Evaluate map view and server-side geospatial search only when user testing or national scale justifies them.
 
 Paid placement, if ever introduced, must remain separate from safety-critical availability and proximity results.

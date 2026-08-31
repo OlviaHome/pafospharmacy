@@ -12,8 +12,10 @@ Read the relevant documentation before making changes:
 
 Working rules:
 
-- Keep **open now**, **on duty**, and **on call** distinct in data, logic, and UI. Model duty assignment separately from service mode using only the valid combinations in the data model; do not recreate them as independent booleans.
-- Derive availability from explicit intervals. For one pharmacy, intervals may overlap across `ordinary` and `duty`, but never within the same `schedule_kind`. Never encode unverified Cyprus legal or duty-hour assumptions.
+- Keep **open now**, **on duty**, and **on call** distinct in data, logic, and UI; do not recreate them as independent stored booleans.
+- Keep trustworthy timed facts in `availability_intervals`. For one pharmacy, intervals may overlap across `ordinary` and `duty`, but never within the same `schedule_kind`.
+- Keep official date-only rota facts in `duty_assignments`. They prove On Duty for a Cyprus local date but never prove Open Now, On Call, a service mode, or exact hours. Never invent timestamps or encode unverified Cyprus legal assumptions.
+- Preserve official registration identity, source attribution, and nullable source gaps. Treat coordinates and future opening-hours data as separately sourced enrichment.
 - Optimize the ordinary-user path for mobile use, no login, and an answer in about 10 seconds.
 - Keep future features out of the current slice unless they are required for a clean boundary.
 - Update the relevant documentation whenever introducing a meaningful product, architecture, or data-model decision.

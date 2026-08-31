@@ -2,151 +2,116 @@
 
 ## Principles
 
-- PostgreSQL is the source of truth.
-- Availability comes from explicit stored intervals, not inferred legislation or recurring-hours rules.
-- Duty assignment and service mode are separate dimensions with a small set of valid combinations.
-- Each pharmacy has independent ordinary and duty timelines. Intervals cannot overlap within one timeline, but ordinary and duty intervals may overlap each other.
-- Use lowercase `snake_case` identifiers, `bigint generated always as identity` primary keys, and `timestamptz` audit/schedule timestamps.
-- Store instants with time-zone awareness and interpret calendar days using `Europe/Nicosia` in the domain layer.
-- Every table in an exposed schema has Row Level Security enabled and explicit least-privilege grants.
-
-This is a logical MVP model, not a migration. Exact SQL will be created and verified during the first vertical slice.
+- PostgreSQL is the production source of truth; the checked-in normalized snapshot keeps local development reproducible without cloud credentials.
+- Store only what a source actually establishes. Never turn a date-only duty assignment into invented start/end times or a service mode.
+- `availability_intervals` contains only trustworthy timed facts. `duty_assignments` contains official date-only rota facts.
+- Ordinary opening, timed duty service, and date-only duty assignment are related but independent dimensions.
+- Store instants as `timestamptz`, use half-open intervals, and interpret calendar dates with `Europe/Nicosia`.
+- Use lowercase `snake_case`, identity primary keys, explicit constraints, indexed foreign keys, least-privilege grants, and RLS on exposed tables.
 
 ## `pharmacies`
 
-One row represents one pharmacy location.
+One row represents one pharmacy location. The internal identity remains `id`; `official_registration_number` is the stable external identity used by the Cyprus importer.
 
 | Field | Type | Required | Purpose / constraint |
 |---|---|---:|---|
 | `id` | `bigint` identity | yes | Primary key. |
-| `name` | `text` | yes | Public display name; non-empty. |
-| `address_line` | `text` | yes | Public street/address text; non-empty. |
-| `locality` | `text` | yes | Locality or district display text; non-empty. |
-| `postal_code` | `text` | no | Postal code when known. |
-| `phone_e164` | `text` | yes | Telephone URI source for the MVP call action. Validate formatting at ingestion/application boundaries. |
-| `latitude` | `double precision` | yes | WGS84 latitude with a check from `-90` through `90`. |
-| `longitude` | `double precision` | yes | WGS84 longitude with a check from `-180` through `180`. |
-| `is_active` | `boolean` | yes | Defaults to `true`; inactive locations are excluded from public results. |
-| `created_at` | `timestamptz` | yes | Defaults to the current instant. |
-| `updated_at` | `timestamptz` | yes | Updated by the write path; defaults to the current instant. |
+| `official_registration_number` | `text` | no | Unique official external identity when supplied. Non-empty when present. |
+| `name` | `text` | yes | Display label. For official rows this is transparently derived from pharmacist surname and given name. |
+| `pharmacist_given_name` | `text` | no | Official given name. |
+| `pharmacist_surname` | `text` | no | Official surname. |
+| `address_line` | `text` | yes | Official street/address text; non-empty. |
+| `address_additional` | `text` | no | Landmark or additional address information. |
+| `locality` | `text` | yes | Municipality/community display text; non-empty. |
+| `district` | `text` | no | Import district such as Paphos, Limassol, Larnaca, Nicosia, or Famagusta. |
+| `postal_code` | `text` | no | Postal code when published. |
+| `phone_e164` | `text` | no | Pharmacy telephone normalized to E.164 when valid. |
+| `house_phone_e164` | `text` | no | Published house/contact telephone. It is preserved but is not automatically treated as an on-call instruction. |
+| `latitude` / `longitude` | `double precision` | no | Nullable WGS84 enrichment. The official files do not publish coordinates. |
+| `source` | `text` | yes | Constrained provenance category: `legacy`, `synthetic_fixture`, `cyprus_open_data`, `pharmacy_confirmed`, or `third_party`. |
+| `source_dataset` | `text` | no | Human-readable source dataset name. |
+| `source_record_identifier` | `text` | no | Stable source-scoped record key. Unique with `source` when present. |
+| `source_resource_url` | `text` | no | Exact resource URL. |
+| `source_retrieved_at` | `timestamptz` | no | Retrieval instant. |
+| `is_active` | `boolean` | yes | Defaults to `true`; inactive locations are omitted from public results. |
+| `created_at` / `updated_at` | `timestamptz` | yes | Audit timestamps. |
 
-Names are not unique: different locations may legitimately share a brand or similar name. Coordinates support distance and directions without adding a geospatial extension in the first slice.
+Names and addresses are not identity keys. Coordinates, postal codes, and telephone numbers remain nullable rather than being invented or blocking ingestion.
 
 ## `availability_intervals`
 
-One row represents one explicit interval in either the ordinary or duty timeline for one pharmacy. The previous name `duty_schedule` was rejected because ordinary opening periods are not duty assignments and that name would blur the distinction.
+One row is one explicit, trustworthy timed fact. The name `duty_schedule` remains rejected because this table may hold ordinary opening intervals as well as timed duty service.
 
 | Field | Type | Required | Purpose / constraint |
 |---|---|---:|---|
 | `id` | `bigint` identity | yes | Primary key. |
-| `pharmacy_id` | `bigint` | yes | Foreign key to `pharmacies.id`. |
+| `pharmacy_id` | `bigint` | yes | Foreign key to `pharmacies.id`; deletion is restricted. |
 | `starts_at` | `timestamptz` | yes | Inclusive start instant. |
-| `ends_at` | `timestamptz` | yes | Exclusive end instant; must be later than `starts_at`. |
-| `schedule_kind` | `text` | yes | `ordinary` or `duty`; identifies whether the interval is part of the official duty rota. |
-| `service_mode` | `text` | yes | `open`, `on_call`, or `unknown`; identifies how service is available without changing duty meaning. |
-| `created_at` | `timestamptz` | yes | Defaults to the current instant. |
-| `updated_at` | `timestamptz` | yes | Updated by the write path; defaults to the current instant. |
+| `ends_at` | `timestamptz` | yes | Exclusive end instant; later than `starts_at`. |
+| `schedule_kind` | `text` | yes | `ordinary` or `duty`. |
+| `service_mode` | `text` | yes | `open`, `on_call`, or `unknown`. |
+| `created_at` / `updated_at` | `timestamptz` | yes | Audit timestamps. |
 
-Use `text` plus check constraints rather than PostgreSQL enum types so a future verified source can add a value through an ordinary migration. Only these pairs are valid:
+Only these combinations are valid:
 
-- `ordinary` + `open`: physically open during ordinary hours; this row makes no claim about duty assignment.
-- `duty` + `open`: officially on duty and physically open.
-- `duty` + `on_call`: officially on duty with on-call service. This row does not independently prove physical opening, but it does not negate an overlapping `ordinary/open` row.
-- `duty` + `unknown`: officially on duty, but the source does not establish whether the pharmacy is open or on call.
+- `ordinary/open`
+- `duty/open`
+- `duty/on_call`
+- `duty/unknown`
 
-`ordinary` + `on_call` and `ordinary` + `unknown` are invalid. `unknown` is explicit rather than an accidental null: it prevents incomplete official data from being guessed as either open or on call.
+`duty/unknown` is appropriate only when a source provides trustworthy interval boundaries but does not establish the mode during that interval. It is not a substitute for missing time data.
 
-The migration should express the pair rule as a database check equivalent to:
+Intervals cannot overlap for the same pharmacy and `schedule_kind`. An ordinary interval and a duty interval may overlap because they are independent facts. PostgreSQL enforces this with a GiST exclusion constraint over `pharmacy_id`, `schedule_kind`, and `tstzrange(starts_at, ends_at, '[)')`. Ingestion must not split ordinary intervals merely to accommodate cross-kind overlap.
 
-```sql
-(schedule_kind = 'ordinary' and service_mode = 'open')
-or
-(schedule_kind = 'duty' and service_mode in ('open', 'on_call', 'unknown'))
-```
+## `duty_assignments`
 
-Additional constraints and invariants:
+One row records the official fact that a pharmacy is assigned to the rota on one Cyprus calendar date.
 
-- `ends_at > starts_at`.
-- Deleting a pharmacy should be restricted while schedule history exists; normal removal uses `pharmacies.is_active = false`.
-- Intervals for the same pharmacy and `schedule_kind` must not overlap. A PostgreSQL exclusion constraint over `pharmacy_id`, `schedule_kind`, and `tstzrange(starts_at, ends_at, '[)')` enforces this; Supabase supports the required `btree_gist` extension.
-- An ordinary interval and a duty interval for the same pharmacy may overlap. Their source facts remain independent, and ingestion must not split either interval solely because of the cross-kind overlap.
-- When the duty service mode changes, store adjacent non-overlapping duty rows such as `duty/open` followed by `duty/on_call`.
-- Source conflicts within the same schedule kind must fail validation and be reviewed.
+| Field | Type | Required | Purpose / constraint |
+|---|---|---:|---|
+| `id` | `bigint` identity | yes | Primary key. |
+| `pharmacy_id` | `bigint` | yes | Foreign key to `pharmacies.id`; deletion is restricted. |
+| `duty_date` | `date` | yes | Published rota date, interpreted in `Europe/Nicosia`. |
+| `source` | `text` | yes | `cyprus_open_data`, `pharmacy_confirmed`, or `third_party`. |
+| `source_dataset` | `text` | yes | Dataset name. |
+| `source_record_identifier` | `text` | yes | Stable source-scoped idempotency key. Unique with `source`. |
+| `source_resource_url` | `text` | yes | Exact official CSV URL. |
+| `source_retrieved_at` | `timestamptz` | yes | Retrieval instant. |
+| `created_at` / `updated_at` | `timestamptz` | yes | Audit timestamps. |
 
-The exclusion constraint should be equivalent to:
+There is deliberately no `service_mode`, `starts_at`, or `ends_at`. The current official source establishes none of them. A uniqueness constraint on pharmacy, date, and dataset also prevents duplicate semantic assignments.
 
-```sql
-exclude using gist (
-  pharmacy_id with =,
-  schedule_kind with =,
-  tstzrange(starts_at, ends_at, '[)') with &&
-)
-```
+A date-only assignment may coexist with a later trustworthy timed duty interval. It proves `On Duty` for that date, while the timed interval—if present—provides any instant-level duty mode.
 
-It rejects a pair of rows only when the pharmacy and schedule kind are both equal and the time ranges overlap. Different schedule kinds therefore remain allowed to overlap.
+## Derived state
 
-State derivation at instant `t` uses all active rows where `starts_at <= t AND t < ends_at`. The constraints allow at most one ordinary row and one duty row:
+At instant `t` and its Cyprus local date:
 
-| Active ordinary row | Active duty row | Open now | On duty | On call |
-|---|---|---|---|---|
-| `ordinary/open` | none | yes | no | no |
-| none | `duty/open` | yes | yes | no |
-| none | `duty/on_call` | no | yes | yes |
-| none | `duty/unknown` | unknown | yes | unknown |
-| `ordinary/open` | `duty/open` | yes | yes | no |
-| `ordinary/open` | `duty/on_call` | yes | yes | yes |
-| `ordinary/open` | `duty/unknown` | yes | yes | unknown |
+- **Open Now** is true only if an active interval has `service_mode = open`. A date-only duty assignment never proves it. If ordinary-opening coverage is incomplete and no timed open fact exists, the value is unknown rather than false.
+- **On Duty** is true if an active timed duty interval exists or a `duty_assignments` row exists for the local date.
+- **On Call** is true only from an active `duty/on_call` interval. A date-only assignment establishes no mode, so On Call is unavailable/unknown rather than inferred.
+- An overlapping `ordinary/open` interval independently proves physical opening even when duty information has no service mode.
 
-In rule form:
+Today/Tomorrow duty filtering uses `duty_date` for date-only assignments and interval overlap (`starts_at < day_end AND ends_at > day_start`) for timed facts. “Open Now” is never redefined for Tomorrow.
 
-- **Open Now** is true if any active row has `service_mode = open`. An ordinary/open row can therefore prove physical opening even when the duty mode is on-call or unknown.
-- **On Duty** is true if an active duty row exists.
-- **On Call** follows only the active duty row: true for `duty/on_call`, false for `duty/open`, and unknown for `duty/unknown`.
+## Indexes, access, and idempotency
 
-No active interval means the pharmacy is not explicitly recorded as available for that instant. It may be described as closed/not on duty only when the underlying source is known to be complete for that window; otherwise the UI must present availability as unknown.
+- Unique constraints support idempotent upserts on official registration number and source record identifier.
+- `availability_intervals.pharmacy_id` and `duty_assignments(duty_date, pharmacy_id)` are indexed.
+- `pharmacies(district)` has a partial index for active rows.
+- Anonymous/authenticated application roles receive read-only access to active pharmacy data; public writes are denied and RLS policies are explicit.
+- Trusted ingestion uses a server-side secret key only when explicitly asked to write to Supabase. The browser never receives it.
 
-A Today/Tomorrow query selects intervals where `starts_at < day_end AND ends_at > day_start`. The application must still display the relevant interval rather than implying the entire day has one status.
+## Official data snapshot
 
-## Initial indexes
+The current snapshot contains the 2026 private-pharmacy directory and May–September 2026 district duty resources published by Cyprus Pharmaceutical Services through the National Open Data Portal under CC BY 4.0. It preserves all five published districts while the UI selects Paphos.
 
-- PostgreSQL automatically indexes each primary key.
-- Add a B-tree index on `availability_intervals.pharmacy_id` because PostgreSQL does not automatically index foreign-key columns.
-- The same-kind non-overlap exclusion constraint creates a GiST index over the pharmacy, schedule kind, and time range. Use it for interval-overlap queries where appropriate and confirm the final query plan with `EXPLAIN` rather than adding speculative indexes.
+The importer stores pharmacy identity/provenance and date-only duty assignments. It creates no ordinary-opening intervals, duty intervals, service modes, or coordinates from these files. Synthetic intervals remain limited to automated tests and the development seed.
 
-The GiST exclusion index is justified by correctness, not scale. Partitioning, PostGIS, materialized views, and additional query indexes remain unnecessary until measured behavior justifies them.
+## Deferred concepts
 
-## Read/write access
-
-- Public application access is read-only.
-- Anonymous reads return active pharmacies and schedule rows belonging to active pharmacies.
-- Anonymous insert, update, and delete privileges are not granted.
-- RLS is enabled on both tables if they are in an exposed schema, with explicit read policies and database tests for allow/deny behavior.
-- Trusted development seeds and future ingestion use server-side credentials that never reach the browser.
-
-## Development data
-
-Seed several plausible Paphos-area records with realistic coordinates, phone formatting, and adjacent mode-transition examples. Every seed record and UI environment must be clearly labeled as synthetic/test data so it cannot be mistaken for current pharmacy advice.
-
-Include test intervals for:
-
-- `ordinary/open`;
-- `duty/open`;
-- `duty/on_call`;
-- `duty/unknown`;
-- an overnight interval;
-- a pharmacy with no matching interval;
-- adjacent `duty/open` and `duty/on_call` intervals sharing a boundary;
-- overlapping `ordinary/open` and `duty/open` intervals;
-- overlapping `ordinary/open` and `duty/on_call` intervals;
-- rejected invalid pairs and rejected same-kind overlaps.
-
-## Deferred data concepts
-
-Add these only after requirements and source formats are known:
-
-- source/provenance and import-run records;
-- verification and freshness metadata;
-- separate on-call contact details if the authoritative data requires them;
-- translations;
-- pharmacy business accounts, services, and profile content;
-- geospatial columns or national-region modeling.
+- Geocoding as a separately sourced enrichment.
+- Trustworthy pharmacy-specific ordinary-opening intervals.
+- Trustworthy timed duty/open or duty/on-call intervals.
+- Import-run history and field-level provenance if reconciliation needs justify them.
+- Translations, pharmacy accounts, services, profiles, PostGIS, and national UI selection.

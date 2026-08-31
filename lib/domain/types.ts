@@ -11,16 +11,37 @@ export interface AvailabilityInterval {
   serviceMode: ServiceMode;
 }
 
+export interface DutyAssignment {
+  id: string;
+  pharmacyId: string;
+  dutyDate: string;
+  sourceDataset: string;
+  sourceRecordIdentifier: string;
+  sourceResourceUrl: string;
+  sourceRetrievedAt: string;
+}
+
 export interface Pharmacy {
   id: string;
   name: string;
   addressLine: string;
+  addressAdditional: string | null;
   locality: string;
+  district: string | null;
   postalCode: string | null;
-  latitude: number;
-  longitude: number;
-  phoneE164: string;
+  latitude: number | null;
+  longitude: number | null;
+  phoneE164: string | null;
+  housePhoneE164: string | null;
+  officialRegistrationNumber: string | null;
+  pharmacistGivenName: string | null;
+  pharmacistSurname: string | null;
+  source: string;
+  sourceDataset: string | null;
+  sourceResourceUrl: string | null;
+  sourceRetrievedAt: string | null;
   intervals: AvailabilityInterval[];
+  dutyAssignments: DutyAssignment[];
 }
 
 export interface DerivedAvailability {
@@ -29,6 +50,7 @@ export interface DerivedAvailability {
   onCall: KnownBoolean;
   hasConflict: boolean;
   activeIntervals: AvailabilityInterval[];
+  activeDutyAssignments: DutyAssignment[];
 }
 
 export interface DayWindow {
@@ -42,10 +64,22 @@ export interface Coordinates {
   longitude: number;
 }
 
-export type PharmacyDataSource = "fixtures" | "supabase";
+export type PharmacyDataSource = "fixtures" | "official_snapshot" | "supabase";
+
+export interface DataAttribution {
+  organization: string;
+  datasetPage: string;
+  license: string;
+  licenseUrl: string;
+  retrievedAt: string;
+  dutyCoverageStart: string;
+  dutyCoverageEnd: string;
+}
 
 export interface PharmacyDataset {
   pharmacies: Pharmacy[];
   source: PharmacyDataSource;
   generatedAt: string;
+  ordinaryOpeningDataAvailable: boolean;
+  attribution: DataAttribution | null;
 }

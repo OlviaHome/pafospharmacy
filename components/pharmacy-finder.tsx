@@ -26,6 +26,7 @@ import { haversineDistanceKm } from "@/lib/domain/distance";
 import type {
   AvailabilityInterval,
   Coordinates,
+  DataAttribution,
   Pharmacy,
   PharmacyDataSource,
 } from "@/lib/domain/types";
@@ -37,6 +38,8 @@ interface PharmacyFinderProps {
   pharmacies: Pharmacy[];
   source: PharmacyDataSource;
   generatedAt: string;
+  ordinaryOpeningDataAvailable: boolean;
+  attribution: DataAttribution | null;
 }
 
 interface PharmacyResult {
@@ -70,10 +73,33 @@ function intervalTime(interval: AvailabilityInterval): string {
   return `${startsOn} · ${formatCyprusTime(interval.startsAt)}–${end}`;
 }
 
-function StatusBadges({ pharmacy, now }: { pharmacy: Pharmacy; now: Date }) {
-  const availability = deriveAvailability(pharmacy.intervals, now);
+function formatCoverageDate(value: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/Nicosia",
+  }).format(new Date(`${value}T12:00:00.000Z`));
+}
 
-  if (availability.activeIntervals.length === 0) {
+function StatusBadges({
+  pharmacy,
+  now,
+  ordinaryOpeningDataAvailable,
+}: {
+  pharmacy: Pharmacy;
+  now: Date;
+  ordinaryOpeningDataAvailable: boolean;
+}) {
+  const availability = deriveAvailability(pharmacy.intervals, now, {
+    dutyAssignments: pharmacy.dutyAssignments,
+    ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
+  });
+
+  if (
+    availability.activeIntervals.length === 0 &&
+    availability.activeDutyAssignments.length === 0
+  ) {
     return (
       <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[var(--ink-muted)]">
         NO ACTIVE SCHEDULE INFORMATION
@@ -98,9 +124,11 @@ function StatusBadges({ pharmacy, now }: { pharmacy: Pharmacy; now: Date }) {
           ON CALL — CALL FIRST
         </span>
       )}
-      {availability.onCall === "unknown" && (
+      {availability.activeDutyAssignments.length > 0 &&
+        availability.activeIntervals.filter((interval) => interval.scheduleKind === "duty")
+          .length === 0 && (
         <span className="rounded-full bg-[var(--amber-soft)] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[var(--amber)]">
-          DUTY STATUS — SERVICE MODE UNCONFIRMED
+          HOURS NOT PUBLISHED — CALL FIRST
         </span>
       )}
     </>
@@ -111,10 +139,12 @@ function PharmacyCard({
   result,
   selectedDay,
   now,
+  ordinaryOpeningDataAvailable,
 }: {
   result: PharmacyResult;
   selectedDay: SelectedDay;
   now: Date;
+  ordinaryOpeningDataAvailable: boolean;
 }) {
   const { pharmacy, distanceKm } = result;
   const dayWindow = useMemo(
@@ -122,15 +152,29 @@ function PharmacyCard({
     [now, selectedDay],
   );
   const relevantIntervals = intervalsForWindow(pharmacy.intervals, dayWindow);
-  const availability = deriveAvailability(pharmacy.intervals, now);
-  const address = `${pharmacy.addressLine}, ${pharmacy.locality}${pharmacy.postalCode ? ` ${pharmacy.postalCode}` : ""}`;
-  const directions = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${pharmacy.latitude},${pharmacy.longitude}`)}`;
+  const relevantDutyAssignments = pharmacy.dutyAssignments.filter(
+    (assignment) => assignment.dutyDate === dayWindow.localDate,
+  );
+  const availability = deriveAvailability(pharmacy.intervals, now, {
+    dutyAssignments: pharmacy.dutyAssignments,
+    ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
+  });
+  const address = `${pharmacy.addressLine}${pharmacy.addressAdditional ? `, ${pharmacy.addressAdditional}` : ""}, ${pharmacy.locality}${pharmacy.postalCode ? ` ${pharmacy.postalCode}` : ""}`;
+  const directionsQuery =
+    pharmacy.latitude !== null && pharmacy.longitude !== null
+      ? `${pharmacy.latitude},${pharmacy.longitude}`
+      : address;
+  const directions = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directionsQuery)}`;
 
   return (
     <article className="rounded-[1.5rem] border border-[var(--line)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
       {selectedDay === "today" && (
         <div className="mb-3 flex flex-wrap gap-2">
-          <StatusBadges pharmacy={pharmacy} now={now} />
+          <StatusBadges
+            pharmacy={pharmacy}
+            now={now}
+            ordinaryOpeningDataAvailable={ordinaryOpeningDataAvailable}
+          />
         </div>
       )}
 
@@ -165,12 +209,20 @@ function PharmacyCard({
           <Clock3 className="size-4" aria-hidden="true" />
           {selectedDay === "today" ? "Today's recorded periods" : "Tomorrow's recorded periods"}
         </div>
-        {relevantIntervals.length > 0 ? (
+        {relevantIntervals.length > 0 || relevantDutyAssignments.length > 0 ? (
           <ul className="space-y-2">
             {relevantIntervals.map((interval) => (
               <li key={interval.id} className="flex items-start justify-between gap-3 text-sm leading-5">
                 <span className="font-semibold text-[var(--ink)]">{intervalLabel(interval)}</span>
                 <span className="text-right text-[var(--ink-muted)]">{intervalTime(interval)}</span>
+              </li>
+            ))}
+            {relevantDutyAssignments.map((assignment) => (
+              <li key={assignment.id} className="flex items-start justify-between gap-3 text-sm leading-5">
+                <span className="font-semibold text-[var(--ink)]">Official duty assignment</span>
+                <span className="text-right text-[var(--ink-muted)]">
+                  Date only · call for exact hours
+                </span>
               </li>
             ))}
           </ul>
@@ -182,13 +234,20 @@ function PharmacyCard({
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <a
-          className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-4 text-sm font-extrabold text-white transition-colors hover:bg-[var(--brand-strong)]"
-          href={`tel:${pharmacy.phoneE164}`}
-        >
-          <Phone className="size-4" aria-hidden="true" />
-          Call
-        </a>
+        {pharmacy.phoneE164 ? (
+          <a
+            className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-4 text-sm font-extrabold text-white transition-colors hover:bg-[var(--brand-strong)]"
+            href={`tel:${pharmacy.phoneE164}`}
+          >
+            <Phone className="size-4" aria-hidden="true" />
+            Call
+          </a>
+        ) : (
+          <span className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--surface-muted)] px-4 text-sm font-extrabold text-[var(--ink-muted)]">
+            <Phone className="size-4" aria-hidden="true" />
+            Phone unavailable
+          </span>
+        )}
         <a
           className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[var(--line-strong)] bg-white px-4 text-sm font-extrabold text-[var(--brand-strong)] transition-colors hover:bg-[var(--surface-muted)]"
           href={directions}
@@ -203,7 +262,13 @@ function PharmacyCard({
   );
 }
 
-export function PharmacyFinder({ pharmacies, source, generatedAt }: PharmacyFinderProps) {
+export function PharmacyFinder({
+  pharmacies,
+  source,
+  generatedAt,
+  ordinaryOpeningDataAvailable,
+  attribution,
+}: PharmacyFinderProps) {
   const [selectedDay, setSelectedDay] = useState<SelectedDay>("today");
   const [filter, setFilter] = useState<AvailabilityFilter>("all");
   const [now, setNow] = useState(() => new Date(generatedAt));
@@ -228,11 +293,18 @@ export function PharmacyFinder({ pharmacies, source, generatedAt }: PharmacyFind
     [now, selectedDay],
   );
   const results = useMemo(() => {
-    const matching = filterPharmaciesByAvailability(pharmacies, filter, dayWindow, now);
+    const matching = filterPharmaciesByAvailability(
+      pharmacies,
+      filter,
+      dayWindow,
+      now,
+      ordinaryOpeningDataAvailable,
+    );
     return matching
       .map((pharmacy) => ({
         pharmacy,
-        distanceKm: coordinates
+        distanceKm:
+          coordinates && pharmacy.latitude !== null && pharmacy.longitude !== null
           ? haversineDistanceKm(coordinates, {
               latitude: pharmacy.latitude,
               longitude: pharmacy.longitude,
@@ -243,13 +315,19 @@ export function PharmacyFinder({ pharmacies, source, generatedAt }: PharmacyFind
         if (left.distanceKm !== null && right.distanceKm !== null) {
           return left.distanceKm - right.distanceKm;
         }
-        const leftAvailability = deriveAvailability(left.pharmacy.intervals, now);
-        const rightAvailability = deriveAvailability(right.pharmacy.intervals, now);
+        const leftAvailability = deriveAvailability(left.pharmacy.intervals, now, {
+          dutyAssignments: left.pharmacy.dutyAssignments,
+          ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
+        });
+        const rightAvailability = deriveAvailability(right.pharmacy.intervals, now, {
+          dutyAssignments: right.pharmacy.dutyAssignments,
+          ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
+        });
         const score = (value: ReturnType<typeof deriveAvailability>) =>
           (value.openNow === true ? 2 : 0) + (value.onDuty ? 1 : 0);
         return score(rightAvailability) - score(leftAvailability);
       });
-  }, [coordinates, dayWindow, filter, now, pharmacies]);
+  }, [coordinates, dayWindow, filter, now, ordinaryOpeningDataAvailable, pharmacies]);
 
   function chooseDay(day: SelectedDay) {
     setSelectedDay(day);
@@ -298,13 +376,32 @@ export function PharmacyFinder({ pharmacies, source, generatedAt }: PharmacyFind
           <h1 className="text-xl font-extrabold tracking-[-0.025em] text-[var(--ink)]">
             Paphos Pharmacy
           </h1>
-          <p className="text-sm text-[var(--ink-muted)]">Find a pharmacy you can use now.</p>
+          <p className="text-sm text-[var(--ink-muted)]">Official directory and duty rota for Paphos.</p>
         </div>
       </header>
 
       {source === "fixtures" && (
         <aside className="mb-4 rounded-2xl border border-[#ead8ae] bg-[var(--amber-soft)] px-4 py-3 text-sm leading-5 text-[#68420b]">
           <strong>Development data only.</strong> Pharmacy details, opening hours, and duty status are synthetic and must not be treated as official or current information.
+        </aside>
+      )}
+
+      {attribution && (
+        <aside className="mb-4 rounded-2xl border border-[#cbd8ed] bg-[#f0f5fc] px-4 py-3 text-sm leading-5 text-[#304f83]">
+          Pharmacy identities and date-only duty assignments come from the{" "}
+          <a
+            className="font-bold underline"
+            href={attribution.datasetPage}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {attribution.organization} open-data release
+          </a>{" "}
+          (<a className="underline" href={attribution.licenseUrl} target="_blank" rel="noreferrer">
+            {attribution.license}
+          </a>). Duty coverage is {formatCoverageDate(attribution.dutyCoverageStart)}–
+          {formatCoverageDate(attribution.dutyCoverageEnd)}; snapshot retrieved{" "}
+          {formatCoverageDate(attribution.retrievedAt.slice(0, 10))}. It does not publish ordinary opening hours or exact duty hours; call before travelling.
         </aside>
       )}
 
@@ -328,21 +425,23 @@ export function PharmacyFinder({ pharmacies, source, generatedAt }: PharmacyFind
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Availability filter">
-          {filters[selectedDay].map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={filter === option.value}
-              onClick={() => setFilter(option.value)}
-              className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-bold transition-colors ${
-                filter === option.value
-                  ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
-                  : "border-[var(--line)] bg-white text-[var(--ink-muted)] hover:border-[var(--line-strong)]"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+          {filters[selectedDay]
+            .filter((option) => option.value !== "open_now" || ordinaryOpeningDataAvailable)
+            .map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={filter === option.value}
+                onClick={() => setFilter(option.value)}
+                className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-bold transition-colors ${
+                  filter === option.value
+                    ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                    : "border-[var(--line)] bg-white text-[var(--ink-muted)] hover:border-[var(--line-strong)]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
         </div>
 
         <button
@@ -386,6 +485,7 @@ export function PharmacyFinder({ pharmacies, source, generatedAt }: PharmacyFind
                 result={result}
                 selectedDay={selectedDay}
                 now={now}
+                ordinaryOpeningDataAvailable={ordinaryOpeningDataAvailable}
               />
             ))}
           </div>
@@ -407,7 +507,7 @@ export function PharmacyFinder({ pharmacies, source, generatedAt }: PharmacyFind
       </section>
 
       <footer className="py-7 text-center text-xs leading-5 text-[var(--ink-muted)]">
-        Times use Europe/Nicosia. Call a pharmacy when a duty mode is on call, unconfirmed, or conflicting.
+        Dates use Europe/Nicosia. “On Duty” means an official date assignment; it does not prove the pharmacy is open or on call at the current instant.
       </footer>
     </main>
   );

@@ -38,11 +38,11 @@ The first slice includes only:
 
 - A mobile-first Next.js application using the App Router, React, TypeScript, and Tailwind CSS.
 - PWA-ready structure, including basic install metadata, without promising offline schedule accuracy.
-- Supabase/PostgreSQL with `pharmacies` and `availability_intervals` tables.
-- Several realistic but clearly synthetic development/test pharmacy records.
-- Availability calculated only from explicit database intervals.
+- Supabase/PostgreSQL with `pharmacies`, timed `availability_intervals`, and date-only `duty_assignments` tables.
+- Official Cyprus Pharmaceutical Services pharmacy identities and date-only rota assignments, with visible CC BY 4.0 attribution.
+- Availability calculated only from explicit timed facts; duty assignment may also come from an explicit official date record.
 - Optional browser geolocation and approximate distance to each pharmacy.
-- An **Open Now** filter for the current instant.
+- An **Open Now** filter for the current instant only when trustworthy opening data is available.
 - An **On Duty** filter for the selected local calendar day.
 - A Today/Tomorrow selector using Cyprus local time.
 - Call and directions actions.
@@ -55,7 +55,7 @@ The default experience must remain useful when location permission is denied or 
 - **Today** is the default view and shows current state plus today's relevant schedule periods.
 - **Tomorrow** shows explicit schedule periods that overlap tomorrow in Cyprus local time.
 - **Open now** always means the real current instant. It is hidden or disabled for Tomorrow rather than being redefined.
-- **On duty** for a selected day means that an explicit on-duty interval overlaps that day. Cards must show enough time information to avoid implying that a later duty period is active now.
+- **On duty** for a selected day means that an explicit on-duty interval overlaps that day or an official date-only rota assignment exists. Date-only cards must say that exact hours were not published.
 
 ## Trust and safety rules
 
@@ -64,6 +64,7 @@ The default experience must remain useful when location permission is denied or 
 - Show the three availability concepts separately, even when combining them would make the UI simpler.
 - Time-sensitive schedule responses must not be served as current from an unbounded offline cache.
 - Unknown or missing data should be presented as unknown, not guessed.
+- A date-only duty assignment must not be presented as proof of physical opening or on-call mode.
 - Paid placement must never alter safety-critical truth or ranking, including which pharmacy is closest, physically open, or officially on duty.
 
 ## Commercial direction
@@ -76,7 +77,7 @@ The basic consumer experience is expected to remain free. Potential monetization
 - User accounts or mandatory login.
 - Greek, Russian, or Arabic UI.
 - Map view.
-- Official Cyprus data ingestion or automated synchronization.
+- Automated official-data synchronization.
 - Pharmacy verification or pharmacy business accounts.
 - Push notifications, SEO landing pages, analytics, or product/service catalogues.
 - Rule engines that encode Cyprus legislation.
@@ -84,8 +85,8 @@ The basic consumer experience is expected to remain free. Potential monetization
 
 ## Open product questions
 
-- Which official source and update process will be authoritative for production duty data?
-- What exact source wording should be shown so users understand the limits and freshness of the information?
+- What refresh and reconciliation process should run after the current official May–September 2026 release?
+- What exact source wording best helps users understand that a date assignment contains no exact duty hours?
 - Does official on-call data use the pharmacy's public number or a separate contact mechanism?
 - What ranking best answers the urgent question without implying that “on duty” means “open”?
 - Which directions provider or neutral handoff gives the best experience across common Cyprus devices?

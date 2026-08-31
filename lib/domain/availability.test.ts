@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { deriveAvailability, isIntervalActive } from "./availability";
-import type { AvailabilityInterval, ScheduleKind, ServiceMode } from "./types";
+import type {
+  AvailabilityInterval,
+  DutyAssignment,
+  ScheduleKind,
+  ServiceMode,
+} from "./types";
 
 const instant = new Date("2026-08-31T12:00:00.000Z");
 
@@ -21,6 +26,16 @@ function interval(
     serviceMode,
   };
 }
+
+const dateOnlyDuty: DutyAssignment = {
+  id: "assignment-1",
+  pharmacyId: "pharmacy-1",
+  dutyDate: "2026-08-31",
+  sourceDataset: "Official rota",
+  sourceRecordIdentifier: "duty:2026-08-31:1",
+  sourceResourceUrl: "https://example.test/rota.csv",
+  sourceRetrievedAt: "2026-08-01T00:00:00.000Z",
+};
 
 describe("isIntervalActive", () => {
   const ordinary = interval("ordinary", "ordinary", "open");
@@ -66,6 +81,29 @@ describe("deriveAvailability", () => {
       onDuty: true,
       onCall: "unknown",
     });
+  });
+
+  it("derives only On Duty from a date-only duty assignment", () => {
+    expect(
+      deriveAvailability([], instant, {
+        dutyAssignments: [dateOnlyDuty],
+        ordinaryOpeningCoverageKnown: false,
+      }),
+    ).toMatchObject({
+      openNow: "unknown",
+      onDuty: true,
+      onCall: "unknown",
+      activeDutyAssignments: [dateOnlyDuty],
+    });
+  });
+
+  it("allows a trustworthy ordinary/open interval to prove Open Now independently", () => {
+    expect(
+      deriveAvailability([interval("ordinary", "ordinary", "open")], instant, {
+        dutyAssignments: [dateOnlyDuty],
+        ordinaryOpeningCoverageKnown: false,
+      }),
+    ).toMatchObject({ openNow: true, onDuty: true, onCall: "unknown" });
   });
 
   it("combines an allowed ordinary/open and duty/open overlap", () => {

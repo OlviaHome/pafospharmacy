@@ -3,13 +3,13 @@
 -- invented for testing. They must never be presented as official/current data.
 
 insert into public.pharmacies (
-  id, name, address_line, locality, postal_code, latitude, longitude, phone_e164
+  id, name, address_line, locality, postal_code, latitude, longitude, phone_e164, source
 ) overriding system value values
-  (9001, 'Harbour Demo Pharmacy', '18 Poseidonos Avenue', 'Kato Paphos', '8042', 34.7559, 32.4076, '+35726000001'),
-  (9002, 'Tombs Road Test Pharmacy', '42 Tombs of the Kings Avenue', 'Paphos', '8015', 34.7765, 32.4097, '+35726000002'),
-  (9003, 'Old Town Sample Pharmacy', '7 Kennedy Square', 'Ktima', '8010', 34.7761, 32.4218, '+35726000003'),
-  (9004, 'Universal Demo Pharmacy', '12 Agapinoros Street', 'Universal', '8036', 34.7608, 32.4274, '+35726000004'),
-  (9005, 'Chloraka Test Pharmacy', '31 Eleftherias Avenue', 'Chloraka', '8220', 34.7986, 32.4072, '+35726000005');
+  (9001, 'Harbour Demo Pharmacy', '18 Poseidonos Avenue', 'Kato Paphos', '8042', 34.7559, 32.4076, '+35726000001', 'synthetic_fixture'),
+  (9002, 'Tombs Road Test Pharmacy', '42 Tombs of the Kings Avenue', 'Paphos', '8015', 34.7765, 32.4097, '+35726000002', 'synthetic_fixture'),
+  (9003, 'Old Town Sample Pharmacy', '7 Kennedy Square', 'Ktima', '8010', 34.7761, 32.4218, '+35726000003', 'synthetic_fixture'),
+  (9004, 'Universal Demo Pharmacy', '12 Agapinoros Street', 'Universal', '8036', 34.7608, 32.4274, '+35726000004', 'synthetic_fixture'),
+  (9005, 'Chloraka Test Pharmacy', '31 Eleftherias Avenue', 'Chloraka', '8220', 34.7986, 32.4072, '+35726000005', 'synthetic_fixture');
 
 with cyprus_day as (
   select date_trunc('day', now() at time zone 'Europe/Nicosia') as today
