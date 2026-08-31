@@ -54,6 +54,8 @@ PostgreSQL is the source of truth for pharmacy details and explicit schedule int
 
 The application should explicitly configure any required Data API exposure rather than relying on project defaults. Trusted seed, ingestion, or administrative writes run only in a server-side or development context.
 
+For local inspection, the server-only data module uses clearly labeled synthetic fixtures only when both Supabase environment variables are absent. A partial configuration or a failed configured Supabase read is an error rather than a silent fixture fallback, so a production data outage cannot be disguised as test data.
+
 ### Future ingestion
 
 Official data import is a separate trusted boundary, not part of page rendering and not part of the first slice. Once an authoritative source is selected, ingestion should validate, normalize, record provenance, and publish availability intervals. Ordinary opening and official duty data may arrive separately and may overlap; ingestion must not split an ordinary interval merely because a duty interval overlaps it. It must reject overlaps within the same schedule kind and must not silently embed inferred legal rules.

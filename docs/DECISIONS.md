@@ -20,6 +20,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 | D-012 | 2026-08-31 | Keep all development records clearly synthetic. | Plausible test data must never be mistaken for real-time healthcare-access information. |
 | D-013 | 2026-08-31 | Keep intervals non-overlapping per pharmacy and enforce the invariant with a PostgreSQL range exclusion constraint. | **Superseded by D-014.** This incorrectly treated ordinary availability and duty assignment as one timeline. |
 | D-014 | 2026-08-31 | Prohibit interval overlap only within the same pharmacy and `schedule_kind`; allow ordinary and duty intervals to overlap. | Ordinary availability and official duty assignment are independent facts and may come from separate sources. An exclusion constraint over pharmacy, schedule kind, and time range enforces each timeline without forcing ingestion to split cross-kind overlaps. |
+| D-015 | 2026-08-31 | Use synthetic fixtures only when both Supabase settings are absent; do not fall back after partial configuration or a failed configured read. | The first slice remains locally inspectable without an account while production failures remain visible and cannot be mistaken for valid pharmacy data. |
 
 ## Current assumptions requiring validation
 

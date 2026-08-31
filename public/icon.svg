@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Paphos Pharmacy</title>
+  <rect width="512" height="512" rx="112" fill="#08785f"/>
+  <path fill="#fff" d="M216 104h80v112h112v80H296v112h-80V296H104v-80h112z"/>
+</svg>
