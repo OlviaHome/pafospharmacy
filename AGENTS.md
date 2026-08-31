@@ -13,7 +13,7 @@ Read the relevant documentation before making changes:
 Working rules:
 
 - Keep **open now**, **on duty**, and **on call** distinct in data, logic, and UI. Model duty assignment separately from service mode using only the valid combinations in the data model; do not recreate them as independent booleans.
-- Derive availability from explicit, non-overlapping intervals. Never encode unverified Cyprus legal or duty-hour assumptions.
+- Derive availability from explicit intervals. For one pharmacy, intervals may overlap across `ordinary` and `duty`, but never within the same `schedule_kind`. Never encode unverified Cyprus legal or duty-hour assumptions.
 - Optimize the ordinary-user path for mobile use, no login, and an answer in about 10 seconds.
 - Keep future features out of the current slice unless they are required for a clean boundary.
 - Update the relevant documentation whenever introducing a meaningful product, architecture, or data-model decision.

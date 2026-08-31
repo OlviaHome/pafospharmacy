@@ -10,7 +10,7 @@ The roadmap is deliberately narrow. Move work between sections only when the pro
    - Add PWA manifest/install metadata without offline schedule promises.
 2. **Trusted data shape**
    - Set up local Supabase configuration and reproducible migrations.
-   - Create only `pharmacies` and `availability_intervals`, including valid-pair and non-overlap constraints, indexes, grants, and RLS.
+   - Create only `pharmacies` and `availability_intervals`, including valid-pair and same-kind non-overlap constraints, indexes, grants, and RLS.
    - Add clearly labeled synthetic Paphos-area seed records covering ordinary/open, duty/open, duty/on-call, and duty/unknown.
 3. **Domain slice**
    - Implement and test Cyprus day windows, half-open interval evaluation, constrained state derivation, filters, and Haversine distance as presentation-independent functions.
@@ -20,7 +20,7 @@ The roadmap is deliberately narrow. Move work between sections only when the pro
    - Request geolocation in context and degrade cleanly when unavailable.
    - Add call and directions actions.
 5. **Verification**
-   - Test time boundaries, overnight periods, adjacent mode transitions, rejected overlaps, RLS/grants, and inactive records.
+   - Test time boundaries, overnight periods, adjacent mode transitions, allowed cross-kind overlaps, rejected same-kind overlaps, RLS/grants, and inactive records.
    - Verify the core journey on narrow mobile screens with location granted and denied.
    - Confirm synthetic data cannot be confused with live production advice.
 

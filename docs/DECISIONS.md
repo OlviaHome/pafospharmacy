@@ -18,7 +18,8 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 | D-010 | 2026-08-31 | Do not rely on offline caching for current schedule answers. | Installability is useful, but stale pharmacy availability can be misleading. Time-sensitive data needs an explicit freshness policy. |
 | D-011 | 2026-08-31 | Use the pharmacy's public E.164 telephone number for the first call action. | A separate on-call contact field is deferred until an authoritative source proves it is required and safe to expose. |
 | D-012 | 2026-08-31 | Keep all development records clearly synthetic. | Plausible test data must never be mistaken for real-time healthcare-access information. |
-| D-013 | 2026-08-31 | Keep intervals non-overlapping per pharmacy and enforce the invariant with a PostgreSQL range exclusion constraint. | Each instant must resolve to at most one canonical context/mode pair. Mode changes are represented by adjacent intervals; conflicts are rejected instead of OR-aggregated. The small `btree_gist` dependency materially improves correctness without adding a table. |
+| D-013 | 2026-08-31 | Keep intervals non-overlapping per pharmacy and enforce the invariant with a PostgreSQL range exclusion constraint. | **Superseded by D-014.** This incorrectly treated ordinary availability and duty assignment as one timeline. |
+| D-014 | 2026-08-31 | Prohibit interval overlap only within the same pharmacy and `schedule_kind`; allow ordinary and duty intervals to overlap. | Ordinary availability and official duty assignment are independent facts and may come from separate sources. An exclusion constraint over pharmacy, schedule kind, and time range enforces each timeline without forcing ingestion to split cross-kind overlaps. |
 
 ## Current assumptions requiring validation
 

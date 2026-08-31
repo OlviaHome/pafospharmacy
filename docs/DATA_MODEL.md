@@ -5,7 +5,7 @@
 - PostgreSQL is the source of truth.
 - Availability comes from explicit stored intervals, not inferred legislation or recurring-hours rules.
 - Duty assignment and service mode are separate dimensions with a small set of valid combinations.
-- Intervals form one canonical, non-overlapping timeline per pharmacy. Invalid or conflicting source data is rejected rather than combined into ambiguous states.
+- Each pharmacy has independent ordinary and duty timelines. Intervals cannot overlap within one timeline, but ordinary and duty intervals may overlap each other.
 - Use lowercase `snake_case` identifiers, `bigint generated always as identity` primary keys, and `timestamptz` audit/schedule timestamps.
 - Store instants with time-zone awareness and interpret calendar days using `Europe/Nicosia` in the domain layer.
 - Every table in an exposed schema has Row Level Security enabled and explicit least-privilege grants.
@@ -34,7 +34,7 @@ Names are not unique: different locations may legitimately share a brand or simi
 
 ## `availability_intervals`
 
-One row represents one explicit, canonical availability interval for one pharmacy. The previous name `duty_schedule` was rejected because ordinary opening periods are not duty assignments and that name would blur the distinction.
+One row represents one explicit interval in either the ordinary or duty timeline for one pharmacy. The previous name `duty_schedule` was rejected because ordinary opening periods are not duty assignments and that name would blur the distinction.
 
 | Field | Type | Required | Purpose / constraint |
 |---|---|---:|---|
@@ -49,9 +49,9 @@ One row represents one explicit, canonical availability interval for one pharmac
 
 Use `text` plus check constraints rather than PostgreSQL enum types so a future verified source can add a value through an ordinary migration. Only these pairs are valid:
 
-- `ordinary` + `open`: physically open during ordinary hours and not identified as on duty.
+- `ordinary` + `open`: physically open during ordinary hours; this row makes no claim about duty assignment.
 - `duty` + `open`: officially on duty and physically open.
-- `duty` + `on_call`: officially on duty, not physically open, and contact by phone may be required.
+- `duty` + `on_call`: officially on duty with on-call service. This row does not independently prove physical opening, but it does not negate an overlapping `ordinary/open` row.
 - `duty` + `unknown`: officially on duty, but the source does not establish whether the pharmacy is open or on call.
 
 `ordinary` + `on_call` and `ordinary` + `unknown` are invalid. `unknown` is explicit rather than an accidental null: it prevents incomplete official data from being guessed as either open or on call.
@@ -68,20 +68,42 @@ Additional constraints and invariants:
 
 - `ends_at > starts_at`.
 - Deleting a pharmacy should be restricted while schedule history exists; normal removal uses `pharmacies.is_active = false`.
-- Intervals for one pharmacy must not overlap. A PostgreSQL exclusion constraint over `pharmacy_id` and `tstzrange(starts_at, ends_at, '[)')` will enforce this; Supabase supports the required `btree_gist` extension.
-- When a duty assignment changes from physically open to on call, store adjacent `duty/open` and `duty/on_call` rows. When ordinary opening overlaps a duty assignment, classify the overlap as `duty/open` and split surrounding ordinary time as needed.
-- Source conflicts must fail validation and be reviewed; the application must never merge contradictory intervals with logical OR.
+- Intervals for the same pharmacy and `schedule_kind` must not overlap. A PostgreSQL exclusion constraint over `pharmacy_id`, `schedule_kind`, and `tstzrange(starts_at, ends_at, '[)')` enforces this; Supabase supports the required `btree_gist` extension.
+- An ordinary interval and a duty interval for the same pharmacy may overlap. Their source facts remain independent, and ingestion must not split either interval solely because of the cross-kind overlap.
+- When the duty service mode changes, store adjacent non-overlapping duty rows such as `duty/open` followed by `duty/on_call`.
+- Source conflicts within the same schedule kind must fail validation and be reviewed.
 
-State derivation at instant `t` uses the single active row where `starts_at <= t AND t < ends_at` and the following mapping:
+The exclusion constraint should be equivalent to:
 
-| Active pair | Open now | On duty | On call |
-|---|---|---|---|
-| `ordinary/open` | yes | no | no |
-| `duty/open` | yes | yes | no |
-| `duty/on_call` | no | yes | yes |
-| `duty/unknown` | unknown | yes | unknown |
+```sql
+exclude using gist (
+  pharmacy_id with =,
+  schedule_kind with =,
+  tstzrange(starts_at, ends_at, '[)') with &&
+)
+```
 
-For `duty/unknown`, only on-duty status is known; the UI must not guess the service mode. No active interval means the pharmacy is not explicitly recorded as available for that instant. It may be described as closed/not on duty only when the underlying source is known to be complete for that window; otherwise the UI must present availability as unknown.
+It rejects a pair of rows only when the pharmacy and schedule kind are both equal and the time ranges overlap. Different schedule kinds therefore remain allowed to overlap.
+
+State derivation at instant `t` uses all active rows where `starts_at <= t AND t < ends_at`. The constraints allow at most one ordinary row and one duty row:
+
+| Active ordinary row | Active duty row | Open now | On duty | On call |
+|---|---|---|---|---|
+| `ordinary/open` | none | yes | no | no |
+| none | `duty/open` | yes | yes | no |
+| none | `duty/on_call` | no | yes | yes |
+| none | `duty/unknown` | unknown | yes | unknown |
+| `ordinary/open` | `duty/open` | yes | yes | no |
+| `ordinary/open` | `duty/on_call` | yes | yes | yes |
+| `ordinary/open` | `duty/unknown` | yes | yes | unknown |
+
+In rule form:
+
+- **Open Now** is true if any active row has `service_mode = open`. An ordinary/open row can therefore prove physical opening even when the duty mode is on-call or unknown.
+- **On Duty** is true if an active duty row exists.
+- **On Call** follows only the active duty row: true for `duty/on_call`, false for `duty/open`, and unknown for `duty/unknown`.
+
+No active interval means the pharmacy is not explicitly recorded as available for that instant. It may be described as closed/not on duty only when the underlying source is known to be complete for that window; otherwise the UI must present availability as unknown.
 
 A Today/Tomorrow query selects intervals where `starts_at < day_end AND ends_at > day_start`. The application must still display the relevant interval rather than implying the entire day has one status.
 
@@ -89,7 +111,7 @@ A Today/Tomorrow query selects intervals where `starts_at < day_end AND ends_at 
 
 - PostgreSQL automatically indexes each primary key.
 - Add a B-tree index on `availability_intervals.pharmacy_id` because PostgreSQL does not automatically index foreign-key columns.
-- The non-overlap exclusion constraint creates a GiST index over the pharmacy and time range. Use it for interval-overlap queries where appropriate and confirm the final query plan with `EXPLAIN` rather than adding speculative indexes.
+- The same-kind non-overlap exclusion constraint creates a GiST index over the pharmacy, schedule kind, and time range. Use it for interval-overlap queries where appropriate and confirm the final query plan with `EXPLAIN` rather than adding speculative indexes.
 
 The GiST exclusion index is justified by correctness, not scale. Partitioning, PostGIS, materialized views, and additional query indexes remain unnecessary until measured behavior justifies them.
 
@@ -114,7 +136,9 @@ Include test intervals for:
 - an overnight interval;
 - a pharmacy with no matching interval;
 - adjacent `duty/open` and `duty/on_call` intervals sharing a boundary;
-- rejected invalid pairs and rejected overlaps.
+- overlapping `ordinary/open` and `duty/open` intervals;
+- overlapping `ordinary/open` and `duty/on_call` intervals;
+- rejected invalid pairs and rejected same-kind overlaps.
 
 ## Deferred data concepts
 

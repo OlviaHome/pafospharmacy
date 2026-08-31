@@ -42,7 +42,7 @@ Next.js is the application-facing read boundary. Data access lives in server-onl
 
 - determining whether an interval contains an instant;
 - determining whether an interval overlaps Today or Tomorrow;
-- deriving open, on-duty, and on-call meaning from a constrained schedule context and service mode;
+- deriving open, on-duty, and on-call meaning across the independent ordinary and duty timelines;
 - filtering and sorting results;
 - calculating approximate straight-line distance.
 
@@ -56,17 +56,18 @@ The application should explicitly configure any required Data API exposure rathe
 
 ### Future ingestion
 
-Official data import is a separate trusted boundary, not part of page rendering and not part of the first slice. Once an authoritative source is selected, ingestion should validate, normalize, record provenance, and publish canonical availability intervals. Ordinary opening and official duty data may arrive separately, but ingestion must split and reconcile them into non-overlapping intervals rather than publish contradictory effective states. It must not silently embed inferred legal rules.
+Official data import is a separate trusted boundary, not part of page rendering and not part of the first slice. Once an authoritative source is selected, ingestion should validate, normalize, record provenance, and publish availability intervals. Ordinary opening and official duty data may arrive separately and may overlap; ingestion must not split an ordinary interval merely because a duty interval overlaps it. It must reject overlaps within the same schedule kind and must not silently embed inferred legal rules.
 
 ## Request and calculation flow
 
 1. The server determines the requested local-day window using the `Europe/Nicosia` IANA time zone and converts its boundaries to instants.
 2. The data layer fetches active pharmacies and `availability_intervals` records that overlap that window.
-3. The domain layer derives status from each interval's `schedule_kind` and `service_mode`:
-   - `service_mode = open` means physically open;
-   - `schedule_kind = duty` means officially on duty;
-   - `schedule_kind = duty` plus `service_mode = on_call` means on call rather than physically open;
-   - `schedule_kind = duty` plus `service_mode = unknown` preserves a known duty assignment without guessing how service is provided.
+3. At a given instant, the constraints permit at most one active ordinary interval and at most one active duty interval. The domain layer derives status across both:
+   - **Open Now** is true if any active interval has `service_mode = open`;
+   - **On Duty** is true if an active `schedule_kind = duty` interval exists;
+   - **On Call** is true if the active duty interval has `service_mode = on_call`;
+   - a duty interval with `service_mode = unknown` proves duty assignment but does not establish open or on-call mode;
+   - an active `ordinary/open` interval independently proves Open Now, even when an overlapping duty interval is `on_call` or `unknown`.
 4. For Today, the domain layer also evaluates the current instant. Tomorrow never receives an “open now” value.
 5. The browser optionally obtains coordinates and calculates approximate Haversine distance against each pharmacy's coordinates.
 6. The presentation layer renders exact status language, schedule times, call actions, and directions actions.
@@ -78,7 +79,7 @@ Official data import is a separate trusted boundary, not part of page rendering 
 - Interpret and display calendar days in `Europe/Nicosia`.
 - Model overnight periods as one interval where `ends_at > starts_at`; do not split them at midnight unless a source requires it.
 - Use half-open interval semantics, `[starts_at, ends_at)`, so adjacent periods do not overlap at their boundary.
-- Keep intervals for the same pharmacy non-overlapping. Split a duty assignment into adjacent intervals when its service mode changes.
+- Keep intervals for the same pharmacy and `schedule_kind` non-overlapping. Ordinary and duty intervals may overlap each other; a mode change within the duty timeline uses adjacent duty intervals.
 - Use an injected clock in domain tests so daylight-saving and boundary cases are deterministic.
 
 ## Distance and directions
@@ -102,9 +103,9 @@ PWA-ready means the application can provide appropriate manifest metadata and a 
 
 ## Verification strategy
 
-- Unit tests cover interval boundaries, valid context/mode pairs, duty-mode transitions, unknown duty mode, overnight periods, Cyprus day boundaries, and distance calculations.
+- Unit tests cover interval boundaries, valid context/mode pairs, duty-mode transitions, cross-kind overlap derivation, unknown duty mode, overnight periods, Cyprus day boundaries, and distance calculations.
 - Data-access tests cover day-window queries and inactive pharmacies.
-- Database tests verify valid-pair and non-overlap constraints, grants, RLS allow/deny behavior, and indexes.
+- Database tests verify valid-pair constraints, allowed cross-kind overlaps, rejected same-kind overlaps, grants, RLS allow/deny behavior, and indexes.
 - A focused mobile browser test covers location granted/denied, Today/Tomorrow, filters, call, and directions.
 - Visual checks use realistic narrow-screen sizes and accessible tap targets.
 
