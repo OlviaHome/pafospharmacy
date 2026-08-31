@@ -2,12 +2,15 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
+import geocodingSnapshot from "@/data/geocoding/paphos-nominatim-2026.json";
 import officialSnapshot from "@/data/official/cyprus-pharmacies-2026.json";
 import { getCyprusDayWindow } from "@/lib/domain/date";
 import type {
   AvailabilityInterval,
+  CoordinateAttribution,
   DataAttribution,
   DutyAssignment,
+  GeocodeQuality,
   Pharmacy,
   PharmacyDataset,
   ScheduleKind,
@@ -43,6 +46,11 @@ interface SupabasePharmacyRow {
   postal_code: string | null;
   latitude: number | null;
   longitude: number | null;
+  geocode_provider: string | null;
+  geocode_result_identifier: string | null;
+  geocode_query: string | null;
+  geocode_quality: GeocodeQuality | null;
+  geocoded_at: string | null;
   phone_e164: string | null;
   house_phone_e164: string | null;
   house_phone_raw: string | null;
@@ -67,6 +75,33 @@ const attribution: DataAttribution = {
   dutyCoverageStart: officialSnapshot.metadata.dutyCoverageStart,
   dutyCoverageEnd: officialSnapshot.metadata.dutyCoverageEnd,
 };
+
+const coordinateAttribution: CoordinateAttribution = {
+  provider: geocodingSnapshot.metadata.provider.name,
+  attribution: geocodingSnapshot.metadata.provider.attribution,
+  attributionUrl: geocodingSnapshot.metadata.provider.attributionUrl,
+  license: geocodingSnapshot.metadata.provider.license,
+  licenseUrl: geocodingSnapshot.metadata.provider.licenseUrl,
+  policyUrl: geocodingSnapshot.metadata.provider.policyUrl,
+  generatedAt: geocodingSnapshot.metadata.generatedAt,
+};
+
+const geocodingByRegistration = new Map(
+  geocodingSnapshot.records.flatMap((record) =>
+    record.status === "accepted" && record.accepted
+      ? [
+          [
+            record.officialRegistrationNumber,
+            {
+              ...record.accepted,
+              query: record.query,
+              attemptedAt: record.attemptedAt,
+            },
+          ] as const,
+        ]
+      : [],
+  ),
+);
 
 function mapInterval(row: SupabaseIntervalRow): AvailabilityInterval {
   return {
@@ -102,6 +137,11 @@ function mapPharmacy(row: SupabasePharmacyRow): Pharmacy {
     postalCode: row.postal_code,
     latitude: row.latitude,
     longitude: row.longitude,
+    geocodeProvider: row.geocode_provider,
+    geocodeResultIdentifier: row.geocode_result_identifier,
+    geocodeQuery: row.geocode_query,
+    geocodeQuality: row.geocode_quality,
+    geocodedAt: row.geocoded_at,
     phoneE164: row.phone_e164,
     housePhoneE164: row.house_phone_e164,
     housePhoneRaw: row.house_phone_raw,
@@ -143,34 +183,47 @@ function getOfficialSnapshotDataset(): PharmacyDataset {
   }
 
   return {
-    pharmacies: paphosPharmacies.map((pharmacy) => ({
-      id: `official-${pharmacy.officialRegistrationNumber}`,
-      name: pharmacy.name,
-      addressLine: pharmacy.addressLine,
-      addressAdditional: pharmacy.addressAdditional,
-      locality: pharmacy.locality,
-      district: pharmacy.district,
-      postalCode: pharmacy.postalCode,
-      latitude: pharmacy.latitude,
-      longitude: pharmacy.longitude,
-      phoneE164: pharmacy.phoneE164,
-      housePhoneE164: pharmacy.housePhoneE164,
-      housePhoneRaw: pharmacy.housePhoneRaw,
-      housePhoneE164Values: pharmacy.housePhoneE164Values,
-      officialRegistrationNumber: pharmacy.officialRegistrationNumber,
-      pharmacistGivenName: pharmacy.pharmacistGivenName,
-      pharmacistSurname: pharmacy.pharmacistSurname,
-      source: pharmacy.source,
-      sourceDataset: pharmacy.sourceDataset,
-      sourceResourceUrl: pharmacy.sourceResourceUrl,
-      sourceRetrievedAt: pharmacy.sourceRetrievedAt,
-      intervals: [],
-      dutyAssignments: assignmentsByRegistration.get(pharmacy.officialRegistrationNumber) ?? [],
-    })),
+    pharmacies: paphosPharmacies.map((pharmacy) => {
+      const geocoding = geocodingByRegistration.get(
+        pharmacy.officialRegistrationNumber,
+      );
+      return {
+        id: `official-${pharmacy.officialRegistrationNumber}`,
+        name: pharmacy.name,
+        addressLine: pharmacy.addressLine,
+        addressAdditional: pharmacy.addressAdditional,
+        locality: pharmacy.locality,
+        district: pharmacy.district,
+        postalCode: pharmacy.postalCode,
+        latitude: geocoding?.latitude ?? pharmacy.latitude,
+        longitude: geocoding?.longitude ?? pharmacy.longitude,
+        geocodeProvider: geocoding ? geocodingSnapshot.metadata.provider.id : null,
+        geocodeResultIdentifier: geocoding?.resultIdentifier ?? null,
+        geocodeQuery: geocoding?.query ?? null,
+        geocodeQuality: (geocoding?.quality as GeocodeQuality | undefined) ?? null,
+        geocodedAt: geocoding?.attemptedAt ?? null,
+        phoneE164: pharmacy.phoneE164,
+        housePhoneE164: pharmacy.housePhoneE164,
+        housePhoneRaw: pharmacy.housePhoneRaw,
+        housePhoneE164Values: pharmacy.housePhoneE164Values,
+        officialRegistrationNumber: pharmacy.officialRegistrationNumber,
+        pharmacistGivenName: pharmacy.pharmacistGivenName,
+        pharmacistSurname: pharmacy.pharmacistSurname,
+        source: pharmacy.source,
+        sourceDataset: pharmacy.sourceDataset,
+        sourceResourceUrl: pharmacy.sourceResourceUrl,
+        sourceRetrievedAt: pharmacy.sourceRetrievedAt,
+        intervals: [],
+        dutyAssignments:
+          assignmentsByRegistration.get(pharmacy.officialRegistrationNumber) ?? [],
+      };
+    }),
     source: "official_snapshot",
     generatedAt: officialSnapshot.metadata.generatedAt,
     ordinaryOpeningDataAvailable: false,
     attribution,
+    coordinateAttribution:
+      geocodingByRegistration.size > 0 ? coordinateAttribution : null,
   };
 }
 
@@ -195,7 +248,7 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
   const { data, error } = await supabase
     .from("pharmacies")
     .select(
-      "id,name,address_line,address_additional,locality,district,postal_code,latitude,longitude,phone_e164,house_phone_e164,house_phone_raw,house_phone_e164_values,official_registration_number,pharmacist_given_name,pharmacist_surname,source,source_dataset,source_resource_url,source_retrieved_at,availability_intervals(id,pharmacy_id,starts_at,ends_at,schedule_kind,service_mode),duty_assignments(id,pharmacy_id,duty_date,source_dataset,source_record_identifier,source_resource_url,source_retrieved_at)",
+      "id,name,address_line,address_additional,locality,district,postal_code,latitude,longitude,geocode_provider,geocode_result_identifier,geocode_query,geocode_quality,geocoded_at,phone_e164,house_phone_e164,house_phone_raw,house_phone_e164_values,official_registration_number,pharmacist_given_name,pharmacist_surname,source,source_dataset,source_resource_url,source_retrieved_at,availability_intervals(id,pharmacy_id,starts_at,ends_at,schedule_kind,service_mode),duty_assignments(id,pharmacy_id,duty_date,source_dataset,source_record_identifier,source_resource_url,source_retrieved_at)",
     )
     .eq("is_active", true)
     .eq("district", "Paphos")
@@ -209,11 +262,17 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
     throw new Error(`Unable to load pharmacy data from Supabase: ${error.message}`);
   }
 
+  const pharmacies = ((data ?? []) as SupabasePharmacyRow[]).map(mapPharmacy);
   return {
-    pharmacies: ((data ?? []) as SupabasePharmacyRow[]).map(mapPharmacy),
+    pharmacies,
     source: "supabase",
     generatedAt: now.toISOString(),
     ordinaryOpeningDataAvailable: false,
     attribution,
+    coordinateAttribution: pharmacies.some(
+      (pharmacy) => pharmacy.geocodeProvider === geocodingSnapshot.metadata.provider.id,
+    )
+      ? coordinateAttribution
+      : null,
   };
 }

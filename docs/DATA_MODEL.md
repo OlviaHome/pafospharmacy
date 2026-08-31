@@ -29,7 +29,12 @@ One row represents one pharmacy location. The internal identity remains `id`; `o
 | `house_phone_raw` | `text` | no | Exact decoded `House Tel. No.` source-field content, preserving separators and embedded line breaks. |
 | `house_phone_e164_values` | `text[]` | yes | Distinct valid normalized numbers in source order; defaults to an empty array. Multiple values have no implied priority. |
 | `house_phone_e164` | `text` | no | Conservative singular convenience value, populated only when the source field resolves to exactly one distinct valid number. It is not automatically treated as an on-call instruction. |
-| `latitude` / `longitude` | `double precision` | no | Nullable WGS84 enrichment. The official files do not publish coordinates. |
+| `latitude` / `longitude` | `double precision` | no | Nullable WGS84 enrichment. Both are null or both are present; the official files do not publish them. |
+| `geocode_provider` | `text` | no | Provider identifier for geocoded coordinates, currently `openstreetmap_nominatim`. |
+| `geocode_result_identifier` | `text` | no | Accepted provider result key. Nominatim uses the OSM object type and ID rather than its unstable internal `place_id`. |
+| `geocode_query` | `text` | no | Exact official-address query submitted to the provider. |
+| `geocode_quality` | `text` | no | Conservative application grade: `high` or `medium`; not a provider confidence score. |
+| `geocoded_at` | `timestamptz` | no | Retrieval instant for the accepted result. |
 | `source` | `text` | yes | Constrained provenance category: `legacy`, `synthetic_fixture`, `cyprus_open_data`, `pharmacy_confirmed`, or `third_party`. |
 | `source_dataset` | `text` | no | Human-readable source dataset name. |
 | `source_record_identifier` | `text` | no | Stable source-scoped record key. Unique with `source` when present. |
@@ -39,6 +44,8 @@ One row represents one pharmacy location. The internal identity remains `id`; `o
 | `created_at` / `updated_at` | `timestamptz` | yes | Audit timestamps. |
 
 Names and addresses are not identity keys. Coordinates, postal codes, and telephone numbers remain nullable rather than being invented or blocking ingestion.
+
+Geocoding provenance is all-or-none: if `geocode_provider` is set, a complete coordinate pair, result identifier, query, quality, and timestamp are required. Rows with non-geocoded coordinates such as synthetic fixtures may leave all geocoding provenance null. Official directory imports omit every coordinate/provenance column during database upsert, preserving the separation between official address facts and later enrichment.
 
 The 2026 official directory contains four `House Tel. No.` fields with multiple distinct valid numbers, using spaces, hyphens, or a line break as separators. The importer preserves the exact decoded field in `house_phone_raw` and every distinct valid number in `house_phone_e164_values`. It leaves `house_phone_e164` null for those rows rather than choosing a preferred number without a source-backed rule. The current UI Call action continues to use the separate singular pharmacy telephone and does not expose or prioritize these house-number alternatives.
 
@@ -112,9 +119,14 @@ The current snapshot contains the 2026 private-pharmacy directory and May–Sept
 
 The importer stores pharmacy identity/provenance and date-only duty assignments. It creates no ordinary-opening intervals, duty intervals, service modes, or coordinates from these files. Synthetic intervals remain limited to automated tests and the development seed.
 
+## Geocoding enrichment snapshot
+
+`data/geocoding/paphos-nominatim-2026.json` is a separately versioned enrichment artifact keyed by official registration number. It contains provider/policy/license metadata, source-snapshot identity, exact queries and timestamps, cached raw results, reconciliation outcomes, accepted coordinates, and aggregate counts.
+
+Only `accepted` records are merged into application data or written to coordinate columns. An accepted result must remain in Cyprus and Paphos and match a precise building/house or pharmacy POI using source-backed locality/postcode/street evidence. Street-only and locality-only coordinates are intentionally `ambiguous`, even when useful as search hints, because they are unsafe as Directions destinations. `failed` means the provider returned no result; it does not mean the official pharmacy or address is invalid.
+
 ## Deferred concepts
 
-- Geocoding as a separately sourced enrichment.
 - Trustworthy pharmacy-specific ordinary-opening intervals.
 - Trustworthy timed duty/open or duty/on-call intervals.
 - Import-run history and field-level provenance if reconciliation needs justify them.

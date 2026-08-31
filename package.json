@@ -11,7 +11,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "ingest:official": "tsx scripts/ingest-official.ts"
+    "ingest:official": "tsx scripts/ingest-official.ts",
+    "geocode:pharmacies": "tsx scripts/geocode-pharmacies.ts"
   },
   "engines": {
     "node": ">=22"

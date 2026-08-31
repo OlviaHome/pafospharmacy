@@ -47,8 +47,6 @@ function pharmacyRow(pharmacy: NormalizedOfficialPharmacy) {
     address_line: pharmacy.addressLine,
     locality: pharmacy.locality,
     postal_code: pharmacy.postalCode,
-    latitude: pharmacy.latitude,
-    longitude: pharmacy.longitude,
     phone_e164: pharmacy.phoneE164,
     is_active: true,
     official_registration_number: pharmacy.officialRegistrationNumber,

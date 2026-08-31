@@ -1,6 +1,7 @@
 export type ScheduleKind = "ordinary" | "duty";
 export type ServiceMode = "open" | "on_call" | "unknown";
 export type KnownBoolean = boolean | "unknown";
+export type GeocodeQuality = "high" | "medium";
 
 export interface AvailabilityInterval {
   id: string;
@@ -31,6 +32,11 @@ export interface Pharmacy {
   postalCode: string | null;
   latitude: number | null;
   longitude: number | null;
+  geocodeProvider: string | null;
+  geocodeResultIdentifier: string | null;
+  geocodeQuery: string | null;
+  geocodeQuality: GeocodeQuality | null;
+  geocodedAt: string | null;
   phoneE164: string | null;
   housePhoneE164: string | null;
   housePhoneRaw: string | null;
@@ -78,10 +84,21 @@ export interface DataAttribution {
   dutyCoverageEnd: string;
 }
 
+export interface CoordinateAttribution {
+  provider: string;
+  attribution: string;
+  attributionUrl: string;
+  license: string;
+  licenseUrl: string;
+  policyUrl: string;
+  generatedAt: string;
+}
+
 export interface PharmacyDataset {
   pharmacies: Pharmacy[];
   source: PharmacyDataSource;
   generatedAt: string;
   ordinaryOpeningDataAvailable: boolean;
   attribution: DataAttribution | null;
+  coordinateAttribution: CoordinateAttribution | null;
 }

@@ -1,0 +1,3805 @@
+{
+  "metadata": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-08-31T22:31:28.556Z",
+    "district": "Paphos",
+    "sourceSnapshot": "data/official/cyprus-pharmacies-2026.json",
+    "sourceSnapshotGeneratedAt": "2026-08-31T12:28:58.074Z",
+    "provider": {
+      "id": "openstreetmap_nominatim",
+      "name": "OpenStreetMap Nominatim",
+      "endpoint": "https://nominatim.openstreetmap.org/search",
+      "policyUrl": "https://operations.osmfoundation.org/policies/nominatim/",
+      "attribution": "© OpenStreetMap contributors",
+      "attributionUrl": "https://www.openstreetmap.org/copyright",
+      "license": "Open Database License (ODbL) 1.0",
+      "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+      "requestIntervalMilliseconds": 1100
+    }
+  },
+  "report": {
+    "selectedPharmacies": 90,
+    "attempted": 90,
+    "successfullyGeocoded": 8,
+    "ambiguous": 40,
+    "failed": 42,
+    "coordinatesAlreadyPresent": 0,
+    "qualityDistribution": {
+      "high": 6,
+      "medium": 2
+    }
+  },
+  "records": [
+    {
+      "officialRegistrationNumber": "310",
+      "query": "Ευαγόρα Παλληκαρίδη 61, Πάφος, Paphos District, 8010, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:06.485Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210249809,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683762349,
+          "lat": "34.7625450",
+          "lon": "32.4544071",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338469291218429,
+          "addresstype": "road",
+          "name": "Ευαγόρα Παλληκαρίδη",
+          "display_name": "Ευαγόρα Παλληκαρίδη, Acropolis, Γεροσκήπου (συνοικία), Γεροσκήπου, Δήμος Ανατολικής Πάφου, Επαρχία Πάφου, Κύπρος, 8300, Κύπρος",
+          "address": {
+            "road": "Ευαγόρα Παλληκαρίδη",
+            "hamlet": "Acropolis",
+            "city_district": "Γεροσκήπου (συνοικία)",
+            "town": "Γεροσκήπου",
+            "county": "Δήμος Ανατολικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8300",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7624186",
+            "34.7626714",
+            "32.4543458",
+            "32.4544683"
+          ]
+        },
+        {
+          "place_id": 210346017,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 8061737,
+          "lat": "34.8055444",
+          "lon": "32.4076608",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Ευαγόρα Παλληκαρίδη",
+          "display_name": "Ευαγόρα Παλληκαρίδη, Χλώρακας, Hlorakas Community, Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου, Επαρχία Πάφου, Κύπρος, 8260, Κύπρος",
+          "address": {
+            "road": "Ευαγόρα Παλληκαρίδη",
+            "town": "Χλώρακας",
+            "city": "Hlorakas Community",
+            "county": "Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8260",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8051872",
+            "34.8059016",
+            "32.4063559",
+            "32.4089657"
+          ]
+        },
+        {
+          "place_id": 210446759,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 1249549916,
+          "lat": "34.8058821",
+          "lon": "32.4097797",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Ευαγόρα Παλληκαρίδη",
+          "display_name": "Ευαγόρα Παλληκαρίδη, Λέμπα, Lempa Community, Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου, Επαρχία Πάφου, Κύπρος, 8260, Κύπρος",
+          "address": {
+            "road": "Ευαγόρα Παλληκαρίδη",
+            "village": "Λέμπα",
+            "city": "Lempa Community",
+            "county": "Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8260",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8058798",
+            "34.8059686",
+            "32.4089657",
+            "32.4106043"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "367",
+      "query": "Ελευθερίου Βενιζέλου 24, Πάφος, Paphos District, 8021, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:08.289Z",
+      "status": "accepted",
+      "providerResults": [
+        {
+          "place_id": 209567450,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 824984752,
+          "lat": "34.7804086",
+          "lon": "32.4293747",
+          "category": "building",
+          "type": "commercial",
+          "place_rank": 30,
+          "importance": 0.00006279468986033443,
+          "addresstype": "building",
+          "name": "",
+          "display_name": "24, Λεωφόρος Ελευθερίου Βενιζέλου, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8025, Κύπρος",
+          "address": {
+            "house_number": "24",
+            "road": "Λεωφόρος Ελευθερίου Βενιζέλου",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8025",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7802170",
+            "34.7805963",
+            "32.4290286",
+            "32.4296724"
+          ]
+        }
+      ],
+      "reason": null,
+      "accepted": {
+        "latitude": 34.7804086,
+        "longitude": 32.4293747,
+        "resultIdentifier": "way:824984752",
+        "displayName": "24, Λεωφόρος Ελευθερίου Βενιζέλου, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8025, Κύπρος",
+        "quality": "medium",
+        "reasons": [
+          "locality",
+          "street",
+          "house_number",
+          "country",
+          "district"
+        ]
+      }
+    },
+    {
+      "officialRegistrationNumber": "386",
+      "query": "Ανθυπολοχαγού Γεωργίου Σάββα 43, Κατ. 2, Γεροσκήπου, Paphos District, 8201, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:09.752Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "387",
+      "query": "Θερμοπυλών 47, Πάφος, Paphos District, 8010, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:11.204Z",
+      "status": "accepted",
+      "providerResults": [
+        {
+          "place_id": 210108994,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "node",
+          "osm_id": 5059089121,
+          "lat": "34.7798769",
+          "lon": "32.4213836",
+          "category": "amenity",
+          "type": "pharmacy",
+          "place_rank": 30,
+          "importance": 0.00006279468986033443,
+          "addresstype": "amenity",
+          "name": "Αργυρούλα",
+          "display_name": "Αργυρούλα, 47, Thermopilon, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8010, Κύπρος",
+          "address": {
+            "amenity": "Αργυρούλα",
+            "house_number": "47",
+            "road": "Thermopilon",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8010",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7798269",
+            "34.7799269",
+            "32.4213336",
+            "32.4214336"
+          ]
+        }
+      ],
+      "reason": null,
+      "accepted": {
+        "latitude": 34.7798769,
+        "longitude": 32.4213836,
+        "resultIdentifier": "node:5059089121",
+        "displayName": "Αργυρούλα, 47, Thermopilon, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8010, Κύπρος",
+        "quality": "high",
+        "reasons": [
+          "postcode",
+          "locality",
+          "house_number",
+          "pharmacy_poi",
+          "country",
+          "district"
+        ]
+      }
+    },
+    {
+      "officialRegistrationNumber": "393",
+      "query": "Λεωφ. Κόλπου Κοραλλίων, Georgia Center shop No5-6, Πέγεια, Paphos District, 8575, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:13.034Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "413",
+      "query": "Ποσειδώνος 11, Κάτω Πάφος, Paphos District, 8042, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:14.470Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 208662757,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 537530284,
+          "lat": "34.7538113",
+          "lon": "32.4198835",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ποσειδώνος",
+          "display_name": "Λεωφόρος Ποσειδώνος, Κάτω Πάφος, Kato Paphos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8042, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ποσειδώνος",
+            "suburb": "Κάτω Πάφος",
+            "city_district": "Kato Paphos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8042",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7529944",
+            "34.7546583",
+            "32.4194046",
+            "32.4204081"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "422",
+      "query": "Νικοδήμου Μυλωνά 1, Πάφος, Paphos District, 8046, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:16.002Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "433",
+      "query": "Γωνία Νίκου Νικολαϊδη και Γεωργίου Χ. Ιωαννίδη κατ. 5, Πάφος, Paphos District, 8063, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:17.403Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "449",
+      "query": "Μακαρίου Γ' 11, Πόλις Χρυσοχούς, Paphos District, 8830, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:18.855Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210424558,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 27295883,
+          "lat": "35.0352041",
+          "lon": "32.4245258",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05338457846952007,
+          "addresstype": "road",
+          "name": "Μακαρίου Γ΄",
+          "display_name": "Μακαρίου Γ΄, Πολις, Πόλις Χρυσοχούς, Δήμος Πόλις Χρυσοχούς, Επαρχία Πάφου, Κύπρος, 8820, Κύπρος",
+          "address": {
+            "road": "Μακαρίου Γ΄",
+            "city_district": "Πολις",
+            "city": "Πόλις Χρυσοχούς",
+            "county": "Δήμος Πόλις Χρυσοχούς",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8820",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "35.0351515",
+            "35.0352389",
+            "32.4242483",
+            "32.4248066"
+          ]
+        },
+        {
+          "place_id": 210290135,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 1271454341,
+          "lat": "35.0352662",
+          "lon": "32.4249765",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338457846952007,
+          "addresstype": "road",
+          "name": "Μακαρίου Γ΄",
+          "display_name": "Μακαρίου Γ΄, Πολις, Πόλις Χρυσοχούς, Δήμος Πόλις Χρυσοχούς, Επαρχία Πάφου, Κύπρος, 8820, Κύπρος",
+          "address": {
+            "road": "Μακαρίου Γ΄",
+            "city_district": "Πολις",
+            "city": "Πόλις Χρυσοχούς",
+            "county": "Δήμος Πόλις Χρυσοχούς",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8820",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "35.0352516",
+            "35.0352808",
+            "32.4249167",
+            "32.4250363"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "451",
+      "query": "Νεοφύτου Νικολαϊδη 21, Πάφος, Paphos District, 8011, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:20.418Z",
+      "status": "accepted",
+      "providerResults": [
+        {
+          "place_id": 210078044,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "node",
+          "osm_id": 292570664,
+          "lat": "34.7747338",
+          "lon": "32.4279055",
+          "category": "amenity",
+          "type": "pharmacy",
+          "place_rank": 30,
+          "importance": 0.00006279468986033443,
+          "addresstype": "amenity",
+          "name": "Χρυστάλλα & Κατερίνα Χατζηγιακου",
+          "display_name": "Χρυστάλλα & Κατερίνα Χατζηγιακου, 21, Νεοφύτου Νικολαΐδη, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8011, Κύπρος",
+          "address": {
+            "amenity": "Χρυστάλλα & Κατερίνα Χατζηγιακου",
+            "house_number": "21",
+            "road": "Νεοφύτου Νικολαΐδη",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8011",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7746838",
+            "34.7747838",
+            "32.4278555",
+            "32.4279555"
+          ]
+        }
+      ],
+      "reason": null,
+      "accepted": {
+        "latitude": 34.7747338,
+        "longitude": 32.4279055,
+        "resultIdentifier": "node:292570664",
+        "displayName": "Χρυστάλλα & Κατερίνα Χατζηγιακου, 21, Νεοφύτου Νικολαΐδη, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8011, Κύπρος",
+        "quality": "high",
+        "reasons": [
+          "postcode",
+          "locality",
+          "street",
+          "house_number",
+          "pharmacy_poi",
+          "country",
+          "district"
+        ]
+      }
+    },
+    {
+      "officialRegistrationNumber": "467",
+      "query": "Νεαπόλεως 20, Πάφος, Paphos District, 8020, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:22.311Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210452843,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 5196305,
+          "lat": "34.7910385",
+          "lon": "32.4285466",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Νεαπόλεως",
+          "display_name": "Νεαπόλεως, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8021, Κύπρος",
+          "address": {
+            "road": "Νεαπόλεως",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8021",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7866029",
+            "34.7914153",
+            "32.4263411",
+            "32.4333314"
+          ]
+        },
+        {
+          "place_id": 210824859,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683341985,
+          "lat": "34.7854966",
+          "lon": "32.4251440",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Νεαπόλεως",
+          "display_name": "Νεαπόλεως, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8021, Κύπρος",
+          "address": {
+            "road": "Νεαπόλεως",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8021",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7847309",
+            "34.7863490",
+            "32.4242989",
+            "32.4259014"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "503",
+      "query": "Ελλάδος 74, Πάφος, Paphos District, 8020, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:23.640Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210066989,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 543187923,
+          "lat": "34.7916552",
+          "lon": "32.4352692",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Hellados Avenue",
+          "display_name": "Hellados Avenue, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8021, Κύπρος",
+          "address": {
+            "road": "Hellados Avenue",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8021",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7909331",
+            "34.7923402",
+            "32.4348993",
+            "32.4357046"
+          ]
+        },
+        {
+          "place_id": 209686952,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 5043429,
+          "lat": "34.7810028",
+          "lon": "32.4256578",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Hellados Avenue",
+          "display_name": "Hellados Avenue, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8010, Κύπρος",
+          "address": {
+            "road": "Hellados Avenue",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8010",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7809069",
+            "34.7811158",
+            "32.4254779",
+            "32.4258287"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "526",
+      "query": "Νικολάου Νικολαϊδη 62, Πάφος, Paphos District, 8010, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:25.170Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209445324,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683401817,
+          "lat": "34.7797000",
+          "lon": "32.4324642",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Νικολάου Νικολαΐδη",
+          "display_name": "Λεωφόρος Νικολάου Νικολαΐδη, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8010, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Νικολάου Νικολαΐδη",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8010",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7783376",
+            "34.7810056",
+            "32.4305657",
+            "32.4344056"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "536",
+      "query": "Ποσειδώνος 85, Κάτω Πάφος, Paphos District, 8042, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:26.722Z",
+      "status": "accepted",
+      "providerResults": [
+        {
+          "place_id": 213031818,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "node",
+          "osm_id": 4790203446,
+          "lat": "34.7529474",
+          "lon": "32.4213398",
+          "category": "shop",
+          "type": "bicycle",
+          "place_rank": 30,
+          "importance": 0.00006279468986033443,
+          "addresstype": "shop",
+          "name": "Cyprus E-bike",
+          "display_name": "Cyprus E-bike, 85, Λεωφόρος Ποσειδώνος, Κάτω Πάφος, Kato Paphos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8042, Κύπρος",
+          "address": {
+            "shop": "Cyprus E-bike",
+            "house_number": "85",
+            "road": "Λεωφόρος Ποσειδώνος",
+            "suburb": "Κάτω Πάφος",
+            "city_district": "Kato Paphos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8042",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7528974",
+            "34.7529974",
+            "32.4212898",
+            "32.4213898"
+          ]
+        }
+      ],
+      "reason": null,
+      "accepted": {
+        "latitude": 34.7529474,
+        "longitude": 32.4213398,
+        "resultIdentifier": "node:4790203446",
+        "displayName": "Cyprus E-bike, 85, Λεωφόρος Ποσειδώνος, Κάτω Πάφος, Kato Paphos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8042, Κύπρος",
+        "quality": "high",
+        "reasons": [
+          "postcode",
+          "locality",
+          "street",
+          "house_number",
+          "country",
+          "district"
+        ]
+      }
+    },
+    {
+      "officialRegistrationNumber": "585",
+      "query": "Λεωφ. Μακαρίου  ΙΙΙ & Ευαγόρα Παλληκαρίδη 6, Πόλις Χρυσοχούς, Paphos District, 8830, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:28.225Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "598",
+      "query": "Ελευθερίου Βενιζέλου και Χανιών 68, Πάφος, Paphos District, 8021, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:29.735Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "607",
+      "query": "Ποσειδώνος 41, Κάτω Πάφος, Paphos District, 8042, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:31.259Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209539774,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 18972349,
+          "lat": "34.7525153",
+          "lon": "32.4209614",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ποσειδώνος",
+          "display_name": "Λεωφόρος Ποσειδώνος, Κάτω Πάφος, Kato Paphos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8042, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ποσειδώνος",
+            "suburb": "Κάτω Πάφος",
+            "city_district": "Kato Paphos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8042",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7520831",
+            "34.7529692",
+            "32.4205415",
+            "32.4214044"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "608",
+      "query": "Μιχαλάκη Κυπριανού 19, Πέγεια, Paphos District, 8560, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:32.603Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 207676045,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 684636872,
+          "lat": "34.8709390",
+          "lon": "32.3783221",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338508506904704,
+          "addresstype": "road",
+          "name": "Μιχαλάκη Κυπριανού",
+          "display_name": "Μιχαλάκη Κυπριανού, Πέγεια, Δήμος Ακάμα, Επαρχία Πάφου, Κύπρος, 8560, Κύπρος",
+          "address": {
+            "road": "Μιχαλάκη Κυπριανού",
+            "town": "Πέγεια",
+            "county": "Δήμος Ακάμα",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8560",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8669352",
+            "34.8747515",
+            "32.3778096",
+            "32.3791337"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "647",
+      "query": "Νεοφύτου Νικολαϊδη 18, Πάφος, Paphos District, 8011, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:34.511Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209973684,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 195728974,
+          "lat": "34.7726950",
+          "lon": "32.4305571",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Νεοφύτου Νικολαΐδη",
+          "display_name": "Νεοφύτου Νικολαΐδη, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8011, Κύπρος",
+          "address": {
+            "road": "Νεοφύτου Νικολαΐδη",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8011",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7716538",
+            "34.7738613",
+            "32.4287934",
+            "32.4323837"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "665",
+      "query": "Ευαγόρα Παλληκαρίδη 93, Πάφος, Paphos District, 8010, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:36.315Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 212951099,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683762349,
+          "lat": "34.7625450",
+          "lon": "32.4544071",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338469291218429,
+          "addresstype": "road",
+          "name": "Ευαγόρα Παλληκαρίδη",
+          "display_name": "Ευαγόρα Παλληκαρίδη, Acropolis, Γεροσκήπου (συνοικία), Γεροσκήπου, Δήμος Ανατολικής Πάφου, Επαρχία Πάφου, Κύπρος, 8300, Κύπρος",
+          "address": {
+            "road": "Ευαγόρα Παλληκαρίδη",
+            "hamlet": "Acropolis",
+            "city_district": "Γεροσκήπου (συνοικία)",
+            "town": "Γεροσκήπου",
+            "county": "Δήμος Ανατολικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8300",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7624186",
+            "34.7626714",
+            "32.4543458",
+            "32.4544683"
+          ]
+        },
+        {
+          "place_id": 209542432,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 8061737,
+          "lat": "34.8055444",
+          "lon": "32.4076608",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Ευαγόρα Παλληκαρίδη",
+          "display_name": "Ευαγόρα Παλληκαρίδη, Χλώρακας, Hlorakas Community, Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου, Επαρχία Πάφου, Κύπρος, 8260, Κύπρος",
+          "address": {
+            "road": "Ευαγόρα Παλληκαρίδη",
+            "town": "Χλώρακας",
+            "city": "Hlorakas Community",
+            "county": "Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8260",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8051872",
+            "34.8059016",
+            "32.4063559",
+            "32.4089657"
+          ]
+        },
+        {
+          "place_id": 209988932,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 1249549916,
+          "lat": "34.8058821",
+          "lon": "32.4097797",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Ευαγόρα Παλληκαρίδη",
+          "display_name": "Ευαγόρα Παλληκαρίδη, Λέμπα, Lempa Community, Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου, Επαρχία Πάφου, Κύπρος, 8260, Κύπρος",
+          "address": {
+            "road": "Ευαγόρα Παλληκαρίδη",
+            "village": "Λέμπα",
+            "city": "Lempa Community",
+            "county": "Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8260",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8058798",
+            "34.8059686",
+            "32.4089657",
+            "32.4106043"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "675",
+      "query": "Νικολάου Νικολαϊδη 3, Πάφος, Paphos District, 8010, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:37.679Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209542922,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683401817,
+          "lat": "34.7797000",
+          "lon": "32.4324642",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Νικολάου Νικολαΐδη",
+          "display_name": "Λεωφόρος Νικολάου Νικολαΐδη, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8010, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Νικολάου Νικολαΐδη",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8010",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7783376",
+            "34.7810056",
+            "32.4305657",
+            "32.4344056"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "677",
+      "query": "Ελλάδος 83, Πάφος, Paphos District, 8020, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:39.143Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210066989,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 543187923,
+          "lat": "34.7916552",
+          "lon": "32.4352692",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Hellados Avenue",
+          "display_name": "Hellados Avenue, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8021, Κύπρος",
+          "address": {
+            "road": "Hellados Avenue",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8021",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7909331",
+            "34.7923402",
+            "32.4348993",
+            "32.4357046"
+          ]
+        },
+        {
+          "place_id": 209686952,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 5043429,
+          "lat": "34.7810028",
+          "lon": "32.4256578",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Hellados Avenue",
+          "display_name": "Hellados Avenue, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8010, Κύπρος",
+          "address": {
+            "road": "Hellados Avenue",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8010",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7809069",
+            "34.7811158",
+            "32.4254779",
+            "32.4258287"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "683",
+      "query": "Τάφοι των Βασιλέων 24, Κάτω Πάφος, Paphos District, 8016, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:40.702Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "689",
+      "query": "Ακαμαντίδος 31 Α, Πάφος, Paphos District, 8020, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:42.195Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210040045,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 9929306,
+          "lat": "34.7862343",
+          "lon": "32.4223412",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Akamantidos",
+          "display_name": "Akamantidos, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8016, Κύπρος",
+          "address": {
+            "road": "Akamantidos",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8016",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7837120",
+            "34.7885883",
+            "32.4216515",
+            "32.4234581"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "690",
+      "query": "Κινύρα 30, Πάφος, Paphos District, 8011, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:43.706Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210389030,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 11261440,
+          "lat": "34.7759791",
+          "lon": "32.4280318",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Κινυρα",
+          "display_name": "Κινυρα, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8011, Κύπρος",
+          "address": {
+            "road": "Κινυρα",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8011",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7759037",
+            "34.7763046",
+            "32.4270886",
+            "32.4290923"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "702",
+      "query": "Ανθ/χαγού Γεωργίου Σάββα 2, Γεροσκήπου, Paphos District, 8201, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:45.082Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "708",
+      "query": "Νικολάου Νικολαϊδη 24, Πάφος, Paphos District, 8010, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:46.634Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209445324,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683401817,
+          "lat": "34.7797000",
+          "lon": "32.4324642",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Νικολάου Νικολαΐδη",
+          "display_name": "Λεωφόρος Νικολάου Νικολαΐδη, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8010, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Νικολάου Νικολαΐδη",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8010",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7783376",
+            "34.7810056",
+            "32.4305657",
+            "32.4344056"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "711",
+      "query": "Αρσινόης 9, Πόλις Χρυσοχούς, Paphos District, 8830, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:48.108Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 208506234,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 274989374,
+          "lat": "35.0346764",
+          "lon": "32.4277642",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338457846952007,
+          "addresstype": "road",
+          "name": "Αρσινόης",
+          "display_name": "Αρσινόης, Πολις, Πόλις Χρυσοχούς, Δήμος Πόλις Χρυσοχούς, Επαρχία Πάφου, Κύπρος, 8820, Κύπρος",
+          "address": {
+            "road": "Αρσινόης",
+            "city_district": "Πολις",
+            "city": "Πόλις Χρυσοχούς",
+            "county": "Δήμος Πόλις Χρυσοχούς",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8820",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "35.0341598",
+            "35.0353242",
+            "32.4272950",
+            "32.4280215"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "714",
+      "query": "Αρχ. Μακαρίου ΙΙΙ 34 κατ. 2, Χλώρακας, Paphos District, 8221, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:49.477Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "731",
+      "query": "Δημοκρατίας 51, Πάφος, Paphos District, 8028, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:51.008Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209037186,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 5364939,
+          "lat": "34.7594507",
+          "lon": "32.4489778",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05338469291218429,
+          "addresstype": "road",
+          "name": "Δημοκρατίας",
+          "display_name": "Δημοκρατίας, Acropolis, Γεροσκήπου (συνοικία), Γεροσκήπου, Δήμος Ανατολικής Πάφου, Επαρχία Πάφου, Κύπρος, 8300, Κύπρος",
+          "address": {
+            "road": "Δημοκρατίας",
+            "hamlet": "Acropolis",
+            "city_district": "Γεροσκήπου (συνοικία)",
+            "town": "Γεροσκήπου",
+            "county": "Δήμος Ανατολικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8300",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7588889",
+            "34.7600171",
+            "32.4487405",
+            "32.4492040"
+          ]
+        },
+        {
+          "place_id": 208648955,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 524754081,
+          "lat": "34.8201594",
+          "lon": "32.4250976",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Δημοκρατίας",
+          "display_name": "Δημοκρατίας, Έμπα, Empa Community, Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου, Επαρχία Πάφου, Κύπρος, 8250, Κύπρος",
+          "address": {
+            "road": "Δημοκρατίας",
+            "town": "Έμπα",
+            "city": "Empa Community",
+            "county": "Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8250",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8198386",
+            "34.8202400",
+            "32.4233393",
+            "32.4269525"
+          ]
+        },
+        {
+          "place_id": 218032677,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 8069799,
+          "lat": "34.8844828",
+          "lon": "32.3833240",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05338508506904704,
+          "addresstype": "road",
+          "name": "Δημοκρατίας",
+          "display_name": "Δημοκρατίας, Πέγεια, Δήμος Ακάμα, Επαρχία Πάφου, Κύπρος, 8560, Κύπρος",
+          "address": {
+            "road": "Δημοκρατίας",
+            "town": "Πέγεια",
+            "county": "Δήμος Ακάμα",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8560",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8844773",
+            "34.8847362",
+            "32.3825656",
+            "32.3840314"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "749",
+      "query": "Δανάης 31Β, Κάτω Πάφος, Paphos District, 8042, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:52.477Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210055365,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "node",
+          "osm_id": 6328907386,
+          "lat": "34.7481467",
+          "lon": "32.4261152",
+          "category": "amenity",
+          "type": "pub",
+          "place_rank": 30,
+          "importance": 0.00004778896772712318,
+          "addresstype": "amenity",
+          "name": "Pegasus pub",
+          "display_name": "Pegasus pub, 31B, Δαναης, Κάτω Πάφος, Kato Paphos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8210, Κύπρος",
+          "address": {
+            "amenity": "Pegasus pub",
+            "house_number": "31B",
+            "road": "Δαναης",
+            "suburb": "Κάτω Πάφος",
+            "city_district": "Kato Paphos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8210",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7480967",
+            "34.7481967",
+            "32.4260652",
+            "32.4261652"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "750",
+      "query": "Λεωφ Ελλάδος 104, Πάφος, Paphos District, 8020, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:53.898Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "760",
+      "query": "Αποστόλου Παύλου 111, Κάτω Πάφος, Paphos District, 8046, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:56.132Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210434585,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 487176861,
+          "lat": "34.7656562",
+          "lon": "32.4148097",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Κάτω Πάφος, Kato Paphos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8049, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "suburb": "Κάτω Πάφος",
+            "city_district": "Kato Paphos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8049",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7656256",
+            "34.7656868",
+            "32.4147738",
+            "32.4148456"
+          ]
+        },
+        {
+          "place_id": 210730122,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 487176862,
+          "lat": "34.7679706",
+          "lon": "32.4165076",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8049, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8049",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7656868",
+            "34.7705924",
+            "32.4148456",
+            "32.4177032"
+          ]
+        },
+        {
+          "place_id": 210380889,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 9929120,
+          "lat": "34.7650340",
+          "lon": "32.4140370",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8046, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8046",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7644683",
+            "34.7656256",
+            "32.4132858",
+            "32.4147738"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "780",
+      "query": "Ελευθερίου Βενιζέλου 91, Πάφος, Paphos District, 8021, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:57.524Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 208657582,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 866712433,
+          "lat": "34.7821575",
+          "lon": "32.4387921",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ελευθερίου Βενιζέλου",
+          "display_name": "Λεωφόρος Ελευθερίου Βενιζέλου, Paphos Industrial area, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8025, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ελευθερίου Βενιζέλου",
+            "hamlet": "Paphos Industrial area",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8025",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7817052",
+            "34.7828390",
+            "32.4371716",
+            "32.4403295"
+          ]
+        },
+        {
+          "place_id": 208649530,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683478502,
+          "lat": "34.7829788",
+          "lon": "32.4405464",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ελευθερίου Βενιζέλου",
+          "display_name": "Λεωφόρος Ελευθερίου Βενιζέλου, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8025, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ελευθερίου Βενιζέλου",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8025",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7828390",
+            "34.7831186",
+            "32.4403295",
+            "32.4407632"
+          ]
+        },
+        {
+          "place_id": 209029153,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 527846875,
+          "lat": "34.7839234",
+          "lon": "32.4425302",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ελευθερίου Βενιζέλου",
+          "display_name": "Λεωφόρος Ελευθερίου Βενιζέλου, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8027, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ελευθερίου Βενιζέλου",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8027",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7838820",
+            "34.7839648",
+            "32.4423053",
+            "32.4427551"
+          ]
+        },
+        {
+          "place_id": 208653420,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683341990,
+          "lat": "34.7810027",
+          "lon": "32.4271854",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ελευθερίου Βενιζέλου",
+          "display_name": "Λεωφόρος Ελευθερίου Βενιζέλου, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8025, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ελευθερίου Βενιζέλου",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8025",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7809627",
+            "34.7810474",
+            "32.4270570",
+            "32.4273153"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "793",
+      "query": "Αρχ. Μακαρίου 63, Γεροσκήπου, Paphos District, 8200, Cyprus",
+      "attemptedAt": "2026-08-31T22:29:59.215Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "815",
+      "query": "Χρίστου Κέλη 65, Κισσόνεργα, Paphos District, 8574, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:01.144Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "869",
+      "query": "Αλεξάνδρου Παπάγου 57, Πάφος, Paphos District, 8027, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:02.701Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210471673,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 537532244,
+          "lat": "34.7753045",
+          "lon": "32.4367019",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Αλέξανδρου Παπάγου",
+          "display_name": "Αλέξανδρου Παπάγου, Paphos Industrial area, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8027, Κύπρος",
+          "address": {
+            "road": "Αλέξανδρου Παπάγου",
+            "hamlet": "Paphos Industrial area",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8027",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7752634",
+            "34.7753519",
+            "32.4365502",
+            "32.4368518"
+          ]
+        },
+        {
+          "place_id": 210558812,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 4746420,
+          "lat": "34.7776371",
+          "lon": "32.4399056",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Αλέξανδρου Παπάγου",
+          "display_name": "Αλέξανδρου Παπάγου, Paphos Industrial area, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8028, Κύπρος",
+          "address": {
+            "road": "Αλέξανδρου Παπάγου",
+            "hamlet": "Paphos Industrial area",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8028",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7753519",
+            "34.7805844",
+            "32.4368518",
+            "32.4423118"
+          ]
+        },
+        {
+          "place_id": 210506523,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683342001,
+          "lat": "34.7728961",
+          "lon": "32.4346293",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Αλέξανδρου Παπάγου",
+          "display_name": "Αλέξανδρου Παπάγου, Paphos Industrial area, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8011, Κύπρος",
+          "address": {
+            "road": "Αλέξανδρου Παπάγου",
+            "hamlet": "Paphos Industrial area",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8011",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7705345",
+            "34.7749296",
+            "32.4334236",
+            "32.4363381"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "875",
+      "query": "Ιπποκράτους 21-23, Πάφος, Paphos District, 8010, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:04.143Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 208662437,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 806152879,
+          "lat": "34.7795497",
+          "lon": "32.4213166",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Ippokratous",
+          "display_name": "Ippokratous, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8016, Κύπρος",
+          "address": {
+            "road": "Ippokratous",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8016",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7795357",
+            "34.7795636",
+            "32.4212477",
+            "32.4213854"
+          ]
+        },
+        {
+          "place_id": 208655287,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 5203071,
+          "lat": "34.7794053",
+          "lon": "32.4208387",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Ippokratous",
+          "display_name": "Ippokratous, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8016, Κύπρος",
+          "address": {
+            "road": "Ippokratous",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8016",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7792606",
+            "34.7795357",
+            "32.4204346",
+            "32.4212477"
+          ]
+        },
+        {
+          "place_id": 208651965,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 540190606,
+          "lat": "34.8788046",
+          "lon": "32.3780762",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05338508506904704,
+          "addresstype": "road",
+          "name": "Ιπποκράτους",
+          "display_name": "Ιπποκράτους, Πέγεια, Δήμος Ακάμα, Επαρχία Πάφου, Κύπρος, 8560, Κύπρος",
+          "address": {
+            "road": "Ιπποκράτους",
+            "town": "Πέγεια",
+            "county": "Δήμος Ακάμα",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8560",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8778458",
+            "34.8796181",
+            "32.3774088",
+            "32.3782582"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "893",
+      "query": "Λεωφ. Μεσόγης 2, Μεσόγη, Paphos District, 8280, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:05.746Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209546569,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "node",
+          "osm_id": 6412516812,
+          "lat": "34.8126566",
+          "lon": "32.4511021",
+          "category": "highway",
+          "type": "bus_stop",
+          "place_rank": 30,
+          "importance": 0.00004778896772712318,
+          "addresstype": "highway",
+          "name": "Λεωφ Μεσόγης 2",
+          "display_name": "Λεωφ Μεσόγης 2, Λεωφόρος Μεσόγης, Μεσόγη, Mesogi, Σύμπλεγμα Κοινοτήτων Αγίου Νεοφύτου Πάφου, Επαρχία Πάφου, Κύπρος, 8280, Κύπρος",
+          "address": {
+            "highway": "Λεωφ Μεσόγης 2",
+            "road": "Λεωφόρος Μεσόγης",
+            "village": "Μεσόγη",
+            "city": "Mesogi",
+            "county": "Σύμπλεγμα Κοινοτήτων Αγίου Νεοφύτου Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8280",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8126066",
+            "34.8127066",
+            "32.4510521",
+            "32.4511521"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "895",
+      "query": "Αποστόλου Παύλου 44 Β, Πάφος, Paphos District, 8046, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:07.154Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209687678,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 578599387,
+          "lat": "34.7729645",
+          "lon": "32.4186725",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8046, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8046",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7716532",
+            "34.7742462",
+            "32.4179768",
+            "32.4194253"
+          ]
+        },
+        {
+          "place_id": 209538400,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 1212634857,
+          "lat": "34.7706264",
+          "lon": "32.4177167",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8049, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8049",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7705924",
+            "34.7706605",
+            "32.4177032",
+            "32.4177302"
+          ]
+        },
+        {
+          "place_id": 210076599,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 487176861,
+          "lat": "34.7656562",
+          "lon": "32.4148097",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Κάτω Πάφος, Kato Paphos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8049, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "suburb": "Κάτω Πάφος",
+            "city_district": "Kato Paphos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8049",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7656256",
+            "34.7656868",
+            "32.4147738",
+            "32.4148456"
+          ]
+        },
+        {
+          "place_id": 219260529,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 53283656,
+          "lat": "34.8761038",
+          "lon": "32.3742568",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05338508506904704,
+          "addresstype": "road",
+          "name": "Αποστόλου Παύλου",
+          "display_name": "Αποστόλου Παύλου, Πέγεια, Δήμος Ακάμα, Επαρχία Πάφου, Κύπρος, 8560, Κύπρος",
+          "address": {
+            "road": "Αποστόλου Παύλου",
+            "town": "Πέγεια",
+            "county": "Δήμος Ακάμα",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8560",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8756930",
+            "34.8764413",
+            "32.3742043",
+            "32.3746378"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "896",
+      "query": "Όδος Πυράμον, Τάφοι των Βασιλέων Royal Complex Block 1 Κατ.1, Πάφος, Paphos District, 8046, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:08.648Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "901",
+      "query": "Αλέξαντρου Υψηλάντη 25, Πάφος, Paphos District, 8020, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:10.030Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "912",
+      "query": "Λεωφ. Βασιλέως Κωνσταντίνου 87, Πάφος, Paphos District, 8062, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:11.506Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "922",
+      "query": "Βορείου Ηπείρου 6, Πάφος, Paphos District, 8036, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:12.977Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "923",
+      "query": "Λεωφόρος Ελευθερίας 81, Χλώρακας, Paphos District, 8220, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:15.005Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210422398,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 1153584996,
+          "lat": "34.7994737",
+          "lon": "32.4080947",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ελευθερίας",
+          "display_name": "Λεωφόρος Ελευθερίας, Χλώρακας, Hlorakas Community, Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου, Επαρχία Πάφου, Κύπρος, 8220, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ελευθερίας",
+            "town": "Χλώρακας",
+            "city": "Hlorakas Community",
+            "county": "Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8220",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7993679",
+            "34.7995795",
+            "32.4080621",
+            "32.4081272"
+          ]
+        },
+        {
+          "place_id": 210208367,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683341973,
+          "lat": "34.7990534",
+          "lon": "32.4082428",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ελευθερίας",
+          "display_name": "Λεωφόρος Ελευθερίας, Χλώρακας, Hlorakas Community, Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου, Επαρχία Πάφου, Κύπρος, 8221, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ελευθερίας",
+            "town": "Χλώρακας",
+            "city": "Hlorakas Community",
+            "county": "Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8221",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7987771",
+            "34.7993679",
+            "32.4081272",
+            "32.4084291"
+          ]
+        },
+        {
+          "place_id": 210411444,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683689078,
+          "lat": "34.7944784",
+          "lon": "32.4116085",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ελευθερίας",
+          "display_name": "Λεωφόρος Ελευθερίας, Διπλαρκάτζια, Χλώρακας, Hlorakas Community, Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου, Επαρχία Πάφου, Κύπρος, 8221, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ελευθερίας",
+            "hamlet": "Διπλαρκάτζια",
+            "town": "Χλώρακας",
+            "city": "Hlorakas Community",
+            "county": "Σύμπλεγμα Κοινοτήτων Δυτικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8221",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7938346",
+            "34.7953403",
+            "32.4105798",
+            "32.4127856"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "924",
+      "query": "Νεόφυτου Νικολαίδη 31, Πάφος, Paphos District, 8011, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:16.389Z",
+      "status": "accepted",
+      "providerResults": [
+        {
+          "place_id": 209599086,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "node",
+          "osm_id": 10075114717,
+          "lat": "34.7742679",
+          "lon": "32.4284566",
+          "category": "shop",
+          "type": "copyshop",
+          "place_rank": 30,
+          "importance": 0.00006279468986033443,
+          "addresstype": "shop",
+          "name": "Ctrl Copy & Print Centre",
+          "display_name": "Ctrl Copy & Print Centre, 31, Νεοφύτου Νικολαΐδη, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8011, Κύπρος",
+          "address": {
+            "shop": "Ctrl Copy & Print Centre",
+            "house_number": "31",
+            "road": "Νεοφύτου Νικολαΐδη",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8011",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7742179",
+            "34.7743179",
+            "32.4284066",
+            "32.4285066"
+          ]
+        }
+      ],
+      "reason": null,
+      "accepted": {
+        "latitude": 34.7742679,
+        "longitude": 32.4284566,
+        "resultIdentifier": "node:10075114717",
+        "displayName": "Ctrl Copy & Print Centre, 31, Νεοφύτου Νικολαΐδη, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8011, Κύπρος",
+        "quality": "high",
+        "reasons": [
+          "postcode",
+          "locality",
+          "street",
+          "house_number",
+          "country",
+          "district"
+        ]
+      }
+    },
+    {
+      "officialRegistrationNumber": "927",
+      "query": "Λεωφ. Χλώρακα - Γρίβα Διγενή, Χλώρακας, Paphos District, 8220, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:17.670Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "942",
+      "query": "Μιλτιάδη Στυλιανού 30, Τάλα, Paphos District, 8577, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:19.090Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "964",
+      "query": "Μιχαλάκη Κυπριανού 56, Πέγεια, Paphos District, 8560, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:20.673Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 207676045,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 684636872,
+          "lat": "34.8709390",
+          "lon": "32.3783221",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338508506904704,
+          "addresstype": "road",
+          "name": "Μιχαλάκη Κυπριανού",
+          "display_name": "Μιχαλάκη Κυπριανού, Πέγεια, Δήμος Ακάμα, Επαρχία Πάφου, Κύπρος, 8560, Κύπρος",
+          "address": {
+            "road": "Μιχαλάκη Κυπριανού",
+            "town": "Πέγεια",
+            "county": "Δήμος Ακάμα",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8560",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8669352",
+            "34.8747515",
+            "32.3778096",
+            "32.3791337"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "974",
+      "query": "Αγίων Αναργύρων 21, Κάτω Πάφος, Paphos District, 8049, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:22.189Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "975",
+      "query": "Λεωφ. Ελλάδος 11, Πάφος, Paphos District, 8020, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:25.006Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "976",
+      "query": "Αριστοτέλη Σάββα 49, Αναβαργός, Paphos District, 8025, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:26.833Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209533723,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 866712439,
+          "lat": "34.7907104",
+          "lon": "32.4428932",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Αριστοτέλους Σάββα",
+          "display_name": "Αριστοτέλους Σάββα, Anavargos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8026, Κύπρος",
+          "address": {
+            "road": "Αριστοτέλους Σάββα",
+            "city_district": "Anavargos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8026",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7905390",
+            "34.7909022",
+            "32.4427408",
+            "32.4430190"
+          ]
+        },
+        {
+          "place_id": 209684737,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 8158320,
+          "lat": "34.7926249",
+          "lon": "32.4440205",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Αριστοτέλους Σάββα",
+          "display_name": "Αριστοτέλους Σάββα, Anavargos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8075, Κύπρος",
+          "address": {
+            "road": "Αριστοτέλους Σάββα",
+            "city_district": "Anavargos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8075",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7909022",
+            "34.7943627",
+            "32.4430190",
+            "32.4449953"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "995",
+      "query": "Μακαρίου Γ΄ 87, Κατ. 3, Χλώρακας, Paphos District, 8221, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:28.242Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1024",
+      "query": "Λεωφ. Αποστόλου Παύλου 60, Πάφος, Paphos District, 8046, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:29.860Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210327447,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 578599387,
+          "lat": "34.7729645",
+          "lon": "32.4186725",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8046, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8046",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7716532",
+            "34.7742462",
+            "32.4179768",
+            "32.4194253"
+          ]
+        },
+        {
+          "place_id": 210377295,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 1212634857,
+          "lat": "34.7706264",
+          "lon": "32.4177167",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8049, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8049",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7705924",
+            "34.7706605",
+            "32.4177032",
+            "32.4177302"
+          ]
+        },
+        {
+          "place_id": 210434585,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 487176861,
+          "lat": "34.7656562",
+          "lon": "32.4148097",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Κάτω Πάφος, Kato Paphos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8049, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "suburb": "Κάτω Πάφος",
+            "city_district": "Kato Paphos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8049",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7656256",
+            "34.7656868",
+            "32.4147738",
+            "32.4148456"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1035",
+      "query": "Ανεξαρτησίας 25, Πάφος, Paphos District, 8028, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:31.403Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210513655,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 1356354455,
+          "lat": "34.7741996",
+          "lon": "32.4382599",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Ανεξαρτησίας",
+          "display_name": "Λεωφόρος Ανεξαρτησίας, Paphos Industrial area, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8028, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Ανεξαρτησίας",
+            "hamlet": "Paphos Industrial area",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8028",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7738531",
+            "34.7748020",
+            "32.4371461",
+            "32.4394596"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1046",
+      "query": "Ακαμαντίδος 4, Πάφος, Paphos District, 8020, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:32.802Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210040045,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 9929306,
+          "lat": "34.7862343",
+          "lon": "32.4223412",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Akamantidos",
+          "display_name": "Akamantidos, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8016, Κύπρος",
+          "address": {
+            "road": "Akamantidos",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8016",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7837120",
+            "34.7885883",
+            "32.4216515",
+            "32.4234581"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1047",
+      "query": "Αγίας Ειρήνης 43, Τίμη, Paphos District, 8507, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:34.325Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1052",
+      "query": "Μαριου 17, Πόλις Χρυσοχούς, Paphos District, 8820, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:36.228Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210158847,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 1350006524,
+          "lat": "35.0446699",
+          "lon": "32.4408518",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338457846952007,
+          "addresstype": "road",
+          "name": "Μαρίου",
+          "display_name": "Μαρίου, Πολις, Πόλις Χρυσοχούς, Δήμος Πόλις Χρυσοχούς, Επαρχία Πάφου, Κύπρος, 8831, Κύπρος",
+          "address": {
+            "road": "Μαρίου",
+            "city_district": "Πολις",
+            "city": "Πόλις Χρυσοχούς",
+            "county": "Δήμος Πόλις Χρυσοχούς",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8831",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "35.0442456",
+            "35.0450942",
+            "32.4408355",
+            "32.4408681"
+          ]
+        },
+        {
+          "place_id": 210064421,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 1350010550,
+          "lat": "35.0472941",
+          "lon": "32.4417793",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338457846952007,
+          "addresstype": "road",
+          "name": "Λεωφόρος Μαρίου",
+          "display_name": "Λεωφόρος Μαρίου, Πολις, Πόλις Χρυσοχούς, Δήμος Πόλις Χρυσοχούς, Επαρχία Πάφου, Κύπρος, 8831, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Μαρίου",
+            "city_district": "Πολις",
+            "city": "Πόλις Χρυσοχούς",
+            "county": "Δήμος Πόλις Χρυσοχούς",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8831",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "35.0450942",
+            "35.0486681",
+            "32.4408681",
+            "32.4438141"
+          ]
+        },
+        {
+          "place_id": 210653375,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 587683446,
+          "lat": "35.0360121",
+          "lon": "32.4293956",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338457846952007,
+          "addresstype": "road",
+          "name": "Λεωφόρος Μαρίου",
+          "display_name": "Λεωφόρος Μαρίου, Πολις, Πόλις Χρυσοχούς, Δήμος Πόλις Χρυσοχούς, Επαρχία Πάφου, Κύπρος, 8820, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Μαρίου",
+            "city_district": "Πολις",
+            "city": "Πόλις Χρυσοχούς",
+            "county": "Δήμος Πόλις Χρυσοχούς",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8820",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "35.0359333",
+            "35.0360909",
+            "32.4291742",
+            "32.4296170"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1075",
+      "query": "Αρχ. Μακαρίου Γ΄ 107, Χλώρακας, Paphos District, 8221, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:37.675Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1078",
+      "query": "Θάσου 2, Κονιά, Paphos District, 8300, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:39.121Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210615846,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 5733962,
+          "lat": "34.7869504",
+          "lon": "32.4502574",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Θασου",
+          "display_name": "Θασου, Κονιά, Konia, Δήμος Ανατολικής Πάφου, Επαρχία Πάφου, Κύπρος, 8026, Κύπρος",
+          "address": {
+            "road": "Θασου",
+            "village": "Κονιά",
+            "city": "Konia",
+            "county": "Δήμος Ανατολικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8026",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7862556",
+            "34.7876145",
+            "32.4494501",
+            "32.4511356"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1091",
+      "query": "Θεσσαλονίκης 4, Πάφος, Paphos District, 8028, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:40.830Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 208657465,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 683719323,
+          "lat": "34.7567764",
+          "lon": "32.4543355",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05338469291218429,
+          "addresstype": "road",
+          "name": "Θεσσαλονίκης",
+          "display_name": "Θεσσαλονίκης, Acropolis, Γεροσκήπου (συνοικία), Γεροσκήπου, Δήμος Ανατολικής Πάφου, Επαρχία Πάφου, Κύπρος, 8201, Κύπρος",
+          "address": {
+            "road": "Θεσσαλονίκης",
+            "hamlet": "Acropolis",
+            "city_district": "Γεροσκήπου (συνοικία)",
+            "town": "Γεροσκήπου",
+            "county": "Δήμος Ανατολικής Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8201",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7565024",
+            "34.7570504",
+            "32.4541556",
+            "32.4545155"
+          ]
+        },
+        {
+          "place_id": 210465975,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 540359059,
+          "lat": "34.8820422",
+          "lon": "32.3757749",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05338508506904704,
+          "addresstype": "road",
+          "name": "Θεσσαλονίκης",
+          "display_name": "Θεσσαλονίκης, Πέγεια, Δήμος Ακάμα, Επαρχία Πάφου, Κύπρος, 8560, Κύπρος",
+          "address": {
+            "road": "Θεσσαλονίκης",
+            "town": "Πέγεια",
+            "county": "Δήμος Ακάμα",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8560",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8817728",
+            "34.8822221",
+            "32.3756750",
+            "32.3759949"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1105",
+      "query": "Αγαπήνωρος 24, Πάφος, Paphos District, 8049, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:43.039Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210069237,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 984181012,
+          "lat": "34.7711616",
+          "lon": "32.4180584",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Agapinoros",
+          "display_name": "Agapinoros, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8049, Κύπρος",
+          "address": {
+            "road": "Agapinoros",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8049",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7710673",
+            "34.7712484",
+            "32.4178849",
+            "32.4182278"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1106",
+      "query": "Αρχ. Μακαρίου III, 23, Χλώρακα, Paphos District, 8221, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:44.416Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1152",
+      "query": "Ελευθερίου Βενιζέλου 80, Πάφος, Paphos District, 8021, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:46.862Z",
+      "status": "accepted",
+      "providerResults": [
+        {
+          "place_id": 207677503,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 353144024,
+          "lat": "34.7820537",
+          "lon": "32.4390247",
+          "category": "building",
+          "type": "residential",
+          "place_rank": 30,
+          "importance": 0.00006279468986033443,
+          "addresstype": "building",
+          "name": "",
+          "display_name": "80, Λεωφόρος Ελευθερίου Βενιζέλου, Paphos Industrial area, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8021, Κύπρος",
+          "address": {
+            "house_number": "80",
+            "road": "Λεωφόρος Ελευθερίου Βενιζέλου",
+            "hamlet": "Paphos Industrial area",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8021",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7819641",
+            "34.7821433",
+            "32.4389192",
+            "32.4391302"
+          ]
+        }
+      ],
+      "reason": null,
+      "accepted": {
+        "latitude": 34.7820537,
+        "longitude": 32.4390247,
+        "resultIdentifier": "way:353144024",
+        "displayName": "80, Λεωφόρος Ελευθερίου Βενιζέλου, Paphos Industrial area, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8021, Κύπρος",
+        "quality": "high",
+        "reasons": [
+          "postcode",
+          "locality",
+          "street",
+          "house_number",
+          "country",
+          "district"
+        ]
+      }
+    },
+    {
+      "officialRegistrationNumber": "1170",
+      "query": "Λεωφ. Αφροδίτης 3, Aphrodite Hills, Κούκλια, Paphos District, 8509, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:48.765Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1177",
+      "query": "Ανδρέα Έλληνα, Oriental Complex, Shop 3, Πάφος, Paphos District, 8025, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:50.297Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1186",
+      "query": "Βασιλέως Στασίκου κατ. 3, Προδρόμι, Paphos District, 8854, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:52.099Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1210",
+      "query": "Μιχαλάκη Κυπριανού 116, Πέγεια, Paphos District, 8560, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:53.346Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210418422,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 684636872,
+          "lat": "34.8709390",
+          "lon": "32.3783221",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.05338508506904704,
+          "addresstype": "road",
+          "name": "Μιχαλάκη Κυπριανού",
+          "display_name": "Μιχαλάκη Κυπριανού, Πέγεια, Δήμος Ακάμα, Επαρχία Πάφου, Κύπρος, 8560, Κύπρος",
+          "address": {
+            "road": "Μιχαλάκη Κυπριανού",
+            "town": "Πέγεια",
+            "county": "Δήμος Ακάμα",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8560",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.8669352",
+            "34.8747515",
+            "32.3778096",
+            "32.3791337"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1216",
+      "query": "Αρχ. Μακαρίου Γ' 12, Γεροσκήπου, Paphos District, 8200, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:54.722Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1222",
+      "query": "Αχέπανς 4, Αναβαργός, Paphos District, 8026, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:56.205Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 207785921,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 866712437,
+          "lat": "34.7870722",
+          "lon": "32.4456361",
+          "category": "highway",
+          "type": "tertiary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Achepans",
+          "display_name": "Achepans, Anavargos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8026, Κύπρος",
+          "address": {
+            "road": "Achepans",
+            "city_district": "Anavargos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8026",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7856044",
+            "34.7884458",
+            "32.4446324",
+            "32.4464315"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1225",
+      "query": "Ελευθερίου Βενιζέλου 29, Πάφος, Paphos District, 8021, Cyprus",
+      "attemptedAt": "2026-08-31T22:30:58.118Z",
+      "status": "accepted",
+      "providerResults": [
+        {
+          "place_id": 208557584,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 353142964,
+          "lat": "34.7807699",
+          "lon": "32.4305923",
+          "category": "amenity",
+          "type": "hospital",
+          "place_rank": 30,
+          "importance": 0.00006279468986033443,
+          "addresstype": "amenity",
+          "name": "St George Clinic",
+          "display_name": "St George Clinic, 29, Λεωφόρος Ελευθερίου Βενιζέλου, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8062, Κύπρος",
+          "address": {
+            "amenity": "St George Clinic",
+            "house_number": "29",
+            "road": "Λεωφόρος Ελευθερίου Βενιζέλου",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8062",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7806124",
+            "34.7809200",
+            "32.4303541",
+            "32.4307064"
+          ]
+        },
+        {
+          "place_id": 210093392,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "node",
+          "osm_id": 292568963,
+          "lat": "34.7806750",
+          "lon": "32.4303898",
+          "category": "amenity",
+          "type": "pharmacy",
+          "place_rank": 30,
+          "importance": 0.00006279468986033443,
+          "addresstype": "amenity",
+          "name": "Ikaros",
+          "display_name": "Ikaros, 29, Λεωφόρος Ελευθερίου Βενιζέλου, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8062, Κύπρος",
+          "address": {
+            "amenity": "Ikaros",
+            "house_number": "29",
+            "road": "Λεωφόρος Ελευθερίου Βενιζέλου",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8062",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7806250",
+            "34.7807250",
+            "32.4303398",
+            "32.4304398"
+          ]
+        }
+      ],
+      "reason": null,
+      "accepted": {
+        "latitude": 34.780675,
+        "longitude": 32.4303898,
+        "resultIdentifier": "node:292568963",
+        "displayName": "Ikaros, 29, Λεωφόρος Ελευθερίου Βενιζέλου, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8062, Κύπρος",
+        "quality": "medium",
+        "reasons": [
+          "locality",
+          "street",
+          "house_number",
+          "pharmacy_poi",
+          "country",
+          "district"
+        ]
+      }
+    },
+    {
+      "officialRegistrationNumber": "1226",
+      "query": "Ανεξαρτησίας 11 & Επτανήσου 1, Πάφος, Paphos District, 8028, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:00.335Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1248",
+      "query": "Λεωφόρος Αγίου Νεοφύτου 12, Κατ. 1, Τρεμιθούσα, Paphos District, 8270, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:02.248Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1250",
+      "query": "Αμπελοκήπων 12, Πάφος, Paphos District, 8027, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:04.095Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1262",
+      "query": "Αρχ. Μακαρίου Γ, 106, Κατ. 1, Γεροσκήπου, Paphos District, 8200, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:05.588Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1265",
+      "query": "Χρίστου Κκέλη 10, Κατ. 4, Κισσόνεργα, Paphos District, 8574, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:07.740Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1280",
+      "query": "Αμάλθειας 2, Πάφος, Paphos District, 8021, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:09.240Z",
+      "status": "accepted",
+      "providerResults": [
+        {
+          "place_id": 209990725,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "node",
+          "osm_id": 4368540861,
+          "lat": "34.7872218",
+          "lon": "32.4388028",
+          "category": "amenity",
+          "type": "dentist",
+          "place_rank": 30,
+          "importance": 0.00006279468986033443,
+          "addresstype": "amenity",
+          "name": "Οδοντιατρείο Μιχάλη Τσέλεπου",
+          "display_name": "Οδοντιατρείο Μιχάλη Τσέλεπου, 2, Αμάλθειας, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8021, Κύπρος",
+          "address": {
+            "amenity": "Οδοντιατρείο Μιχάλη Τσέλεπου",
+            "house_number": "2",
+            "road": "Αμάλθειας",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8021",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7871718",
+            "34.7872718",
+            "32.4387528",
+            "32.4388528"
+          ]
+        }
+      ],
+      "reason": null,
+      "accepted": {
+        "latitude": 34.7872218,
+        "longitude": 32.4388028,
+        "resultIdentifier": "node:4368540861",
+        "displayName": "Οδοντιατρείο Μιχάλη Τσέλεπου, 2, Αμάλθειας, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8021, Κύπρος",
+        "quality": "high",
+        "reasons": [
+          "postcode",
+          "locality",
+          "street",
+          "house_number",
+          "country",
+          "district"
+        ]
+      }
+    },
+    {
+      "officialRegistrationNumber": "1308",
+      "query": "Λεωφ. Τάφοι των Βασιλέων, Μόρφου, Diamond Complex, κατάστημα 15, Πάφος, Paphos District, 8015, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:10.679Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1317",
+      "query": "Ακαμαντίδος 25, Πάφος, Paphos District, 8016, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:12.060Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 208663460,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 9929306,
+          "lat": "34.7862343",
+          "lon": "32.4223412",
+          "category": "highway",
+          "type": "secondary",
+          "place_rank": 26,
+          "importance": 0.053381122301060464,
+          "addresstype": "road",
+          "name": "Akamantidos",
+          "display_name": "Akamantidos, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8016, Κύπρος",
+          "address": {
+            "road": "Akamantidos",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8016",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7837120",
+            "34.7885883",
+            "32.4216515",
+            "32.4234581"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1332",
+      "query": "Αγίου Αντωνίου & Λεωφ. Ποσειδώνος, κατ. 20, Rodothea Court, Κάτω Πάφος, Paphos District, 8138, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:13.469Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1342",
+      "query": "Γρίβα Διγενή 51, Πόλις Χρυσοχούς, Paphos District, 8820, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:14.860Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 209796370,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 27333737,
+          "lat": "35.0349126",
+          "lon": "32.4239758",
+          "category": "highway",
+          "type": "pedestrian",
+          "place_rank": 26,
+          "importance": 0.05338457846952007,
+          "addresstype": "road",
+          "name": "Γρίβα Διγενή",
+          "display_name": "Γρίβα Διγενή, Πολις, Πόλις Χρυσοχούς, Δήμος Πόλις Χρυσοχούς, Επαρχία Πάφου, Κύπρος, 8820, Κύπρος",
+          "address": {
+            "road": "Γρίβα Διγενή",
+            "city_district": "Πολις",
+            "city": "Πόλις Χρυσοχούς",
+            "county": "Δήμος Πόλις Χρυσοχούς",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8820",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "35.0345588",
+            "35.0352641",
+            "32.4237181",
+            "32.4242302"
+          ]
+        },
+        {
+          "place_id": 207553414,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 8053677,
+          "lat": "35.0338080",
+          "lon": "32.4249092",
+          "category": "highway",
+          "type": "residential",
+          "place_rank": 26,
+          "importance": 0.05338457846952007,
+          "addresstype": "road",
+          "name": "Γρίβα Διγενή",
+          "display_name": "Γρίβα Διγενή, Πολις, Πόλις Χρυσοχούς, Δήμος Πόλις Χρυσοχούς, Επαρχία Πάφου, Κύπρος, 8820, Κύπρος",
+          "address": {
+            "road": "Γρίβα Διγενή",
+            "city_district": "Πολις",
+            "city": "Πόλις Χρυσοχούς",
+            "county": "Δήμος Πόλις Χρυσοχούς",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8820",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "35.0338075",
+            "35.0341487",
+            "32.4245324",
+            "32.4253692"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1345",
+      "query": "12 Αρχ. Μακαρίου ιιι, Κονιά, Paphos District, 8300, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:16.669Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1363",
+      "query": "Χρυσονέρα 60, Κισσόνεργα, Paphos District, 8574, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:18.289Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1369",
+      "query": "Λεωφ. Μεσόγης 111, Πάφος, Paphos District, 8280, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:19.539Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210726760,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 543583260,
+          "lat": "34.7932871",
+          "lon": "32.4362140",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Μεσόγης",
+          "display_name": "Λεωφόρος Μεσόγης, Agios Pavlos, Δήμος Πάφου, Σύμπλεγμα Κοινοτήτων Αγίου Νεοφύτου Πάφου, Επαρχία Πάφου, Κύπρος, 8063, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Μεσόγης",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "county": "Σύμπλεγμα Κοινοτήτων Αγίου Νεοφύτου Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8063",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7930880",
+            "34.7934862",
+            "32.4360825",
+            "32.4363455"
+          ]
+        },
+        {
+          "place_id": 210556310,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 543583261,
+          "lat": "34.7930558",
+          "lon": "32.4361738",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Μεσόγης",
+          "display_name": "Λεωφόρος Μεσόγης, Anavargos, Δήμος Πάφου, Σύμπλεγμα Κοινοτήτων Αγίου Νεοφύτου Πάφου, Επαρχία Πάφου, Κύπρος, 8063, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Μεσόγης",
+            "city_district": "Anavargos",
+            "city": "Δήμος Πάφου",
+            "county": "Σύμπλεγμα Κοινοτήτων Αγίου Νεοφύτου Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8063",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7927064",
+            "34.7934061",
+            "32.4359325",
+            "32.4364139"
+          ]
+        },
+        {
+          "place_id": 210631687,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 545069210,
+          "lat": "34.7928894",
+          "lon": "32.4359551",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Μεσόγης",
+          "display_name": "Λεωφόρος Μεσόγης, Agios Pavlos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8063, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Μεσόγης",
+            "city_district": "Agios Pavlos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8063",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7926908",
+            "34.7930880",
+            "32.4358278",
+            "32.4360825"
+          ]
+        },
+        {
+          "place_id": 210509931,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 543583262,
+          "lat": "34.7925686",
+          "lon": "32.4358451",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Μεσόγης",
+          "display_name": "Λεωφόρος Μεσόγης, Anavargos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8063, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Μεσόγης",
+            "city_district": "Anavargos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8063",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7924307",
+            "34.7927064",
+            "32.4357578",
+            "32.4359325"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1372",
+      "query": "Λεωφ. Αφροδίτης 2, Γεροσκήπου, Paphos District, 8201, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:20.935Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1374",
+      "query": "Ανθυπολοχαγού Γεωργίου Μιχαήλ Σάββα 18Α, Γεροσκήπου, Paphos District, 8201, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:22.541Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1375",
+      "query": "Λεωφ. Αποστόλου Παύλου 76, Κάτω Πάφος, Paphos District, 8046, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:24.059Z",
+      "status": "ambiguous",
+      "providerResults": [
+        {
+          "place_id": 210434585,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 487176861,
+          "lat": "34.7656562",
+          "lon": "32.4148097",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Κάτω Πάφος, Kato Paphos, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8049, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "suburb": "Κάτω Πάφος",
+            "city_district": "Kato Paphos",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8049",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7656256",
+            "34.7656868",
+            "32.4147738",
+            "32.4148456"
+          ]
+        },
+        {
+          "place_id": 210730122,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 487176862,
+          "lat": "34.7679706",
+          "lon": "32.4165076",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.12743869505990896,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8049, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8049",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7656868",
+            "34.7705924",
+            "32.4148456",
+            "32.4177032"
+          ]
+        },
+        {
+          "place_id": 210380889,
+          "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+          "osm_type": "way",
+          "osm_id": 9929120,
+          "lat": "34.7650340",
+          "lon": "32.4140370",
+          "category": "highway",
+          "type": "primary",
+          "place_rank": 26,
+          "importance": 0.05339612802319368,
+          "addresstype": "road",
+          "name": "Λεωφόρος Αποστόλου Παύλου",
+          "display_name": "Λεωφόρος Αποστόλου Παύλου, Έξω Βρύση, Agios Theodoros, Δήμος Πάφου, Επαρχία Πάφου, Κύπρος, 8046, Κύπρος",
+          "address": {
+            "road": "Λεωφόρος Αποστόλου Παύλου",
+            "hamlet": "Έξω Βρύση",
+            "city_district": "Agios Theodoros",
+            "city": "Δήμος Πάφου",
+            "state_district": "Επαρχία Πάφου",
+            "ISO3166-2-lvl5": "CY-05",
+            "state": "Κύπρος",
+            "postcode": "8046",
+            "country": "Κύπρος",
+            "country_code": "cy"
+          },
+          "boundingbox": [
+            "34.7644683",
+            "34.7656256",
+            "32.4132858",
+            "32.4147738"
+          ]
+        }
+      ],
+      "reason": "No result matched enough official postcode, locality, street, or house-number evidence.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1385",
+      "query": "Λεωφόρος Αποστόλου Παύλου 26, Κατάστημα 1 & 2, Πάφος, Paphos District, 8046, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:25.442Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1403",
+      "query": "Βασιλέως Στασιοίκου 1, Πόλις Χρυσοχούς, Paphos District, 8835, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:27.017Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    },
+    {
+      "officialRegistrationNumber": "1414",
+      "query": "Λεωφ. Ελλάδος 38, Πάφος, Paphos District, 8021, Cyprus",
+      "attemptedAt": "2026-08-31T22:31:28.556Z",
+      "status": "failed",
+      "providerResults": [],
+      "reason": "Provider returned no results.",
+      "accepted": null
+    }
+  ]
+}

@@ -1,6 +1,14 @@
 import { getCyprusDayWindow, localDateTimeToInstant } from "@/lib/domain/date";
 import type { AvailabilityInterval, Pharmacy } from "@/lib/domain/types";
 
+const syntheticCoordinateProvenance = {
+  geocodeProvider: null,
+  geocodeResultIdentifier: null,
+  geocodeQuery: null,
+  geocodeQuality: null,
+  geocodedAt: null,
+} as const;
+
 function interval(
   id: string,
   pharmacyId: string,
@@ -37,6 +45,7 @@ export function createFixturePharmacies(now: Date): Pharmacy[] {
       postalCode: "8042",
       latitude: 34.7559,
       longitude: 32.4076,
+      ...syntheticCoordinateProvenance,
       phoneE164: "+35726000001",
       housePhoneE164: null,
       housePhoneRaw: null,
@@ -66,6 +75,7 @@ export function createFixturePharmacies(now: Date): Pharmacy[] {
       postalCode: "8015",
       latitude: 34.7765,
       longitude: 32.4097,
+      ...syntheticCoordinateProvenance,
       phoneE164: "+35726000002",
       housePhoneE164: null,
       housePhoneRaw: null,
@@ -94,6 +104,7 @@ export function createFixturePharmacies(now: Date): Pharmacy[] {
       postalCode: "8010",
       latitude: 34.7761,
       longitude: 32.4218,
+      ...syntheticCoordinateProvenance,
       phoneE164: "+35726000003",
       housePhoneE164: null,
       housePhoneRaw: null,
@@ -121,6 +132,7 @@ export function createFixturePharmacies(now: Date): Pharmacy[] {
       postalCode: "8036",
       latitude: 34.7608,
       longitude: 32.4274,
+      ...syntheticCoordinateProvenance,
       phoneE164: "+35726000004",
       housePhoneE164: null,
       housePhoneRaw: null,
@@ -148,6 +160,7 @@ export function createFixturePharmacies(now: Date): Pharmacy[] {
       postalCode: "8220",
       latitude: 34.7986,
       longitude: 32.4072,
+      ...syntheticCoordinateProvenance,
       phoneE164: "+35726000005",
       housePhoneE164: null,
       housePhoneRaw: null,

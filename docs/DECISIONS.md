@@ -28,6 +28,9 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 | D-020 | 2026-08-31 | Use the checked-in normalized official snapshot when Supabase is unconfigured; keep synthetic fixtures only in tests and the development seed. | Local inspection gets traceable official identities and rota dates without requiring premature cloud credentials. Partial or failed configured Supabase access remains a visible error. |
 | D-021 | 2026-08-31 | Keep coordinates nullable and treat geocoding as a future separately sourced enrichment. | The official resources publish addresses but not coordinates. Imported pharmacies remain usable through address-based directions; distance is omitted rather than invented. |
 | D-022 | 2026-09-01 | Preserve an official house-phone field as raw text plus an ordered array of distinct valid E.164 values; populate the existing singular value only when exactly one distinct number exists. | Four directory fields contain multiple valid numbers with no stated priority. Keeping all values avoids data loss, while leaving the singular field null prevents an arbitrary Call target. The current UI remains conservative and continues to call only the separately published pharmacy telephone. |
+| D-023 | 2026-09-01 | Use public OpenStreetMap Nominatim for the one-time 90-record Paphos address enrichment, with a cached single-thread batch at 1.1-second intervals. | It requires no API key, account, or billing and is practical for this deliberately small run. Its public policy requires identifying requests, attribution, local caching, and at most one request per second; recurring or larger national production use must move to a suitable hosted provider or self-hosted service. Google Geocoding was not used because its API requires billing and credentials. |
+| D-024 | 2026-09-01 | Store geocoding provenance on `pharmacies`, accept only precise building/pharmacy results, and keep raw attempts in a separate checked-in artifact. | Coordinates are enrichment, never official directory facts. Provider, result ID, query, application quality grade, and time make accepted coordinates auditable without another MVP table. Road/town centroids and equal candidates remain ambiguous. Official upserts do not touch coordinate fields. |
+| D-025 | 2026-09-01 | When location is available, sort known distances nearest-first, place unknown distances after them, and initially show 10 results only in the normal All view. | This makes a small set of trusted nearby results immediately usable without hiding unmatched pharmacies. Show all restores the full list, On Duty is never truncated, and no-location behavior is unchanged. |
 
 ## Current assumptions requiring validation
 
@@ -40,9 +43,9 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 ## Decisions intentionally deferred
 
 - Automated ingestion frequency, reconciliation, correction, and stale-data policy after the current September 2026 coverage ends.
-- Production ranking and tie-breaking beyond truthful status and approximate distance.
+- Production ranking and tie-breaking beyond truthful status and the accepted nearest-first behavior.
 - Directions-provider strategy.
-- Geocoding provider and field-level provenance for enriched coordinates.
+- A replacement geocoding service or self-hosted Nominatim instance before recurring/national enrichment.
 - A trustworthy source for pharmacy-specific ordinary opening hours and timed duty modes.
 - Multilingual routing and content model.
 - Pharmacy verification and B2B authorization model.
@@ -54,3 +57,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - [Supabase: Postgres extensions](https://supabase.com/docs/guides/database/extensions)
 - [Supabase changelog: explicit Data/GraphQL API exposure](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically)
 - [PostgreSQL: Range types and exclusion constraints](https://www.postgresql.org/docs/current/rangetypes.html#RANGETYPES-CONSTRAINT)
+- [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/)
+- [Nominatim Search API](https://nominatim.org/release-docs/latest/api/Search/)
+- [OpenStreetMap copyright and attribution](https://www.openstreetmap.org/copyright)
+- [Google Geocoding API usage and billing](https://developers.google.com/maps/documentation/geocoding/usage-and-billing)

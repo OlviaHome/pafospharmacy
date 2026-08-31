@@ -32,6 +32,18 @@ npm run ingest:official
 
 To upsert the same normalized data into an already migrated Supabase project, set `SUPABASE_SECRET_KEY` only in the trusted local environment and run `npm run ingest:official -- --write-supabase`. Never expose that key to browser code or commit it.
 
+## Reconcile pharmacy coordinates
+
+The Paphos coordinate artifact is generated separately from official data with OpenStreetMap Nominatim:
+
+```bash
+npm run geocode:pharmacies -- --district Paphos
+```
+
+The checked-in cache makes that command reconciliation-only on normal reruns. `--refresh` deliberately requests fresh provider results and must continue to follow the [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/): one machine/thread, no more than one request per second, identifying requests, attribution, and local caching. Do not schedule the public endpoint or expand it to all districts as a routine job.
+
+After applying the geocoding migration, a trusted environment may add `--write-supabase`; this updates only accepted coordinate/provenance fields and requires `SUPABASE_URL` plus a local `SUPABASE_SECRET_KEY`. The official importer intentionally omits those fields so refreshing the directory cannot erase enrichment. Ambiguous and failed results remain review data and are never written as pharmacy coordinates.
+
 `SITE_URL` is optional and supplies the canonical origin for social metadata. It defaults to `http://localhost:3000`.
 
 ## Checks
@@ -43,4 +55,4 @@ npm test
 npm run build
 ```
 
-Normal runtime pharmacy identity and date-only duty data comes from Cyprus Pharmaceutical Services and is attributed under CC BY 4.0. The release covers duty assignments from 2026-05-01 through 2026-09-30; it does not publish ordinary opening hours, exact duty hours, service mode, or coordinates. Synthetic data remains only in tests and the development seed.
+Normal runtime pharmacy identity and date-only duty data comes from Cyprus Pharmaceutical Services and is attributed under CC BY 4.0. The release covers duty assignments from 2026-05-01 through 2026-09-30; it does not publish ordinary opening hours, exact duty hours, service mode, or coordinates. Accepted coordinates are separately attributed OpenStreetMap enrichment. Synthetic data remains only in tests and the development seed.

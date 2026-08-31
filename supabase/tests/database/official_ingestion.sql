@@ -1,6 +1,6 @@
 begin;
 
-select plan(11);
+select plan(16);
 
 select has_table('public', 'duty_assignments');
 select col_is_pk('public', 'duty_assignments', 'id');
@@ -9,6 +9,11 @@ select has_column('public', 'pharmacies', 'official_registration_number');
 select has_column('public', 'pharmacies', 'district');
 select has_column('public', 'pharmacies', 'house_phone_raw');
 select has_column('public', 'pharmacies', 'house_phone_e164_values');
+select has_column('public', 'pharmacies', 'geocode_provider');
+select has_column('public', 'pharmacies', 'geocode_result_identifier');
+select has_column('public', 'pharmacies', 'geocode_query');
+select has_column('public', 'pharmacies', 'geocode_quality');
+select has_column('public', 'pharmacies', 'geocoded_at');
 select col_is_null('public', 'pharmacies', 'latitude');
 select col_is_null('public', 'pharmacies', 'longitude');
 select has_index(

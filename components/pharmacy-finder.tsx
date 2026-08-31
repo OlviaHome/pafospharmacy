@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  ChevronDown,
   Clock3,
   LocateFixed,
   MapPin,
@@ -23,9 +24,16 @@ import {
   getCyprusDayWindow,
 } from "@/lib/domain/date";
 import { haversineDistanceKm } from "@/lib/domain/distance";
+import {
+  formatDistance,
+  sortPharmacyResults,
+  visiblePharmacyResults,
+  type PharmacyResult,
+} from "@/lib/domain/results";
 import type {
   AvailabilityInterval,
   Coordinates,
+  CoordinateAttribution,
   DataAttribution,
   Pharmacy,
   PharmacyDataSource,
@@ -40,11 +48,7 @@ interface PharmacyFinderProps {
   generatedAt: string;
   ordinaryOpeningDataAvailable: boolean;
   attribution: DataAttribution | null;
-}
-
-interface PharmacyResult {
-  pharmacy: Pharmacy;
-  distanceKm: number | null;
+  coordinateAttribution: CoordinateAttribution | null;
 }
 
 const filters: Record<SelectedDay, { value: AvailabilityFilter; label: string }[]> = {
@@ -190,7 +194,7 @@ function PharmacyCard({
         </div>
         {distanceKm !== null && (
           <span className="shrink-0 rounded-xl bg-[var(--surface-muted)] px-2.5 py-1.5 text-sm font-bold text-[var(--brand-strong)]">
-            ≈ {distanceKm < 10 ? distanceKm.toFixed(1) : Math.round(distanceKm)} km
+            ≈ {formatDistance(distanceKm)}
           </span>
         )}
       </div>
@@ -268,12 +272,14 @@ export function PharmacyFinder({
   generatedAt,
   ordinaryOpeningDataAvailable,
   attribution,
+  coordinateAttribution,
 }: PharmacyFinderProps) {
   const [selectedDay, setSelectedDay] = useState<SelectedDay>("today");
   const [filter, setFilter] = useState<AvailabilityFilter>("all");
   const [now, setNow] = useState(() => new Date(generatedAt));
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [locationState, setLocationState] = useState<LocationState>("idle");
+  const [resultsExpanded, setResultsExpanded] = useState(false);
 
   useEffect(() => {
     const initialLocalDate = getCyprusDayWindow(new Date(generatedAt)).localDate;
@@ -300,38 +306,49 @@ export function PharmacyFinder({
       now,
       ordinaryOpeningDataAvailable,
     );
-    return matching
-      .map((pharmacy) => ({
-        pharmacy,
-        distanceKm:
-          coordinates && pharmacy.latitude !== null && pharmacy.longitude !== null
+    const distanceResults = matching.map((pharmacy) => ({
+      pharmacy,
+      distanceKm:
+        coordinates && pharmacy.latitude !== null && pharmacy.longitude !== null
           ? haversineDistanceKm(coordinates, {
               latitude: pharmacy.latitude,
               longitude: pharmacy.longitude,
             })
           : null,
-      }))
-      .sort((left, right) => {
-        if (left.distanceKm !== null && right.distanceKm !== null) {
-          return left.distanceKm - right.distanceKm;
-        }
-        const leftAvailability = deriveAvailability(left.pharmacy.intervals, now, {
-          dutyAssignments: left.pharmacy.dutyAssignments,
-          ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
-        });
-        const rightAvailability = deriveAvailability(right.pharmacy.intervals, now, {
-          dutyAssignments: right.pharmacy.dutyAssignments,
-          ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
-        });
-        const score = (value: ReturnType<typeof deriveAvailability>) =>
-          (value.openNow === true ? 2 : 0) + (value.onDuty ? 1 : 0);
-        return score(rightAvailability) - score(leftAvailability);
+    }));
+    return sortPharmacyResults(distanceResults, (left, right) => {
+      const leftAvailability = deriveAvailability(left.pharmacy.intervals, now, {
+        dutyAssignments: left.pharmacy.dutyAssignments,
+        ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
       });
+      const rightAvailability = deriveAvailability(right.pharmacy.intervals, now, {
+        dutyAssignments: right.pharmacy.dutyAssignments,
+        ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
+      });
+      const score = (value: ReturnType<typeof deriveAvailability>) =>
+        (value.openNow === true ? 2 : 0) + (value.onDuty ? 1 : 0);
+      return score(rightAvailability) - score(leftAvailability);
+    });
   }, [coordinates, dayWindow, filter, now, ordinaryOpeningDataAvailable, pharmacies]);
+  const visibleResults = useMemo(
+    () =>
+      visiblePharmacyResults(results, {
+        filter,
+        locationKnown: locationState === "ready",
+        expanded: resultsExpanded,
+      }),
+    [filter, locationState, results, resultsExpanded],
+  );
 
   function chooseDay(day: SelectedDay) {
     setSelectedDay(day);
+    setResultsExpanded(false);
     if (day === "tomorrow" && filter === "open_now") setFilter("all");
+  }
+
+  function chooseFilter(nextFilter: AvailabilityFilter) {
+    setFilter(nextFilter);
+    setResultsExpanded(false);
   }
 
   function requestLocation() {
@@ -348,6 +365,7 @@ export function PharmacyFinder({
           longitude: position.coords.longitude,
         });
         setLocationState("ready");
+        setResultsExpanded(false);
       },
       (error) => {
         setCoordinates(null);
@@ -405,6 +423,22 @@ export function PharmacyFinder({
         </aside>
       )}
 
+      {coordinateAttribution && (
+        <aside className="mb-4 rounded-2xl border border-[#d6ddd8] bg-[#f5f8f6] px-4 py-3 text-sm leading-5 text-[#405149]">
+          Coordinates, where available, are separate address enrichment from{" "}
+          <a
+            className="font-bold underline"
+            href={coordinateAttribution.attributionUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {coordinateAttribution.attribution}
+          </a>{" "}
+          via {coordinateAttribution.provider} ({coordinateAttribution.license}). Official
+          addresses remain unchanged.
+        </aside>
+      )}
+
       <section aria-label="Search controls" className="mb-5 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--shadow)]">
         <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[var(--surface-muted)] p-1">
           {(["today", "tomorrow"] as const).map((day) => (
@@ -432,7 +466,7 @@ export function PharmacyFinder({
                 key={option.value}
                 type="button"
                 aria-pressed={filter === option.value}
-                onClick={() => setFilter(option.value)}
+                onClick={() => chooseFilter(option.value)}
                 className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-bold transition-colors ${
                   filter === option.value
                     ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
@@ -473,13 +507,15 @@ export function PharmacyFinder({
             </h2>
           </div>
           <span className="shrink-0 text-sm font-semibold text-[var(--ink-muted)]">
-            {results.length} {results.length === 1 ? "result" : "results"}
+            {visibleResults.length < results.length
+              ? `Showing ${visibleResults.length} of ${results.length}`
+              : `${results.length} ${results.length === 1 ? "result" : "results"}`}
           </span>
         </div>
 
         {results.length > 0 ? (
           <div className="space-y-4">
-            {results.map((result) => (
+            {visibleResults.map((result) => (
               <PharmacyCard
                 key={result.pharmacy.id}
                 result={result}
@@ -488,6 +524,16 @@ export function PharmacyFinder({
                 ordinaryOpeningDataAvailable={ordinaryOpeningDataAvailable}
               />
             ))}
+            {visibleResults.length < results.length && (
+              <button
+                type="button"
+                onClick={() => setResultsExpanded(true)}
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--line-strong)] bg-white px-5 text-sm font-extrabold text-[var(--brand-strong)] transition-colors hover:bg-[var(--surface-muted)]"
+              >
+                <ChevronDown className="size-5" aria-hidden="true" />
+                Show all {results.length} pharmacies
+              </button>
+            )}
           </div>
         ) : (
           <div className="rounded-3xl border border-dashed border-[var(--line-strong)] bg-[var(--surface)] px-5 py-10 text-center">
@@ -497,7 +543,7 @@ export function PharmacyFinder({
             </p>
             <button
               type="button"
-              onClick={() => setFilter("all")}
+              onClick={() => chooseFilter("all")}
               className="mt-4 min-h-11 rounded-2xl border border-[var(--line-strong)] px-5 text-sm font-bold text-[var(--brand-strong)]"
             >
               Show all
