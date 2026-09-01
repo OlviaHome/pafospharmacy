@@ -7,12 +7,12 @@ export type GeocodingRecordStatus =
   | "failed"
   | "already_present";
 
-export interface GeocodingRecord {
+export interface GeocodingRecord<ProviderResult = NominatimResult> {
   officialRegistrationNumber: string;
   query: string;
   attemptedAt: string;
   status: GeocodingRecordStatus;
-  providerResults: NominatimResult[];
+  providerResults: ProviderResult[];
   reason: string | null;
   accepted: {
     latitude: number;
@@ -21,6 +21,7 @@ export interface GeocodingRecord {
     displayName: string;
     quality: GeocodeQuality;
     reasons: string[];
+    matchMetadata?: unknown;
   } | null;
 }
 
@@ -34,7 +35,7 @@ export interface GeocodingReport {
   qualityDistribution: Record<GeocodeQuality, number>;
 }
 
-export interface GeocodingSnapshot {
+export interface GeocodingSnapshot<ProviderResult = NominatimResult> {
   metadata: {
     schemaVersion: 1;
     generatedAt: string;
@@ -54,11 +55,11 @@ export interface GeocodingSnapshot {
     };
   };
   report: GeocodingReport;
-  records: GeocodingRecord[];
+  records: GeocodingRecord<ProviderResult>[];
 }
 
-export function summarizeGeocodingRecords(
-  records: GeocodingRecord[],
+export function summarizeGeocodingRecords<ProviderResult>(
+  records: GeocodingRecord<ProviderResult>[],
 ): GeocodingReport {
   return {
     selectedPharmacies: records.length,
@@ -74,4 +75,34 @@ export function summarizeGeocodingRecords(
       medium: records.filter((record) => record.accepted?.quality === "medium").length,
     },
   };
+}
+
+export function rejectDuplicateAcceptedResultIdentifiers<ProviderResult>(
+  records: GeocodingRecord<ProviderResult>[],
+): GeocodingRecord<ProviderResult>[] {
+  const counts = new Map<string, number>();
+  for (const record of records) {
+    if (record.status !== "accepted" || !record.accepted) continue;
+    counts.set(
+      record.accepted.resultIdentifier,
+      (counts.get(record.accepted.resultIdentifier) ?? 0) + 1,
+    );
+  }
+
+  return records.map((record) => {
+    if (
+      record.status !== "accepted" ||
+      !record.accepted ||
+      (counts.get(record.accepted.resultIdentifier) ?? 0) < 2
+    ) {
+      return record;
+    }
+    return {
+      ...record,
+      status: "ambiguous",
+      reason:
+        "Provider reused one result identifier for multiple official pharmacy addresses.",
+      accepted: null,
+    };
+  });
 }

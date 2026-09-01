@@ -51,7 +51,7 @@ interface CandidateEvaluation {
   reasons: string[];
 }
 
-const CYPRUS_BOUNDS = {
+export const CYPRUS_BOUNDS = {
   south: 34.4,
   north: 35.8,
   west: 31.9,
@@ -88,15 +88,19 @@ const STREET_STOP_WORDS = new Set([
   "αρχ",
   "avenue",
   "ave",
+  "κατ",
+  "καταστημα",
   "λεωφ",
   "λεωφοροσ",
+  "no",
   "οδοσ",
   "road",
+  "shop",
   "street",
   "str",
 ]);
 
-function inBounds(
+export function coordinatesInBounds(
   latitude: number,
   longitude: number,
   bounds: typeof CYPRUS_BOUNDS,
@@ -152,10 +156,11 @@ export function buildNominatimSearchUrl(query: string): string {
   return url.toString();
 }
 
-function localityAliases(locality: string): string[] {
+export function geocodingLocalityAliases(locality: string): string[] {
   const normalized = normalizeGeocodingText(locality);
   const knownAliases: Record<string, string[]> = {
     "παφοσ": ["παφοσ", "παφου", "paphos", "pafos"],
+    "παφου": ["παφοσ", "παφου", "paphos", "pafos"],
     "κατω παφοσ": ["κατω παφοσ", "kato paphos", "kato pafos"],
     "γεροσκηπου": ["γεροσκηπου", "geroskipou", "yeroskipou"],
     "πολισ χρυσοχουσ": ["πολισ χρυσοχουσ", "πολη χρυσοχουσ", "polis chrysochous"],
@@ -175,11 +180,11 @@ function localityAliases(locality: string): string[] {
   return knownAliases[normalized] ?? [normalized];
 }
 
-function textContainsAlias(text: string, aliases: string[]): boolean {
+export function textContainsGeocodingAlias(text: string, aliases: string[]): boolean {
   return aliases.some((alias) => text.includes(normalizeGeocodingText(alias)));
 }
 
-function significantStreetTokens(addressLine: string): string[] {
+export function significantGeocodingStreetTokens(addressLine: string): string[] {
   return normalizeGeocodingText(addressLine)
     .split(" ")
     .filter(
@@ -190,7 +195,7 @@ function significantStreetTokens(addressLine: string): string[] {
     );
 }
 
-function sourceHouseNumbers(addressLine: string): string[] {
+export function geocodingHouseNumbers(addressLine: string): string[] {
   return normalizeGeocodingText(addressLine).match(/\b\d+[a-zα-ω]*\b/gu) ?? [];
 }
 
@@ -211,7 +216,7 @@ function evaluateCandidate(
     !Number.isFinite(latitude) ||
     !Number.isFinite(longitude) ||
     countryCode !== "cy" ||
-    !inBounds(latitude, longitude, CYPRUS_BOUNDS)
+    !coordinatesInBounds(latitude, longitude, CYPRUS_BOUNDS)
   ) {
     return null;
   }
@@ -220,7 +225,10 @@ function evaluateCandidate(
   const sourcePostcode = normalizeGeocodingText(source.postalCode ?? "");
   const resultPostcode = normalizeGeocodingText(result.address?.postcode ?? "");
   const postcodeMatch = sourcePostcode !== "" && resultPostcode === sourcePostcode;
-  const localityMatch = textContainsAlias(text, localityAliases(source.locality));
+  const localityMatch = textContainsGeocodingAlias(
+    text,
+    geocodingLocalityAliases(source.locality),
+  );
   const districtText = normalizeGeocodingText(source.district ?? "");
   const districtRule = DISTRICT_RULES[districtText];
   const resultDistrictCode =
@@ -230,16 +238,16 @@ function evaluateCandidate(
     (districtRule
       ? resultDistrictCode
         ? resultDistrictCode === districtRule.isoCode
-        : textContainsAlias(text, districtRule.aliases)
+        : textContainsGeocodingAlias(text, districtRule.aliases)
       : text.includes(districtText));
   if (!districtMatch) return null;
 
-  const streetTokens = significantStreetTokens(source.addressLine);
+  const streetTokens = significantGeocodingStreetTokens(source.addressLine);
   const matchingStreetTokens = streetTokens.filter((token) => text.includes(token));
   const streetMatch =
     streetTokens.length > 0 &&
     matchingStreetTokens.length >= Math.min(2, streetTokens.length);
-  const houseNumbers = sourceHouseNumbers(source.addressLine);
+  const houseNumbers = geocodingHouseNumbers(source.addressLine);
   const resultHouseNumber = normalizeGeocodingText(result.address?.house_number ?? "");
   const houseNumberMatch = resultHouseNumber !== "" && houseNumbers.includes(resultHouseNumber);
   const pharmacyMatch =

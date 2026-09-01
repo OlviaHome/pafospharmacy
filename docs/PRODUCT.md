@@ -41,14 +41,16 @@ The first slice includes only:
 - Supabase/PostgreSQL with `pharmacies`, timed `availability_intervals`, and date-only `duty_assignments` tables.
 - Official Cyprus Pharmaceutical Services pharmacy identities and date-only rota assignments, with visible CC BY 4.0 attribution.
 - Availability calculated only from explicit timed facts; duty assignment may also come from an explicit official date record.
-- Optional browser geolocation and approximate distance to each pharmacy.
+- Optional browser geolocation or a user-selected Paphos area/address as the origin for approximate distance.
 - An **Open Now** filter for the current instant only when trustworthy opening data is available.
 - An **On Duty** filter for the selected local calendar day.
 - A Today/Tomorrow selector using Cyprus local time.
 - Call and directions actions.
 - English-only UI.
 
-The default experience must remain useful when location permission is denied or unavailable; distances may be omitted while pharmacy status, address, call, and directions remain accessible.
+The default experience must remain useful when location permission is denied or unavailable. Users have three explicit paths: **Use my location**, **Enter area or address**, or browse every pharmacy without sharing location. A denied device permission exposes manual search immediately rather than ending in an error. No origin is required for pharmacy status, address, call, or directions.
+
+Manual search accepts Paphos areas, municipalities, streets, landmarks, hotels, and addresses supported by the geocoder. The user chooses from a short list of Cyprus/Paphos-constrained matches; the application never silently selects among multiple plausible locations.
 
 ## Day and filter behavior
 

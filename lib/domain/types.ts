@@ -85,6 +85,7 @@ export interface DataAttribution {
 }
 
 export interface CoordinateAttribution {
+  providerId: string;
   provider: string;
   attribution: string;
   attributionUrl: string;
@@ -100,5 +101,5 @@ export interface PharmacyDataset {
   generatedAt: string;
   ordinaryOpeningDataAvailable: boolean;
   attribution: DataAttribution | null;
-  coordinateAttribution: CoordinateAttribution | null;
+  coordinateAttributions: CoordinateAttribution[];
 }

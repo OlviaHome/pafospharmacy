@@ -44,6 +44,14 @@ The checked-in cache makes that command reconciliation-only on normal reruns. `-
 
 After applying the geocoding migration, a trusted environment may add `--write-supabase`; this updates only accepted coordinate/provenance fields and requires `SUPABASE_URL` plus a local `SUPABASE_SECRET_KEY`. The official importer intentionally omits those fields so refreshing the directory cannot erase enrichment. Ambiguous and failed results remain review data and are never written as pharmacy coordinates.
 
+Geoapify is used only for records unresolved by Nominatim and for manual Paphos location search. Create a free server key at [Geoapify MyProjects](https://myprojects.geoapify.com/) and add it to `.env.local` as `GEOAPIFY_API_KEY` (never `NEXT_PUBLIC_GEOAPIFY_API_KEY`). The checked-in second-provider cache makes normal reruns reconciliation-only:
+
+```bash
+npm run geocode:geoapify
+```
+
+Use `--refresh` only for an intentional new provider pass. The app keeps the key behind `/api/location-search`; selected GPS and manual origins stay in browser memory and are not persisted. Geoapify and underlying source attribution must remain visible when its results are used.
+
 `SITE_URL` is optional and supplies the canonical origin for social metadata. It defaults to `http://localhost:3000`.
 
 ## Checks
@@ -55,4 +63,4 @@ npm test
 npm run build
 ```
 
-Normal runtime pharmacy identity and date-only duty data comes from Cyprus Pharmaceutical Services and is attributed under CC BY 4.0. The release covers duty assignments from 2026-05-01 through 2026-09-30; it does not publish ordinary opening hours, exact duty hours, service mode, or coordinates. Accepted coordinates are separately attributed OpenStreetMap enrichment. Synthetic data remains only in tests and the development seed.
+Normal runtime pharmacy identity and date-only duty data comes from Cyprus Pharmaceutical Services and is attributed under CC BY 4.0. The release covers duty assignments from 2026-05-01 through 2026-09-30; it does not publish ordinary opening hours, exact duty hours, service mode, or coordinates. Accepted coordinates are separately attributed Nominatim/OpenStreetMap or Geoapify enrichment. Synthetic data remains only in tests and the development seed.

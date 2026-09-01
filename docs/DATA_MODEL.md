@@ -30,8 +30,8 @@ One row represents one pharmacy location. The internal identity remains `id`; `o
 | `house_phone_e164_values` | `text[]` | yes | Distinct valid normalized numbers in source order; defaults to an empty array. Multiple values have no implied priority. |
 | `house_phone_e164` | `text` | no | Conservative singular convenience value, populated only when the source field resolves to exactly one distinct valid number. It is not automatically treated as an on-call instruction. |
 | `latitude` / `longitude` | `double precision` | no | Nullable WGS84 enrichment. Both are null or both are present; the official files do not publish them. |
-| `geocode_provider` | `text` | no | Provider identifier for geocoded coordinates, currently `openstreetmap_nominatim`. |
-| `geocode_result_identifier` | `text` | no | Accepted provider result key. Nominatim uses the OSM object type and ID rather than its unstable internal `place_id`. |
+| `geocode_provider` | `text` | no | Provider identifier for geocoded coordinates, currently `openstreetmap_nominatim` or `geoapify`. |
+| `geocode_result_identifier` | `text` | no | Accepted provider result key. Nominatim uses the OSM object type and ID; Geoapify uses its returned `place_id`. |
 | `geocode_query` | `text` | no | Exact official-address query submitted to the provider. |
 | `geocode_quality` | `text` | no | Conservative application grade: `high` or `medium`; not a provider confidence score. |
 | `geocoded_at` | `timestamptz` | no | Retrieval instant for the accepted result. |
@@ -119,11 +119,15 @@ The current snapshot contains the 2026 private-pharmacy directory and May–Sept
 
 The importer stores pharmacy identity/provenance and date-only duty assignments. It creates no ordinary-opening intervals, duty intervals, service modes, or coordinates from these files. Synthetic intervals remain limited to automated tests and the development seed.
 
-## Geocoding enrichment snapshot
+## Geocoding enrichment snapshots
 
 `data/geocoding/paphos-nominatim-2026.json` is a separately versioned enrichment artifact keyed by official registration number. It contains provider/policy/license metadata, source-snapshot identity, exact queries and timestamps, cached raw results, reconciliation outcomes, accepted coordinates, and aggregate counts.
 
+`data/geocoding/paphos-geoapify-2026.json` has the same purpose for only the 82 Paphos pharmacies not accepted by Nominatim. It additionally retains provider confidence/match metadata and each result's underlying datasource attribution. Geoapify accepted 20 records after cross-record duplicate-result and non-pharmacy-amenity rejection; combined coverage is 28 of 90. The two artifacts remain separate so each provider's provenance and terms stay auditable.
+
 Only `accepted` records are merged into application data or written to coordinate columns. An accepted result must remain in Cyprus and Paphos and match a precise building/house or pharmacy POI using source-backed locality/postcode/street evidence. Street-only and locality-only coordinates are intentionally `ambiguous`, even when useful as search hints, because they are unsafe as Directions destinations. `failed` means the provider returned no result; it does not mean the official pharmacy or address is invalid.
+
+`searchOrigin` is transient application state, not a database entity. GPS and selected manual-location coordinates are deliberately absent from the schema and are never stored as pharmacy coordinates.
 
 ## Deferred concepts
 

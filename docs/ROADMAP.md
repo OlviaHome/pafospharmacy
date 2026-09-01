@@ -12,6 +12,8 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - All published districts retained in data; the UI remains Paphos-only and displays 90 real pharmacy identities with applicable official date-only assignments.
 - Nullable coordinates, address-based Directions, and no invented ordinary hours, duty hours, opening mode, or on-call mode.
 - Reproducible Paphos-only Nominatim enrichment with cached raw results, conservative ambiguity handling, separate coordinate provenance, and eight accepted precise matches.
+- Geoapify second-provider reconciliation for the 82 unresolved records, with 20 additional accepted coordinates, retained provider/source provenance, and conservative rejection of reused geometries and non-pharmacy amenities.
+- Three optional proximity paths—GPS, explicit manual Paphos location selection, or browse-all—using transient `searchOrigin` state and no GPS persistence.
 - Located results sorted nearest-first with unknown distances retained, human-readable distance, a nearest-10 progressive reveal for All, and untruncated On Duty results.
 
 ## NOW — validate the official-data experience
@@ -25,7 +27,7 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 
 - Find and validate a pharmacy-specific ordinary-opening source before enabling real-data Open Now filtering.
 - Find a trustworthy timed source for `duty/open` or `duty/on_call`; keep those facts in `availability_intervals` only.
-- Review ambiguous geocoding records manually or adopt a suitable production geocoder before expanding coordinate coverage; never downgrade to road/town centroids as pharmacy destinations.
+- Review the remaining 62 pharmacies without trusted coordinates using source corrections or manual evidence; never downgrade to road/town centroids as pharmacy destinations.
 - Schedule the existing importer only after refresh, failure, alerting, and reconciliation behavior are accepted.
 - Decide the next language based on validated need and design the translation/content boundary.
 

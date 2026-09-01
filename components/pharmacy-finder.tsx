@@ -9,6 +9,8 @@ import {
   Navigation,
   Phone,
   Plus,
+  Search,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -38,9 +40,17 @@ import type {
   Pharmacy,
   PharmacyDataSource,
 } from "@/lib/domain/types";
+import type { ManualLocationSuggestion } from "@/lib/geocoding/geoapify";
+import {
+  geolocationFallbackMessage,
+  gpsSearchOrigin,
+  manualSearchOrigin,
+  type GeolocationStatus,
+  type SearchOrigin,
+} from "@/lib/location/search-origin";
 
 type SelectedDay = "today" | "tomorrow";
-type LocationState = "idle" | "locating" | "ready" | "denied" | "unavailable";
+type ManualSearchStatus = "idle" | "searching" | "error";
 
 interface PharmacyFinderProps {
   pharmacies: Pharmacy[];
@@ -48,7 +58,7 @@ interface PharmacyFinderProps {
   generatedAt: string;
   ordinaryOpeningDataAvailable: boolean;
   attribution: DataAttribution | null;
-  coordinateAttribution: CoordinateAttribution | null;
+  coordinateAttributions: CoordinateAttribution[];
 }
 
 const filters: Record<SelectedDay, { value: AvailabilityFilter; label: string }[]> = {
@@ -272,14 +282,24 @@ export function PharmacyFinder({
   generatedAt,
   ordinaryOpeningDataAvailable,
   attribution,
-  coordinateAttribution,
+  coordinateAttributions,
 }: PharmacyFinderProps) {
   const [selectedDay, setSelectedDay] = useState<SelectedDay>("today");
   const [filter, setFilter] = useState<AvailabilityFilter>("all");
   const [now, setNow] = useState(() => new Date(generatedAt));
-  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const [locationState, setLocationState] = useState<LocationState>("idle");
+  const [searchOrigin, setSearchOrigin] = useState<SearchOrigin | null>(null);
+  const [geolocationStatus, setGeolocationStatus] =
+    useState<GeolocationStatus>("idle");
+  const [manualSearchOpen, setManualSearchOpen] = useState(false);
+  const [manualQuery, setManualQuery] = useState("");
+  const [manualSearchStatus, setManualSearchStatus] =
+    useState<ManualSearchStatus>("idle");
+  const [manualSearchError, setManualSearchError] = useState<string | null>(null);
+  const [manualSuggestions, setManualSuggestions] = useState<
+    ManualLocationSuggestion[]
+  >([]);
   const [resultsExpanded, setResultsExpanded] = useState(false);
+  const coordinates: Coordinates | null = searchOrigin?.coordinates ?? null;
 
   useEffect(() => {
     const initialLocalDate = getCyprusDayWindow(new Date(generatedAt)).localDate;
@@ -334,10 +354,10 @@ export function PharmacyFinder({
     () =>
       visiblePharmacyResults(results, {
         filter,
-        locationKnown: locationState === "ready",
+        locationKnown: searchOrigin !== null,
         expanded: resultsExpanded,
       }),
-    [filter, locationState, results, resultsExpanded],
+    [filter, results, resultsExpanded, searchOrigin],
   );
 
   function chooseDay(day: SelectedDay) {
@@ -353,36 +373,104 @@ export function PharmacyFinder({
 
   function requestLocation() {
     if (!("geolocation" in navigator)) {
-      setLocationState("unavailable");
+      setGeolocationStatus("unavailable");
+      setManualSearchOpen(true);
       return;
     }
 
-    setLocationState("locating");
+    setGeolocationStatus("locating");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCoordinates({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        setLocationState("ready");
+        setSearchOrigin(
+          gpsSearchOrigin({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }),
+        );
+        setGeolocationStatus("ready");
         setResultsExpanded(false);
       },
       (error) => {
-        setCoordinates(null);
-        setLocationState(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable");
+        setGeolocationStatus(
+          error.code === error.PERMISSION_DENIED ? "denied" : "unavailable",
+        );
+        setManualSearchOpen(true);
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
     );
   }
 
-  const locationMessage =
-    locationState === "denied"
-      ? "Location permission was declined. Results still work without distance sorting."
-      : locationState === "unavailable"
-        ? "Location is unavailable. Results still work without distance sorting."
-        : locationState === "ready"
-          ? "Showing approximate straight-line distance, nearest first."
-          : null;
+  async function searchManualLocation(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = manualQuery.trim();
+    if (query.length < 2) {
+      setManualSearchStatus("error");
+      setManualSearchError("Enter an area, landmark, hotel, or address.");
+      return;
+    }
+
+    setManualSearchStatus("searching");
+    setManualSearchError(null);
+    setManualSuggestions([]);
+    try {
+      const response = await fetch("/api/location-search", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+      const body = (await response.json()) as {
+        suggestions?: ManualLocationSuggestion[];
+        error?: string;
+      };
+      if (!response.ok) throw new Error(body.error ?? "Location search failed.");
+      if (!body.suggestions?.length) {
+        setManualSearchStatus("error");
+        setManualSearchError(
+          "No matching Paphos location was found. Try a nearby area or fuller address.",
+        );
+        return;
+      }
+      setManualSuggestions(body.suggestions);
+      setManualSearchStatus("idle");
+    } catch (error) {
+      setManualSearchStatus("error");
+      setManualSearchError(
+        error instanceof Error
+          ? error.message
+          : "Location search is temporarily unavailable.",
+      );
+    }
+  }
+
+  function chooseManualLocation(suggestion: ManualLocationSuggestion) {
+    setSearchOrigin(
+      manualSearchOrigin({
+        label: suggestion.label,
+        coordinates: {
+          latitude: suggestion.latitude,
+          longitude: suggestion.longitude,
+        },
+        resultIdentifier: suggestion.resultIdentifier,
+      }),
+    );
+    setGeolocationStatus("idle");
+    setManualSuggestions([]);
+    setManualSearchError(null);
+    setManualSearchStatus("idle");
+    setManualSearchOpen(false);
+    setResultsExpanded(false);
+  }
+
+  function clearSearchOrigin() {
+    setSearchOrigin(null);
+    if (geolocationStatus === "ready") setGeolocationStatus("idle");
+    setResultsExpanded(false);
+  }
+
+  const gpsUnavailable =
+    geolocationStatus === "denied" || geolocationStatus === "unavailable";
+  const locationMessage = geolocationFallbackMessage(geolocationStatus);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
@@ -423,19 +511,24 @@ export function PharmacyFinder({
         </aside>
       )}
 
-      {coordinateAttribution && (
+      {coordinateAttributions.length > 0 && (
         <aside className="mb-4 rounded-2xl border border-[#d6ddd8] bg-[#f5f8f6] px-4 py-3 text-sm leading-5 text-[#405149]">
-          Coordinates, where available, are separate address enrichment from{" "}
-          <a
-            className="font-bold underline"
-            href={coordinateAttribution.attributionUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {coordinateAttribution.attribution}
-          </a>{" "}
-          via {coordinateAttribution.provider} ({coordinateAttribution.license}). Official
-          addresses remain unchanged.
+          Coordinates, where available, are separate address enrichment. Providers:{" "}
+          {coordinateAttributions.map((item, index) => (
+            <span key={item.providerId}>
+              {index > 0 ? "; " : ""}
+              <a
+                className="font-bold underline"
+                href={item.attributionUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {item.attribution}
+              </a>{" "}
+              via {item.provider}
+            </span>
+          ))}
+          . Official addresses remain unchanged.
         </aside>
       )}
 
@@ -478,22 +571,147 @@ export function PharmacyFinder({
             ))}
         </div>
 
-        <button
-          type="button"
-          onClick={requestLocation}
-          disabled={locationState === "locating"}
-          className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-5 text-sm font-extrabold text-white transition-colors hover:bg-[var(--brand-strong)] disabled:cursor-wait disabled:opacity-70"
-        >
-          <LocateFixed className="size-5" aria-hidden="true" />
-          {locationState === "locating"
-            ? "Finding your location…"
-            : locationState === "ready"
-              ? "Update my location"
-              : "Use my location"}
-        </button>
-        <p aria-live="polite" className="mt-2 min-h-5 text-xs leading-5 text-[var(--ink-muted)]">
-          {locationMessage ?? "Location is optional and requested only when you tap the button."}
-        </p>
+        <div className="mt-4 border-t border-[var(--line)] pt-4">
+          <h2 className="text-base font-extrabold text-[var(--ink)]">
+            Find pharmacies near you
+          </h2>
+          <p className="mt-1 text-sm leading-5 text-[var(--ink-muted)]">
+            You can also browse all pharmacies without sharing your location.
+          </p>
+
+          {searchOrigin && (
+            <div className="mt-3 flex items-start justify-between gap-3 rounded-2xl bg-[var(--brand-soft)] px-3 py-3">
+              <p className="min-w-0 text-sm leading-5 text-[var(--brand-strong)]">
+                <span className="font-extrabold">Near:</span>{" "}
+                <span className="break-words">{searchOrigin.label}</span>
+              </p>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setManualSearchOpen(true)}
+                  className="text-xs font-extrabold text-[var(--brand-strong)] underline"
+                >
+                  Change
+                </button>
+                <button
+                  type="button"
+                  onClick={clearSearchOrigin}
+                  className="flex items-center gap-1 text-xs font-extrabold text-[var(--brand-strong)] underline"
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={requestLocation}
+            disabled={geolocationStatus === "locating" || gpsUnavailable}
+            className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-5 text-sm font-extrabold text-white transition-colors hover:bg-[var(--brand-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <LocateFixed className="size-5" aria-hidden="true" />
+            {geolocationStatus === "locating"
+              ? "Finding your location…"
+              : gpsUnavailable
+                ? "Location unavailable"
+                : searchOrigin?.source === "gps"
+                  ? "Update my location"
+                  : "Use my location"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setManualSearchOpen((open) => !open)}
+            className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--line-strong)] bg-white px-5 text-sm font-extrabold text-[var(--brand-strong)]"
+          >
+            <Search className="size-4" aria-hidden="true" />
+            Enter area or address
+          </button>
+
+          {(manualSearchOpen || gpsUnavailable) && (
+            <div className="mt-3 rounded-2xl bg-[var(--surface-muted)] p-3">
+              <form onSubmit={searchManualLocation} className="flex gap-2">
+                <label htmlFor="manual-location" className="sr-only">
+                  Hotel, area, landmark, or address in Paphos
+                </label>
+                <input
+                  id="manual-location"
+                  value={manualQuery}
+                  onChange={(event) => setManualQuery(event.target.value)}
+                  placeholder="Hotel / area / address"
+                  maxLength={120}
+                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-[var(--line-strong)] bg-white px-3 text-sm text-[var(--ink)] outline-none focus:border-[var(--brand)]"
+                />
+                <button
+                  type="submit"
+                  disabled={manualSearchStatus === "searching"}
+                  className="min-h-11 shrink-0 rounded-xl bg-[var(--brand-strong)] px-4 text-sm font-extrabold text-white disabled:cursor-wait disabled:opacity-60"
+                >
+                  {manualSearchStatus === "searching" ? "Searching…" : "Search"}
+                </button>
+              </form>
+
+              {manualSuggestions.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                    Choose a matching location
+                  </p>
+                  <ul className="mt-2 space-y-2">
+                    {manualSuggestions.map((suggestion) => (
+                      <li key={suggestion.resultIdentifier}>
+                        <button
+                          type="button"
+                          onClick={() => chooseManualLocation(suggestion)}
+                          className="flex min-h-11 w-full items-start gap-2 rounded-xl border border-[var(--line)] bg-white px-3 py-2.5 text-left text-sm font-semibold leading-5 text-[var(--ink)]"
+                        >
+                          <MapPin className="mt-0.5 size-4 shrink-0 text-[var(--brand)]" aria-hidden="true" />
+                          {suggestion.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-right text-[0.7rem] text-[var(--ink-muted)]">
+                    <a
+                      className="underline"
+                      href="https://www.geoapify.com/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Powered by Geoapify
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <p
+            aria-live="polite"
+            className={`mt-2 min-h-5 text-xs leading-5 ${
+              manualSearchError || gpsUnavailable
+                ? "font-semibold text-[var(--danger)]"
+                : "text-[var(--ink-muted)]"
+            }`}
+          >
+            {manualSearchError ??
+              locationMessage ??
+              (searchOrigin
+                ? "Showing approximate straight-line distance, nearest first."
+                : "Location is optional and requested only when you tap the button.")}
+          </p>
+
+          {searchOrigin && (
+            <button
+              type="button"
+              onClick={clearSearchOrigin}
+              className="mt-1 text-xs font-bold text-[var(--ink-muted)] underline"
+            >
+              Browse all pharmacies instead
+            </button>
+          )}
+        </div>
       </section>
 
       <section aria-labelledby="results-heading">

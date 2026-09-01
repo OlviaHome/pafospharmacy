@@ -5,6 +5,7 @@ import officialSnapshot from "../../data/official/cyprus-pharmacies-2026.json";
 
 import { buildGeocodingQuery, reconcileNominatimResults } from "./nominatim";
 import {
+  rejectDuplicateAcceptedResultIdentifiers,
   summarizeGeocodingRecords,
   type GeocodingSnapshot,
 } from "./snapshot";
@@ -58,5 +59,37 @@ describe("checked-in Paphos geocoding reconciliation", () => {
       coordinatesAlreadyPresent: 0,
       qualityDistribution: { high: 6, medium: 2 },
     });
+  });
+});
+
+describe("provider result reconciliation", () => {
+  it("rejects one provider result identifier reused for multiple official addresses", () => {
+    const accepted = {
+      latitude: 34.77,
+      longitude: 32.42,
+      resultIdentifier: "shared-provider-result",
+      displayName: "Address",
+      quality: "high" as const,
+      reasons: ["country", "district"],
+    };
+    const records = ["100", "200"].map((registration) => ({
+      officialRegistrationNumber: registration,
+      query: `${registration}, Paphos`,
+      attemptedAt: "2026-09-01T00:00:00.000Z",
+      status: "accepted" as const,
+      providerResults: [],
+      reason: null,
+      accepted,
+    }));
+
+    expect(rejectDuplicateAcceptedResultIdentifiers(records)).toEqual(
+      records.map((record) => ({
+        ...record,
+        status: "ambiguous",
+        reason:
+          "Provider reused one result identifier for multiple official pharmacy addresses.",
+        accepted: null,
+      })),
+    );
   });
 });

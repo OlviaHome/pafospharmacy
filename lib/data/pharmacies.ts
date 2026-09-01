@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
+import geoapifySnapshotJson from "@/data/geocoding/paphos-geoapify-2026.json";
 import geocodingSnapshot from "@/data/geocoding/paphos-nominatim-2026.json";
 import officialSnapshot from "@/data/official/cyprus-pharmacies-2026.json";
 import { getCyprusDayWindow } from "@/lib/domain/date";
@@ -16,6 +17,11 @@ import type {
   ScheduleKind,
   ServiceMode,
 } from "@/lib/domain/types";
+import type { GeoapifyResult } from "@/lib/geocoding/geoapify";
+import type { GeocodingSnapshot } from "@/lib/geocoding/snapshot";
+
+const geoapifySnapshot =
+  geoapifySnapshotJson as unknown as GeocodingSnapshot<GeoapifyResult>;
 
 interface SupabaseIntervalRow {
   id: number;
@@ -76,7 +82,8 @@ const attribution: DataAttribution = {
   dutyCoverageEnd: officialSnapshot.metadata.dutyCoverageEnd,
 };
 
-const coordinateAttribution: CoordinateAttribution = {
+const nominatimCoordinateAttribution: CoordinateAttribution = {
+  providerId: geocodingSnapshot.metadata.provider.id,
   provider: geocodingSnapshot.metadata.provider.name,
   attribution: geocodingSnapshot.metadata.provider.attribution,
   attributionUrl: geocodingSnapshot.metadata.provider.attributionUrl,
@@ -86,19 +93,33 @@ const coordinateAttribution: CoordinateAttribution = {
   generatedAt: geocodingSnapshot.metadata.generatedAt,
 };
 
+const geoapifyCoordinateAttribution: CoordinateAttribution = {
+  providerId: geoapifySnapshot.metadata.provider.id,
+  provider: geoapifySnapshot.metadata.provider.name,
+  attribution: geoapifySnapshot.metadata.provider.attribution,
+  attributionUrl: geoapifySnapshot.metadata.provider.attributionUrl,
+  license: geoapifySnapshot.metadata.provider.license,
+  licenseUrl: geoapifySnapshot.metadata.provider.licenseUrl,
+  policyUrl: geoapifySnapshot.metadata.provider.policyUrl,
+  generatedAt: geoapifySnapshot.metadata.generatedAt,
+};
+
 const geocodingByRegistration = new Map(
-  geocodingSnapshot.records.flatMap((record) =>
+  [
+    ...geocodingSnapshot.records.map(
+      (record) => [record, geocodingSnapshot.metadata.provider.id] as const,
+    ),
+    ...geoapifySnapshot.records.map(
+      (record) => [record, geoapifySnapshot.metadata.provider.id] as const,
+    ),
+  ].flatMap(([record, providerId]) =>
     record.status === "accepted" && record.accepted
-      ? [
-          [
-            record.officialRegistrationNumber,
-            {
-              ...record.accepted,
-              query: record.query,
-              attemptedAt: record.attemptedAt,
-            },
-          ] as const,
-        ]
+      ? [[record.officialRegistrationNumber, {
+          ...record.accepted,
+          providerId,
+          query: record.query,
+          attemptedAt: record.attemptedAt,
+        }] as const]
       : [],
   ),
 );
@@ -197,7 +218,7 @@ function getOfficialSnapshotDataset(): PharmacyDataset {
         postalCode: pharmacy.postalCode,
         latitude: geocoding?.latitude ?? pharmacy.latitude,
         longitude: geocoding?.longitude ?? pharmacy.longitude,
-        geocodeProvider: geocoding ? geocodingSnapshot.metadata.provider.id : null,
+        geocodeProvider: geocoding?.providerId ?? null,
         geocodeResultIdentifier: geocoding?.resultIdentifier ?? null,
         geocodeQuery: geocoding?.query ?? null,
         geocodeQuality: (geocoding?.quality as GeocodeQuality | undefined) ?? null,
@@ -222,8 +243,14 @@ function getOfficialSnapshotDataset(): PharmacyDataset {
     generatedAt: officialSnapshot.metadata.generatedAt,
     ordinaryOpeningDataAvailable: false,
     attribution,
-    coordinateAttribution:
-      geocodingByRegistration.size > 0 ? coordinateAttribution : null,
+    coordinateAttributions: [
+      ...(geocodingSnapshot.report.successfullyGeocoded > 0
+        ? [nominatimCoordinateAttribution]
+        : []),
+      ...(geoapifySnapshot.report.successfullyGeocoded > 0
+        ? [geoapifyCoordinateAttribution]
+        : []),
+    ],
   };
 }
 
@@ -269,10 +296,18 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
     generatedAt: now.toISOString(),
     ordinaryOpeningDataAvailable: false,
     attribution,
-    coordinateAttribution: pharmacies.some(
-      (pharmacy) => pharmacy.geocodeProvider === geocodingSnapshot.metadata.provider.id,
-    )
-      ? coordinateAttribution
-      : null,
+    coordinateAttributions: [
+      ...(pharmacies.some(
+        (pharmacy) =>
+          pharmacy.geocodeProvider === geocodingSnapshot.metadata.provider.id,
+      )
+        ? [nominatimCoordinateAttribution]
+        : []),
+      ...(pharmacies.some(
+        (pharmacy) => pharmacy.geocodeProvider === geoapifySnapshot.metadata.provider.id,
+      )
+        ? [geoapifyCoordinateAttribution]
+        : []),
+    ],
   };
 }

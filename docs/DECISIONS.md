@@ -31,6 +31,8 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 | D-023 | 2026-09-01 | Use public OpenStreetMap Nominatim for the one-time 90-record Paphos address enrichment, with a cached single-thread batch at 1.1-second intervals. | It requires no API key, account, or billing and is practical for this deliberately small run. Its public policy requires identifying requests, attribution, local caching, and at most one request per second; recurring or larger national production use must move to a suitable hosted provider or self-hosted service. Google Geocoding was not used because its API requires billing and credentials. |
 | D-024 | 2026-09-01 | Store geocoding provenance on `pharmacies`, accept only precise building/pharmacy results, and keep raw attempts in a separate checked-in artifact. | Coordinates are enrichment, never official directory facts. Provider, result ID, query, application quality grade, and time make accepted coordinates auditable without another MVP table. Road/town centroids and equal candidates remain ambiguous. Official upserts do not touch coordinate fields. |
 | D-025 | 2026-09-01 | When location is available, sort known distances nearest-first, place unknown distances after them, and initially show 10 results only in the normal All view. | This makes a small set of trusted nearby results immediately usable without hiding unmatched pharmacies. Show all restores the full list, On Duty is never truncated, and no-location behavior is unchanged. |
+| D-026 | 2026-09-01 | Use Geoapify as the keyed second geocoder for unresolved Paphos pharmacy addresses and server-proxied manual location search. | Its free plan supports this limited commercial MVP, stored results, Greek/international search, and Paphos filtering without a card, with required Geoapify/source attribution. The key remains server-only. Evidence-based reconciliation accepted 20 of 82 attempts; centroids, non-pharmacy amenities, competing matches, and reused result identifiers remain ambiguous. |
+| D-027 | 2026-09-01 | Model proximity around a transient `searchOrigin` that may be GPS, a selected manual match, or absent. | Geolocation remains optional and denied permission immediately exposes manual search. GPS never leaves the browser; neither origin type is persisted. A chosen manual result replaces the prior origin, Clear restores browse-all, and no account/saved-address system is introduced. |
 
 ## Current assumptions requiring validation
 
@@ -45,7 +47,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - Automated ingestion frequency, reconciliation, correction, and stale-data policy after the current September 2026 coverage ends.
 - Production ranking and tie-breaking beyond truthful status and the accepted nearest-first behavior.
 - Directions-provider strategy.
-- A replacement geocoding service or self-hosted Nominatim instance before recurring/national enrichment.
+- A recurring/national geocoding provider, self-hosted option, quota plan, and operational rate limiting beyond this MVP pass.
 - A trustworthy source for pharmacy-specific ordinary opening hours and timed duty modes.
 - Multilingual routing and content model.
 - Pharmacy verification and B2B authorization model.
@@ -60,4 +62,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/)
 - [Nominatim Search API](https://nominatim.org/release-docs/latest/api/Search/)
 - [OpenStreetMap copyright and attribution](https://www.openstreetmap.org/copyright)
+- [Geoapify pricing and free-plan terms](https://www.geoapify.com/pricing/)
+- [Geoapify Geocoding API and storage statement](https://www.geoapify.com/geocoding-api/)
+- [Geoapify terms and attribution](https://www.geoapify.com/terms-and-conditions/)
 - [Google Geocoding API usage and billing](https://developers.google.com/maps/documentation/geocoding/usage-and-billing)
