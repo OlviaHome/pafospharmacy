@@ -48,6 +48,12 @@ import {
   type GeolocationStatus,
   type SearchOrigin,
 } from "@/lib/location/search-origin";
+import {
+  MINIMUM_MANUAL_QUERY_CHARACTERS,
+  SessionManualLocationLookup,
+  isManualSearchCancellation,
+  normalizeManualLocationQuery,
+} from "@/lib/location/manual-search";
 
 type SelectedDay = "today" | "tomorrow";
 type ManualSearchStatus = "idle" | "searching" | "error";
@@ -298,6 +304,9 @@ export function PharmacyFinder({
   const [manualSuggestions, setManualSuggestions] = useState<
     ManualLocationSuggestion[]
   >([]);
+  const [manualLocationLookup] = useState(
+    () => new SessionManualLocationLookup<ManualLocationSuggestion[]>(),
+  );
   const [resultsExpanded, setResultsExpanded] = useState(false);
   const coordinates: Coordinates | null = searchOrigin?.coordinates ?? null;
 
@@ -313,6 +322,11 @@ export function PharmacyFinder({
     }, 30_000);
     return () => window.clearInterval(timer);
   }, [generatedAt]);
+
+  useEffect(
+    () => () => manualLocationLookup.cancel(),
+    [manualLocationLookup],
+  );
 
   const dayWindow = useMemo(
     () => getCyprusDayWindow(now, selectedDay === "tomorrow" ? 1 : 0),
@@ -400,47 +414,67 @@ export function PharmacyFinder({
     );
   }
 
-  async function searchManualLocation(event: React.FormEvent<HTMLFormElement>) {
+  function searchManualLocation(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = manualQuery.trim();
-    if (query.length < 2) {
+    if (
+      normalizeManualLocationQuery(query).length <
+      MINIMUM_MANUAL_QUERY_CHARACTERS
+    ) {
       setManualSearchStatus("error");
-      setManualSearchError("Enter an area, landmark, hotel, or address.");
+      setManualSearchError("Enter at least 3 characters for an area or address.");
       return;
     }
 
     setManualSearchStatus("searching");
     setManualSearchError(null);
     setManualSuggestions([]);
-    try {
-      const response = await fetch("/api/location-search", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      const body = (await response.json()) as {
-        suggestions?: ManualLocationSuggestion[];
-        error?: string;
-      };
-      if (!response.ok) throw new Error(body.error ?? "Location search failed.");
-      if (!body.suggestions?.length) {
+    void manualLocationLookup
+      .lookup(query, async (signal) => {
+        const response = await fetch("/api/location-search", {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+          signal,
+        });
+        const body = (await response.json()) as {
+          suggestions?: ManualLocationSuggestion[];
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(body.error ?? "Location search failed.");
+        }
+        return body.suggestions ?? [];
+      })
+      .then((suggestions) => {
+        if (suggestions.length > 0) {
+          setManualSuggestions(suggestions);
+          setManualSearchStatus("idle");
+          return;
+        }
         setManualSearchStatus("error");
         setManualSearchError(
           "No matching Paphos location was found. Try a nearby area or fuller address.",
         );
-        return;
-      }
-      setManualSuggestions(body.suggestions);
-      setManualSearchStatus("idle");
-    } catch (error) {
-      setManualSearchStatus("error");
-      setManualSearchError(
-        error instanceof Error
-          ? error.message
-          : "Location search is temporarily unavailable.",
-      );
-    }
+      })
+      .catch((error: unknown) => {
+        if (isManualSearchCancellation(error)) return;
+        setManualSearchStatus("error");
+        setManualSearchError(
+          error instanceof Error
+            ? error.message
+            : "Location search is temporarily unavailable.",
+        );
+      });
+  }
+
+  function changeManualQuery(value: string) {
+    manualLocationLookup.cancel();
+    setManualQuery(value);
+    setManualSuggestions([]);
+    setManualSearchError(null);
+    setManualSearchStatus("idle");
   }
 
   function chooseManualLocation(suggestion: ManualLocationSuggestion) {
@@ -639,8 +673,9 @@ export function PharmacyFinder({
                 <input
                   id="manual-location"
                   value={manualQuery}
-                  onChange={(event) => setManualQuery(event.target.value)}
+                  onChange={(event) => changeManualQuery(event.target.value)}
                   placeholder="Hotel / area / address"
+                  minLength={MINIMUM_MANUAL_QUERY_CHARACTERS}
                   maxLength={120}
                   className="min-h-11 min-w-0 flex-1 rounded-xl border border-[var(--line-strong)] bg-white px-3 text-sm text-[var(--ink)] outline-none focus:border-[var(--brand)]"
                 />
@@ -698,7 +733,7 @@ export function PharmacyFinder({
             {manualSearchError ??
               locationMessage ??
               (searchOrigin
-                ? "Showing approximate straight-line distance, nearest first."
+                ? "Distance is shown only for pharmacies with verified map coordinates; others remain listed without distance."
                 : "Location is optional and requested only when you tap the button.")}
           </p>
 

@@ -52,6 +52,8 @@ The default experience must remain useful when location permission is denied or 
 
 Manual search accepts Paphos areas, municipalities, streets, landmarks, hotels, and addresses supported by the geocoder. The user chooses from a short list of Cyprus/Paphos-constrained matches; the application never silently selects among multiple plausible locations.
 
+Distance ordering is limited to pharmacies with verified map coordinates. Pharmacies without coordinates remain visible without a distance, and the UI must not imply that the ordered subset is globally nearest among every Paphos pharmacy.
+
 ## Day and filter behavior
 
 - **Today** is the default view and shows current state plus today's relevant schedule periods.

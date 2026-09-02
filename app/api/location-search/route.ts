@@ -4,6 +4,11 @@ import {
   manualLocationSuggestions,
   type GeoapifyResponse,
 } from "@/lib/geocoding/geoapify";
+import {
+  MANUAL_SUGGESTION_LIMIT,
+  MINIMUM_MANUAL_QUERY_CHARACTERS,
+  normalizeManualLocationQuery,
+} from "@/lib/location/manual-search";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +30,12 @@ export async function POST(request: Request): Promise<Response> {
     typeof body === "object" && body !== null && "query" in body
       ? String(body.query).trim().replace(/\s+/g, " ")
       : "";
-  if (query.length < 2 || query.length > 120) {
+  if (
+    normalizeManualLocationQuery(query).length < MINIMUM_MANUAL_QUERY_CHARACTERS ||
+    query.length > 120
+  ) {
     return json(
-      { error: "Enter between 2 and 120 characters." },
+      { error: "Enter between 3 and 120 characters." },
       { status: 400 },
     );
   }
@@ -43,13 +51,13 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const response = await fetch(
       buildGeoapifySearchUrl(buildManualLocationQuery(query), apiKey, {
-        limit: 5,
+        limit: MANUAL_SUGGESTION_LIMIT,
         language: "en",
       }),
       {
         cache: "no-store",
         headers: { accept: "application/json" },
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]),
       },
     );
     if (!response.ok) {
@@ -59,7 +67,12 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
     const providerResponse = (await response.json()) as GeoapifyResponse;
-    return json({ suggestions: manualLocationSuggestions(providerResponse.results ?? []) });
+    return json({
+      suggestions: manualLocationSuggestions(providerResponse.results ?? []).slice(
+        0,
+        MANUAL_SUGGESTION_LIMIT,
+      ),
+    });
   } catch {
     return json(
       { error: "Location search is temporarily unavailable. Try again." },
