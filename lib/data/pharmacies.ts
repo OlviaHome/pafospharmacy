@@ -1,8 +1,11 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
 import geoapifySnapshotJson from "@/data/geocoding/paphos-geoapify-2026.json";
+import googlePlaceLinksJson from "@/data/geocoding/paphos-google-place-links-2026.json";
 import geocodingSnapshot from "@/data/geocoding/paphos-nominatim-2026.json";
 import officialSnapshot from "@/data/official/cyprus-pharmacies-2026.json";
 import { getCyprusDayWindow } from "@/lib/domain/date";
@@ -18,10 +21,24 @@ import type {
   ServiceMode,
 } from "@/lib/domain/types";
 import type { GeoapifyResult } from "@/lib/geocoding/geoapify";
+import {
+  GOOGLE_PLACES_PROVIDER,
+  isGoogleCoordinateCacheUsable,
+  isTrustedGoogleCoordinateCache,
+  type GooglePlaceLinkSnapshot,
+  type GooglePlacesCacheRecord,
+  type GooglePlacesCacheSnapshot,
+} from "@/lib/geocoding/google-places";
 import type { GeocodingSnapshot } from "@/lib/geocoding/snapshot";
 
 const geoapifySnapshot =
   geoapifySnapshotJson as unknown as GeocodingSnapshot<GeoapifyResult>;
+const googlePlaceLinks =
+  googlePlaceLinksJson as unknown as GooglePlaceLinkSnapshot;
+const GOOGLE_CACHE_PATH = path.join(
+  process.cwd(),
+  "data/geocoding/cache/paphos-google-places.json",
+);
 
 interface SupabaseIntervalRow {
   id: number;
@@ -40,6 +57,20 @@ interface SupabaseDutyAssignmentRow {
   source_record_identifier: string;
   source_resource_url: string;
   source_retrieved_at: string;
+}
+
+interface SupabaseGooglePlaceRow {
+  official_registration_number: string;
+  place_id: string;
+  display_name: string;
+  formatted_address: string;
+  latitude: number;
+  longitude: number;
+  google_phone_e164: string | null;
+  classification: "exact_identity_match";
+  matching_evidence: string[];
+  retrieved_at: string;
+  expires_at: string;
 }
 
 interface SupabasePharmacyRow {
@@ -70,6 +101,10 @@ interface SupabasePharmacyRow {
   source_retrieved_at: string | null;
   availability_intervals: SupabaseIntervalRow[] | null;
   duty_assignments: SupabaseDutyAssignmentRow[] | null;
+  pharmacy_google_places:
+    | SupabaseGooglePlaceRow
+    | SupabaseGooglePlaceRow[]
+    | null;
 }
 
 const attribution: DataAttribution = {
@@ -104,6 +139,43 @@ const geoapifyCoordinateAttribution: CoordinateAttribution = {
   generatedAt: geoapifySnapshot.metadata.generatedAt,
 };
 
+function googleCoordinateAttribution(generatedAt: string): CoordinateAttribution {
+  return {
+    providerId: GOOGLE_PLACES_PROVIDER,
+    provider: "Google Places API (New)",
+    attribution: "Google Maps",
+    attributionUrl: "https://www.google.com/maps",
+    license: "Google Maps Platform Terms of Service",
+    licenseUrl: "https://cloud.google.com/maps-platform/terms",
+    policyUrl: "https://developers.google.com/maps/documentation/places/web-service/policies",
+    generatedAt,
+  };
+}
+
+function coordinateAttributionsFor(
+  pharmacies: Pharmacy[],
+  googleGeneratedAt: string | null,
+): CoordinateAttribution[] {
+  return [
+    ...(pharmacies.some(
+      (pharmacy) =>
+        pharmacy.geocodeProvider === geocodingSnapshot.metadata.provider.id,
+    )
+      ? [nominatimCoordinateAttribution]
+      : []),
+    ...(pharmacies.some(
+      (pharmacy) => pharmacy.geocodeProvider === geoapifySnapshot.metadata.provider.id,
+    )
+      ? [geoapifyCoordinateAttribution]
+      : []),
+    ...(pharmacies.some(
+      (pharmacy) => pharmacy.geocodeProvider === GOOGLE_PLACES_PROVIDER,
+    ) && googleGeneratedAt
+      ? [googleCoordinateAttribution(googleGeneratedAt)]
+      : []),
+  ];
+}
+
 const geocodingByRegistration = new Map(
   [
     ...geocodingSnapshot.records.map(
@@ -123,6 +195,64 @@ const geocodingByRegistration = new Map(
       : [],
   ),
 );
+
+interface TrustedGoogleCache {
+  records: Map<string, GooglePlacesCacheRecord>;
+  generatedAt: string | null;
+}
+
+async function readTrustedLocalGoogleCache(now: Date): Promise<TrustedGoogleCache> {
+  let cache: GooglePlacesCacheSnapshot;
+  try {
+    cache = JSON.parse(
+      await readFile(GOOGLE_CACHE_PATH, "utf8"),
+    ) as GooglePlacesCacheSnapshot;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { records: new Map(), generatedAt: null };
+    }
+    throw error;
+  }
+
+  const links = new Map(
+    googlePlaceLinks.records.map((link) => [link.officialRegistrationNumber, link]),
+  );
+  const records = new Map(
+    cache.records.flatMap((record) =>
+      isTrustedGoogleCoordinateCache(
+        record,
+        links.get(record.officialRegistrationNumber),
+        now,
+      )
+        ? [[record.officialRegistrationNumber, record] as const]
+        : [],
+    ),
+  );
+  return {
+    records,
+    generatedAt: records.size > 0 ? cache.metadata.generatedAt : null,
+  };
+}
+
+function mapSupabaseGooglePlace(
+  value: SupabasePharmacyRow["pharmacy_google_places"],
+): GooglePlacesCacheRecord | null {
+  const row = Array.isArray(value) ? value[0] : value;
+  if (!row) return null;
+  return {
+    officialRegistrationNumber: row.official_registration_number,
+    placeId: row.place_id,
+    displayName: row.display_name,
+    formattedAddress: row.formatted_address,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    googlePhoneE164: row.google_phone_e164,
+    classification: row.classification,
+    matchingEvidence: row.matching_evidence,
+    retrievedAt: row.retrieved_at,
+    expiresAt: row.expires_at,
+  };
+}
 
 function mapInterval(row: SupabaseIntervalRow): AvailabilityInterval {
   return {
@@ -147,7 +277,9 @@ function mapDutyAssignment(row: SupabaseDutyAssignmentRow): DutyAssignment {
   };
 }
 
-function mapPharmacy(row: SupabasePharmacyRow): Pharmacy {
+function mapPharmacy(row: SupabasePharmacyRow, now: Date): Pharmacy {
+  const google = mapSupabaseGooglePlace(row.pharmacy_google_places);
+  const useGoogle = google !== null && isGoogleCoordinateCacheUsable(google, now);
   return {
     id: String(row.id),
     name: row.name,
@@ -156,13 +288,13 @@ function mapPharmacy(row: SupabasePharmacyRow): Pharmacy {
     locality: row.locality,
     district: row.district,
     postalCode: row.postal_code,
-    latitude: row.latitude,
-    longitude: row.longitude,
-    geocodeProvider: row.geocode_provider,
-    geocodeResultIdentifier: row.geocode_result_identifier,
-    geocodeQuery: row.geocode_query,
-    geocodeQuality: row.geocode_quality,
-    geocodedAt: row.geocoded_at,
+    latitude: useGoogle ? google.latitude : row.latitude,
+    longitude: useGoogle ? google.longitude : row.longitude,
+    geocodeProvider: useGoogle ? GOOGLE_PLACES_PROVIDER : row.geocode_provider,
+    geocodeResultIdentifier: useGoogle ? google.placeId : row.geocode_result_identifier,
+    geocodeQuery: useGoogle ? null : row.geocode_query,
+    geocodeQuality: useGoogle ? "high" : row.geocode_quality,
+    geocodedAt: useGoogle ? google.retrievedAt : row.geocoded_at,
     phoneE164: row.phone_e164,
     housePhoneE164: row.house_phone_e164,
     housePhoneRaw: row.house_phone_raw,
@@ -179,7 +311,8 @@ function mapPharmacy(row: SupabasePharmacyRow): Pharmacy {
   };
 }
 
-function getOfficialSnapshotDataset(): PharmacyDataset {
+async function getOfficialSnapshotDataset(now: Date): Promise<PharmacyDataset> {
+  const googleCache = await readTrustedLocalGoogleCache(now);
   const paphosPharmacies = officialSnapshot.pharmacies.filter(
     (pharmacy) => pharmacy.district === "Paphos",
   );
@@ -203,54 +336,58 @@ function getOfficialSnapshotDataset(): PharmacyDataset {
     assignmentsByRegistration.set(assignment.pharmacyRegistrationNumber, assignments);
   }
 
+  const pharmacies: Pharmacy[] = paphosPharmacies.map((pharmacy) => {
+    const geocoding = geocodingByRegistration.get(
+      pharmacy.officialRegistrationNumber,
+    );
+    const google = googleCache.records.get(pharmacy.officialRegistrationNumber);
+    return {
+      id: `official-${pharmacy.officialRegistrationNumber}`,
+      name: pharmacy.name,
+      addressLine: pharmacy.addressLine,
+      addressAdditional: pharmacy.addressAdditional,
+      locality: pharmacy.locality,
+      district: pharmacy.district,
+      postalCode: pharmacy.postalCode,
+      latitude: google?.latitude ?? geocoding?.latitude ?? pharmacy.latitude,
+      longitude: google?.longitude ?? geocoding?.longitude ?? pharmacy.longitude,
+      geocodeProvider: google
+        ? GOOGLE_PLACES_PROVIDER
+        : geocoding?.providerId ?? null,
+      geocodeResultIdentifier:
+        google?.placeId ?? geocoding?.resultIdentifier ?? null,
+      geocodeQuery: google ? null : geocoding?.query ?? null,
+      geocodeQuality: google
+        ? "high"
+        : (geocoding?.quality as GeocodeQuality | undefined) ?? null,
+      geocodedAt: google?.retrievedAt ?? geocoding?.attemptedAt ?? null,
+      phoneE164: pharmacy.phoneE164,
+      housePhoneE164: pharmacy.housePhoneE164,
+      housePhoneRaw: pharmacy.housePhoneRaw,
+      housePhoneE164Values: pharmacy.housePhoneE164Values,
+      officialRegistrationNumber: pharmacy.officialRegistrationNumber,
+      pharmacistGivenName: pharmacy.pharmacistGivenName,
+      pharmacistSurname: pharmacy.pharmacistSurname,
+      source: pharmacy.source,
+      sourceDataset: pharmacy.sourceDataset,
+      sourceResourceUrl: pharmacy.sourceResourceUrl,
+      sourceRetrievedAt: pharmacy.sourceRetrievedAt,
+      intervals: [],
+      dutyAssignments:
+        assignmentsByRegistration.get(pharmacy.officialRegistrationNumber) ?? [],
+    };
+  });
+
   return {
-    pharmacies: paphosPharmacies.map((pharmacy) => {
-      const geocoding = geocodingByRegistration.get(
-        pharmacy.officialRegistrationNumber,
-      );
-      return {
-        id: `official-${pharmacy.officialRegistrationNumber}`,
-        name: pharmacy.name,
-        addressLine: pharmacy.addressLine,
-        addressAdditional: pharmacy.addressAdditional,
-        locality: pharmacy.locality,
-        district: pharmacy.district,
-        postalCode: pharmacy.postalCode,
-        latitude: geocoding?.latitude ?? pharmacy.latitude,
-        longitude: geocoding?.longitude ?? pharmacy.longitude,
-        geocodeProvider: geocoding?.providerId ?? null,
-        geocodeResultIdentifier: geocoding?.resultIdentifier ?? null,
-        geocodeQuery: geocoding?.query ?? null,
-        geocodeQuality: (geocoding?.quality as GeocodeQuality | undefined) ?? null,
-        geocodedAt: geocoding?.attemptedAt ?? null,
-        phoneE164: pharmacy.phoneE164,
-        housePhoneE164: pharmacy.housePhoneE164,
-        housePhoneRaw: pharmacy.housePhoneRaw,
-        housePhoneE164Values: pharmacy.housePhoneE164Values,
-        officialRegistrationNumber: pharmacy.officialRegistrationNumber,
-        pharmacistGivenName: pharmacy.pharmacistGivenName,
-        pharmacistSurname: pharmacy.pharmacistSurname,
-        source: pharmacy.source,
-        sourceDataset: pharmacy.sourceDataset,
-        sourceResourceUrl: pharmacy.sourceResourceUrl,
-        sourceRetrievedAt: pharmacy.sourceRetrievedAt,
-        intervals: [],
-        dutyAssignments:
-          assignmentsByRegistration.get(pharmacy.officialRegistrationNumber) ?? [],
-      };
-    }),
+    pharmacies,
     source: "official_snapshot",
     generatedAt: officialSnapshot.metadata.generatedAt,
     ordinaryOpeningDataAvailable: false,
     attribution,
-    coordinateAttributions: [
-      ...(geocodingSnapshot.report.successfullyGeocoded > 0
-        ? [nominatimCoordinateAttribution]
-        : []),
-      ...(geoapifySnapshot.report.successfullyGeocoded > 0
-        ? [geoapifyCoordinateAttribution]
-        : []),
-    ],
+    coordinateAttributions: coordinateAttributionsFor(
+      pharmacies,
+      googleCache.generatedAt,
+    ),
   };
 }
 
@@ -258,7 +395,7 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
   const url = process.env.SUPABASE_URL;
   const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
 
-  if (!url && !publishableKey) return getOfficialSnapshotDataset();
+  if (!url && !publishableKey) return getOfficialSnapshotDataset(now);
 
   if (!url || !publishableKey) {
     throw new Error(
@@ -275,7 +412,7 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
   const { data, error } = await supabase
     .from("pharmacies")
     .select(
-      "id,name,address_line,address_additional,locality,district,postal_code,latitude,longitude,geocode_provider,geocode_result_identifier,geocode_query,geocode_quality,geocoded_at,phone_e164,house_phone_e164,house_phone_raw,house_phone_e164_values,official_registration_number,pharmacist_given_name,pharmacist_surname,source,source_dataset,source_resource_url,source_retrieved_at,availability_intervals(id,pharmacy_id,starts_at,ends_at,schedule_kind,service_mode),duty_assignments(id,pharmacy_id,duty_date,source_dataset,source_record_identifier,source_resource_url,source_retrieved_at)",
+      "id,name,address_line,address_additional,locality,district,postal_code,latitude,longitude,geocode_provider,geocode_result_identifier,geocode_query,geocode_quality,geocoded_at,phone_e164,house_phone_e164,house_phone_raw,house_phone_e164_values,official_registration_number,pharmacist_given_name,pharmacist_surname,source,source_dataset,source_resource_url,source_retrieved_at,availability_intervals(id,pharmacy_id,starts_at,ends_at,schedule_kind,service_mode),duty_assignments(id,pharmacy_id,duty_date,source_dataset,source_record_identifier,source_resource_url,source_retrieved_at),pharmacy_google_places(official_registration_number,place_id,display_name,formatted_address,latitude,longitude,google_phone_e164,classification,matching_evidence,retrieved_at,expires_at)",
     )
     .eq("is_active", true)
     .eq("district", "Paphos")
@@ -289,25 +426,27 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
     throw new Error(`Unable to load pharmacy data from Supabase: ${error.message}`);
   }
 
-  const pharmacies = ((data ?? []) as SupabasePharmacyRow[]).map(mapPharmacy);
+  const pharmacies = ((data ?? []) as SupabasePharmacyRow[]).map((row) =>
+    mapPharmacy(row, now),
+  );
+  const googleGeneratedAt = pharmacies
+    .filter((pharmacy) => pharmacy.geocodeProvider === GOOGLE_PLACES_PROVIDER)
+    .reduce<string | null>(
+      (latest, pharmacy) =>
+        !latest || (pharmacy.geocodedAt ?? "") > latest
+          ? pharmacy.geocodedAt
+          : latest,
+      null,
+    );
   return {
     pharmacies,
     source: "supabase",
     generatedAt: now.toISOString(),
     ordinaryOpeningDataAvailable: false,
     attribution,
-    coordinateAttributions: [
-      ...(pharmacies.some(
-        (pharmacy) =>
-          pharmacy.geocodeProvider === geocodingSnapshot.metadata.provider.id,
-      )
-        ? [nominatimCoordinateAttribution]
-        : []),
-      ...(pharmacies.some(
-        (pharmacy) => pharmacy.geocodeProvider === geoapifySnapshot.metadata.provider.id,
-      )
-        ? [geoapifyCoordinateAttribution]
-        : []),
-    ],
+    coordinateAttributions: coordinateAttributionsFor(
+      pharmacies,
+      googleGeneratedAt,
+    ),
   };
 }

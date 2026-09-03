@@ -17,6 +17,7 @@ Working rules:
 - Keep official date-only rota facts in `duty_assignments`. They prove On Duty for a Cyprus local date but never prove Open Now, On Call, a service mode, or exact hours. Never invent timestamps or encode unverified Cyprus legal assumptions.
 - Preserve official registration identity, source attribution, and nullable source gaps. Keep geocoded coordinates separately attributed, never overwrite the official address, and never promote ambiguous road/town matches to pharmacy coordinates. Treat future opening-hours data as separately sourced enrichment too.
 - Keep proximity centered on a transient optional `searchOrigin`: GPS stays client-side and unpersisted, manual matches may replace it, and browse-all must remain complete. Keep geocoder credentials server-only and preserve per-provider attribution/provenance.
+- Keep Google Places separate from canonical official fields and existing geocoding. Only fresh `exact_identity_match` coordinates may drive distance or Directions; retain Place IDs long-term but refresh or purge Google response content and coordinates within 30 days. Never trust probable or ambiguous candidates implicitly.
 - Optimize the ordinary-user path for mobile use, no login, and an answer in about 10 seconds.
 - Keep future features out of the current slice unless they are required for a clean boundary.
 - Update the relevant documentation whenever introducing a meaningful product, architecture, or data-model decision.

@@ -8,6 +8,9 @@
 # tests
 /coverage
 
+# expiring provider cache (must never be committed)
+/data/geocoding/cache/
+
 # local environment
 .env*
 !.env.example

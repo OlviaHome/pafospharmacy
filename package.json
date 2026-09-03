@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "ingest:official": "tsx scripts/ingest-official.ts",
     "geocode:pharmacies": "tsx scripts/geocode-pharmacies.ts",
-    "geocode:geoapify": "tsx scripts/geocode-geoapify.ts"
+    "geocode:geoapify": "tsx scripts/geocode-geoapify.ts",
+    "geocode:google": "tsx scripts/reconcile-google-places.ts"
   },
   "engines": {
     "node": ">=22"

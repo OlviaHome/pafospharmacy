@@ -34,6 +34,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 | D-026 | 2026-09-01 | Use Geoapify as the keyed second geocoder for unresolved Paphos pharmacy addresses and server-proxied manual location search. | Its free plan supports this limited commercial MVP, stored results, Greek/international search, and Paphos filtering without a card, with required Geoapify/source attribution. The key remains server-only. Evidence-based reconciliation accepted 20 of 82 attempts; centroids, non-pharmacy amenities, competing matches, and reused result identifiers remain ambiguous. |
 | D-027 | 2026-09-01 | Model proximity around a transient `searchOrigin` that may be GPS, a selected manual match, or absent. | Geolocation remains optional and denied permission immediately exposes manual search. GPS never leaves the browser; neither origin type is persisted. A chosen manual result replaces the prior origin, Clear restores browse-all, and no account/saved-address system is introduced. |
 | D-028 | 2026-09-02 | Keep manual location lookup submit-based and budget each session with a three-character minimum, 400-millisecond delay, stale-request cancellation, normalized-query cache, and three-suggestion maximum. | Typing never consumes Geoapify credits, rapid or repeated submissions do not create avoidable requests, and the provider is asked for no more choices than the compact UI presents. The cache is deliberately transient and stores no location history. |
+| D-029 | 2026-09-03 | Use Google Places API (New) as the preferred Paphos pharmacy identity/location layer only for fresh exact matches, with official registration number remaining canonical. | Phone-first reconciliation produced 81 exact, 3 probable, 3 ambiguous, and 3 no-match results across all 90. Place IDs are durable; Google-returned content and coordinates are isolated in a cache capped at 30 days and targeted for refresh at day 25. Probable/ambiguous rows cannot drive distance or Directions, while existing Geoapify/Nominatim enrichment remains unchanged as fallback and comparison data. |
 
 ## Current assumptions requiring validation
 
@@ -48,7 +49,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - Automated ingestion frequency, reconciliation, correction, and stale-data policy after the current September 2026 coverage ends.
 - Production ranking and tie-breaking beyond truthful status and the accepted nearest-first behavior.
 - Directions-provider strategy.
-- A recurring/national geocoding provider, self-hosted option, quota plan, and operational rate limiting beyond this MVP pass.
+- National Google Places reconciliation, cloud scheduling, quota monitoring, and production refresh alerting beyond the current manual Paphos process.
 - A trustworthy source for pharmacy-specific ordinary opening hours and timed duty modes.
 - Multilingual routing and content model.
 - Pharmacy verification and B2B authorization model.
@@ -67,3 +68,6 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - [Geoapify Geocoding API and storage statement](https://www.geoapify.com/geocoding-api/)
 - [Geoapify terms and attribution](https://www.geoapify.com/terms-and-conditions/)
 - [Google Geocoding API usage and billing](https://developers.google.com/maps/documentation/geocoding/usage-and-billing)
+- [Google Places API (New) Text Search](https://developers.google.com/maps/documentation/places/web-service/text-search)
+- [Google Places content and attribution policies](https://developers.google.com/maps/documentation/places/web-service/policies)
+- [Google Maps Platform EEA service terms](https://cloud.google.com/archive/terms/maps-platform/eea/maps-service-terms-20251118)

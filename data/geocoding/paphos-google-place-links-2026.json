@@ -1,0 +1,1728 @@
+{
+  "metadata": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-09-03T12:35:18.225Z",
+    "district": "Paphos",
+    "sourceSnapshot": "data/official/cyprus-pharmacies-2026.json",
+    "sourceSnapshotGeneratedAt": "2026-08-31T12:28:58.074Z",
+    "provider": "google_places",
+    "policyUrl": "https://developers.google.com/maps/documentation/places/web-service/policies",
+    "note": "Place IDs may be retained. Google response content and coordinates are stored only in the expiring cache, not this artifact."
+  },
+  "report": {
+    "total": 90,
+    "exact": 81,
+    "probable": 3,
+    "ambiguous": 3,
+    "noMatch": 3,
+    "trustedGoogleCoordinates": 81,
+    "trustedGoogleCoordinatePercentage": 90,
+    "materialDisagreementThresholdMeters": 250,
+    "disagreementsOver250Meters": [
+      {
+        "officialRegistrationNumber": "413",
+        "distanceMeters": 388,
+        "comparedProvider": "geoapify",
+        "comparedQuality": "high"
+      },
+      {
+        "officialRegistrationNumber": "467",
+        "distanceMeters": 805,
+        "comparedProvider": "geoapify",
+        "comparedQuality": "high"
+      },
+      {
+        "officialRegistrationNumber": "607",
+        "distanceMeters": 1093,
+        "comparedProvider": "geoapify",
+        "comparedQuality": "high"
+      },
+      {
+        "officialRegistrationNumber": "690",
+        "distanceMeters": 303,
+        "comparedProvider": "geoapify",
+        "comparedQuality": "high"
+      },
+      {
+        "officialRegistrationNumber": "869",
+        "distanceMeters": 310,
+        "comparedProvider": "geoapify",
+        "comparedQuality": "high"
+      },
+      {
+        "officialRegistrationNumber": "893",
+        "distanceMeters": 681,
+        "comparedProvider": "geoapify",
+        "comparedQuality": "high"
+      },
+      {
+        "officialRegistrationNumber": "1210",
+        "distanceMeters": 924,
+        "comparedProvider": "geoapify",
+        "comparedQuality": "high"
+      }
+    ],
+    "manualReviewCount": 16
+  },
+  "records": [
+    {
+      "officialRegistrationNumber": "310",
+      "placeId": "ChIJiVVVoD8H5xQR9NVXCQkqDD4",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:18.852Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "367",
+      "placeId": "ChIJDyoqfwAH5xQR4iouccnQmqs",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "locality_compatible",
+        "street_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": 13,
+      "comparedProvider": "openstreetmap_nominatim",
+      "comparedQuality": "medium",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "386",
+      "placeId": "ChIJQfkF8nwH5xQRAWheYsriOlA",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "house_number_compatible",
+        "street_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:19.306Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "387",
+      "placeId": "ChIJHSgLoV8G5xQR5YBdhbTkv0U",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:20.338Z",
+      "coordinateDifferenceMeters": 17,
+      "comparedProvider": "openstreetmap_nominatim",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "393",
+      "placeId": "ChIJp0vRXAAJ5xQRJk6N1bNEIEc",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "413",
+      "placeId": "ChIJkcHKkcQG5xQRy1HKTlit_tQ",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "house_number_compatible",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": 388,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "422",
+      "placeId": "ChIJXyiPtPUG5xQRQs3AI_64UgA",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:3"
+      ],
+      "retrievedAt": "2026-09-03T12:34:20.747Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "433",
+      "placeId": "ChIJz6_5F54H5xQRBQdSpUmOv9U",
+      "classification": "probable_match",
+      "matchingEvidence": [
+        "phone_conflict",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "locality_compatible",
+        "street_tokens:2",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "449",
+      "placeId": "ChIJvR4wUxV05xQRIMZD2YFmWxQ",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": 20,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "medium",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "451",
+      "placeId": "ChIJaSB0sYsG5xQRS2omtTQgP8I",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:21.667Z",
+      "coordinateDifferenceMeters": 6,
+      "comparedProvider": "openstreetmap_nominatim",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "467",
+      "placeId": "ChIJL2EaA4YH5xQRlbD69EulwA0",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:22.597Z",
+      "coordinateDifferenceMeters": 805,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "503",
+      "placeId": "ChIJ0WWjmmUG5xQRDdnTSAng3eY",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:23.493Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "526",
+      "placeId": "ChIJIU82YWMG5xQRjeti7upXZOk",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "locality_compatible",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:23.922Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "536",
+      "placeId": "ChIJFZqt8cYG5xQROnpaHsbBt-0",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "house_number_compatible",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:24.858Z",
+      "coordinateDifferenceMeters": 25,
+      "comparedProvider": "openstreetmap_nominatim",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "585",
+      "placeId": "ChIJIZ3fTBV05xQRjX8TI6biBLI",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:25.855Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "598",
+      "placeId": "ChIJe8m_hGMG5xQRCSRDn9QseyQ",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:26.764Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "607",
+      "placeId": "ChIJyfbXjsMG5xQR1Gdah4KMeVA",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": 1093,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "608",
+      "placeId": "ChIJkyM_WbgJ5xQRiLLqEVoo2bM",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": 45,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "647",
+      "placeId": "ChIJmfojV9cH5xQR2ao5XaueOuc",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "street_tokens:2",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:27.699Z",
+      "coordinateDifferenceMeters": 75,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "665",
+      "placeId": "ChIJgfzauy0H5xQRv-GdDmy98aQ",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:28.580Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "675",
+      "placeId": "ChIJvQvolTQH5xQRmyZ1cp5x9OU",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:29.472Z",
+      "coordinateDifferenceMeters": 39,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "677",
+      "placeId": "ChIJbwkkTG4G5xQRDQOGn4QxHkA",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:29.856Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "683",
+      "placeId": "ChIJ594fZuYG5xQR8siY_uxF_Uw",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "name_tokens:3"
+      ],
+      "retrievedAt": "2026-09-03T12:34:30.806Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "689",
+      "placeId": "ChIJfQRMa10G5xQR9TgxgQl1wQI",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "locality_compatible",
+        "house_number_compatible"
+      ],
+      "retrievedAt": "2026-09-03T12:34:31.720Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "690",
+      "placeId": "ChIJ9XW6vHwH5xQRghhryPXfZSA",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible"
+      ],
+      "retrievedAt": "2026-09-03T12:34:32.666Z",
+      "coordinateDifferenceMeters": 303,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "702",
+      "placeId": "ChIJif5byJsH5xQRE75Q_YFE2fI",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:33.087Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "708",
+      "placeId": "ChIJ8bffaQAH5xQRErtHnj8_qwk",
+      "classification": "probable_match",
+      "matchingEvidence": [
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:33.988Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "711",
+      "placeId": "ChIJd9NmzRR05xQRtf9PEsZxpeI",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "house_number_compatible",
+        "street_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:34.866Z",
+      "coordinateDifferenceMeters": 21,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "medium",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "714",
+      "placeId": "ChIJ9aEtHFIH5xQRl8dZfXJACwM",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:35.808Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "731",
+      "placeId": null,
+      "classification": "no_match",
+      "matchingEvidence": [
+        "no_accepted_candidate"
+      ],
+      "retrievedAt": "2026-09-03T12:34:36.656Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "749",
+      "placeId": "ChIJ_X0eHEcH5xQRgwREqE51YSg",
+      "classification": "ambiguous",
+      "matchingEvidence": [
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact"
+      ],
+      "retrievedAt": "2026-09-03T12:34:37.547Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "750",
+      "placeId": "ChIJdWao-KQH5xQRrkz-on8suDI",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:38.396Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "760",
+      "placeId": "ChIJDeQl0twG5xQRLcRCgPVXfQ8",
+      "classification": "ambiguous",
+      "matchingEvidence": [
+        "coordinates_in_paphos",
+        "paphos_address",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:39.296Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "780",
+      "placeId": "ChIJt8BDVHcG5xQRczoOR2lO6Bk",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:40.192Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "793",
+      "placeId": "ChIJs8uEVy8E5xQRlzJ9cBQi1V0",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:41.055Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "815",
+      "placeId": "ChIJaRY3gLEH5xQRao2IFEsdzDU",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:41.927Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "869",
+      "placeId": "ChIJnYDmbH0G5xQR87ZQeRut5KU",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:42.866Z",
+      "coordinateDifferenceMeters": 310,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "875",
+      "placeId": "ChIJ09jJhvUG5xQRKXFOEaFoXKk",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:43.771Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "893",
+      "placeId": "ChIJK_I3kY4P5xQRlMONt5rEhd8",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:44.606Z",
+      "coordinateDifferenceMeters": 681,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "895",
+      "placeId": "ChIJH2qyQ-4G5xQRX0Br7Rg7j5U",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:45.515Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "896",
+      "placeId": "ChIJje48JOUG5xQR6_Xvd-_omBk",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "postcode_exact",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:46.496Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "901",
+      "placeId": "ChIJMcl-tWgG5xQRqzVIU6PoOSc",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:46.888Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "912",
+      "placeId": "ChIJKz3XYwAH5xQRqGeFekJMRD8",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:47.825Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "922",
+      "placeId": "ChIJ9V36khIH5xQR4YcwQWZ2EOc",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "house_number_compatible",
+        "street_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:48.710Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "923",
+      "placeId": "ChIJreL_c0UG5xQRPiUy7NiIXDI",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": 15,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "924",
+      "placeId": "ChIJw0Jo5w4H5xQRC7Jnufa10rQ",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:49.576Z",
+      "coordinateDifferenceMeters": 20,
+      "comparedProvider": "openstreetmap_nominatim",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "927",
+      "placeId": "ChIJdWDysbUH5xQRswODL-FrTAM",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "street_tokens:2",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:50.487Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "942",
+      "placeId": "ChIJqY_9oL4I5xQRqi_qOyQWMvo",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible"
+      ],
+      "retrievedAt": "2026-09-03T12:34:51.358Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "964",
+      "placeId": "ChIJH-wK9LUJ5xQRoP6C12LmBJc",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:51.847Z",
+      "coordinateDifferenceMeters": 40,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "974",
+      "placeId": "ChIJl3lPl-kG5xQRPcTA5a-atQs",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:52.225Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "975",
+      "placeId": "ChIJczHw2GAG5xQRxDbuEEFG3uc",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:3"
+      ],
+      "retrievedAt": "2026-09-03T12:34:53.290Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "976",
+      "placeId": "ChIJg1s4c3QG5xQR8LInZ3upxTQ",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": 62,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "medium",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "995",
+      "placeId": "ChIJXbsroDcG5xQR8nSfx0pLVhM",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:54.145Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1024",
+      "placeId": "ChIJA_CBDgAH5xQRs6WETh6I-rg",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:55.095Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1035",
+      "placeId": "ChIJz25r_n0G5xQRM8RznIGtyPw",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:55.978Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1046",
+      "placeId": "ChIJp4NujywH5xQR6et_Mmge6YE",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:56.875Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1047",
+      "placeId": "ChIJVwsimZUE5xQRmcC0M1pVPdw",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:57.719Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1052",
+      "placeId": "ChIJeavRwBN05xQR0rrbe5sTY0E",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "house_number_compatible",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": 104,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1075",
+      "placeId": "ChIJyxxQx-QH5xQRGpuWWljv7DQ",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:58.106Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1078",
+      "placeId": "ChIJWRXHuN4F5xQRBZr7REQWH9g",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": 102,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "medium",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1091",
+      "placeId": "ChIJTdQKWo8G5xQRe_sd7faJKSg",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:34:59.040Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1105",
+      "placeId": "ChIJ8ZBj0u0G5xQRF3l-vVEAIfY",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:34:59.495Z",
+      "coordinateDifferenceMeters": 15,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1106",
+      "placeId": "ChIJkbm5VeIH5xQRmWIyFuZHMYw",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "street_tokens:1",
+        "name_tokens:3"
+      ],
+      "retrievedAt": "2026-09-03T12:34:59.895Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1152",
+      "placeId": "ChIJqy5SWDsH5xQRgfrus8PTVVw",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:00.865Z",
+      "coordinateDifferenceMeters": 8,
+      "comparedProvider": "openstreetmap_nominatim",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1170",
+      "placeId": null,
+      "classification": "no_match",
+      "matchingEvidence": [
+        "no_accepted_candidate"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "1177",
+      "placeId": "ChIJtfDWxQoF5xQRxRsPOKsc4hU",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:3",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:01.245Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1186",
+      "placeId": "ChIJ69MMfyN15xQRR7SznzTHyUw",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1210",
+      "placeId": "ChIJUdV70jgJ5xQRrxjBAEkECd4",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:02.291Z",
+      "coordinateDifferenceMeters": 924,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "1216",
+      "placeId": "ChIJ9_SsII4F5xQR3N0Dd2I4_4c",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:03.185Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1222",
+      "placeId": "ChIJUbVMltEH5xQRPOqVRis9vHs",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "house_number_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:04.055Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1225",
+      "placeId": "ChIJIRL_ZKoH5xQRfWcUUzpwYo4",
+      "classification": "ambiguous",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1",
+        "multiple_exact_phone_candidates"
+      ],
+      "retrievedAt": "2026-09-03T12:35:04.947Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": "openstreetmap_nominatim",
+      "comparedQuality": "medium",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "1226",
+      "placeId": "ChIJR-FDgIcG5xQR-ARwIUS44hw",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:05.825Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1248",
+      "placeId": "ChIJSe-ebnIP5xQRfpEiZxyY_9Y",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:06.755Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1250",
+      "placeId": "ChIJYV02PwgH5xQRYKrUzcBbmFk",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:07.165Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1262",
+      "placeId": "ChIJ74pKKAwF5xQRhSUzaVJh408",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:35:08.004Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1265",
+      "placeId": "ChIJU_D99QoH5xQRR8p7Upg8tgE",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:35:09.078Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1280",
+      "placeId": "ChIJmQggJdAH5xQRL2KIf4Ll3mE",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:35:09.469Z",
+      "coordinateDifferenceMeters": 29,
+      "comparedProvider": "openstreetmap_nominatim",
+      "comparedQuality": "high",
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1308",
+      "placeId": "ChIJ8W-XaEgH5xQRHibfKZqCz4Y",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1317",
+      "placeId": "ChIJteSMWQAH5xQR8vxJ-f0zfOA",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:10.304Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1332",
+      "placeId": "ChIJGcWVHYUH5xQRG3s6wPkBEsk",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "house_number_compatible",
+        "street_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:35:11.310Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1342",
+      "placeId": "ChIJyyAXOQB15xQR0DYWB1N68nA",
+      "classification": "probable_match",
+      "matchingEvidence": [
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:12.218Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": "geoapify",
+      "comparedQuality": "high",
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "1345",
+      "placeId": "ChIJgb-gyWQF5xQRva90x83cjoY",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "postcode_exact",
+        "house_number_compatible",
+        "street_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:35:12.616Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1363",
+      "placeId": "ChIJveGQB1cH5xQRLmOeVebThRo",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:13.474Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1369",
+      "placeId": "ChIJMw4ARTcP5xQRK_LvqmrRUR0",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:14.513Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1372",
+      "placeId": null,
+      "classification": "no_match",
+      "matchingEvidence": [
+        "no_accepted_candidate"
+      ],
+      "retrievedAt": "2026-09-03T12:35:15.424Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": true
+    },
+    {
+      "officialRegistrationNumber": "1374",
+      "placeId": "ChIJQZPZEqEH5xQRQQbQZXPA1xk",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "street_tokens:2",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:16.286Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1375",
+      "placeId": "ChIJY932A7YH5xQRL2y2Sng_QQ8",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "street_tokens:1",
+        "name_tokens:1"
+      ],
+      "retrievedAt": "2026-09-03T12:35:17.204Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1385",
+      "placeId": "ChIJhR2BSRwH5xQRdgbTBDSSzY4",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "postcode_exact",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:17.797Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1403",
+      "placeId": "ChIJuWUYTbd15xQRLiZXnnWLpxc",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "house_number_compatible",
+        "street_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1414",
+      "placeId": "ChIJvU4KH3cH5xQRVYKBqturi0A",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "locality_compatible",
+        "house_number_compatible",
+        "name_tokens:2"
+      ],
+      "retrievedAt": "2026-09-03T12:35:18.225Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    }
+  ]
+}

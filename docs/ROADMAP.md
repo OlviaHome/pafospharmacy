@@ -15,6 +15,8 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - Geoapify second-provider reconciliation for the 82 unresolved records, with 20 additional accepted coordinates, retained provider/source provenance, and conservative rejection of reused geometries and non-pharmacy amenities.
 - Three optional proximity paths—GPS, explicit manual Paphos location selection, or browse-all—using transient `searchOrigin` state and no GPS persistence.
 - Located results sorted nearest-first with unknown distances retained, human-readable distance, a nearest-10 progressive reveal for All, and untruncated On Duty results.
+- Full 90-record Paphos Google Places API (New) reconciliation using official-phone-first identity evidence: 81 exact matches, 3 probable, 3 ambiguous, and 3 no match.
+- A 30-day expiring Google content/coordinate cache with day-25 manual refresh, durable Place IDs, exact-only runtime trust, and unchanged Geoapify/Nominatim fallback data.
 
 ## NOW — validate the official-data experience
 
@@ -27,7 +29,7 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 
 - Find and validate a pharmacy-specific ordinary-opening source before enabling real-data Open Now filtering.
 - Find a trustworthy timed source for `duty/open` or `duty/on_call`; keep those facts in `availability_intervals` only.
-- Review the remaining 62 pharmacies without trusted coordinates using source corrections or manual evidence; never downgrade to road/town centroids as pharmacy destinations.
+- Manually review the 9 non-exact Google identity results and 7 exact results that differ by more than 250 m from existing enrichment. Six pharmacies currently remain without any trusted coordinate source.
 - Schedule the existing importer only after refresh, failure, alerting, and reconciliation behavior are accepted.
 - Decide the next language based on validated need and design the translation/content boundary.
 

@@ -26,7 +26,8 @@ Next.js application
 Supabase / PostgreSQL
   ├─ pharmacies
   ├─ availability_intervals (trustworthy timed facts only)
-  └─ duty_assignments (official date-only rota facts)
+  ├─ duty_assignments (official date-only rota facts)
+  └─ pharmacy_google_places (expiring Places response cache)
 
 Cyprus Open Data CSV resources
               │
@@ -42,6 +43,10 @@ One-time Nominatim batch ──► cached results + reconciliation report
               └────────────► optional provenance-only Supabase update
 
 Unresolved Paphos addresses ──► one-time Geoapify batch ──► second cached report
+
+Official Paphos identity + phone ──► Google Places API (New) reconciliation
+                                 ├─► durable Place ID/classification links
+                                 └─► 30-day response/coordinate cache
 
 Manual area/address ──► Next.js server-only route ──► Geoapify search
                     ◄── explicit Paphos match list ◄──┘
@@ -67,7 +72,7 @@ React components receive display-ready domain values and do not recreate schedul
 
 ### Supabase/PostgreSQL
 
-PostgreSQL is the production source of truth for pharmacy details, explicit timed intervals, and date-only duty assignments. Public clients never receive a secret/service-role key. Tables in an exposed schema use Row Level Security and least-privilege grants; anonymous access is read-only, and public writes are denied.
+PostgreSQL is the production source of truth for pharmacy details, explicit timed intervals, date-only duty assignments, and the current expiring Google Places cache. Public clients never receive a secret/service-role key. Tables in an exposed schema use Row Level Security and least-privilege grants; anonymous access is read-only, and public writes are denied. The Places table exposes only unexpired exact-match coordinates for active pharmacies; probable, ambiguous, no-match, and expired rows remain unavailable to public clients.
 
 The application should explicitly configure any required Data API exposure rather than relying on project defaults. Trusted seed, ingestion, or administrative writes run only in a server-side or development context.
 
@@ -89,12 +94,16 @@ The checked-in geocoding artifact retains the exact query, retrieval time, raw p
 
 Geoapify is the second provider for the 82 records not accepted by Nominatim and for interactive manual location search. `GEOAPIFY_API_KEY` stays server-only: the trusted batch loads it locally and the browser calls a no-store Next.js route rather than Geoapify directly. The route propagates client cancellation, enforces the three-character floor, and caps both the provider request and returned list at the three suggestions the UI can display. Requests are constrained to a Paphos rectangle and application reconciliation rejects non-Cyprus/non-Paphos results, centroids, non-pharmacy amenities, insufficient official-address evidence, competing candidates, and provider result identifiers reused for different official addresses. The cached artifact retains raw result/source attribution and match metadata. The free plan permits limited commercial use, storage of geocoded results, 3,000 daily credits, and 5 requests/second without a card, subject to Geoapify and underlying data attribution; usage must be monitored before material traffic growth.
 
+Google Places API (New) is the preferred business-identity/location layer for Paphos exact matches. The batch queries normalized official phone first and uses official address, postcode, locality, and Paphos geography as verification; pharmacist/business name is secondary and can never establish a match by itself. It requests only Place ID, display name, formatted address, location, and phone needed for identity verification. Cross-record duplicate exact Place IDs are downgraded to ambiguous.
+
+Official registration number remains canonical. The durable checked-in artifact keeps registration-to-Place-ID links, classifications, evidence, and comparison metadata but no Google-returned content or coordinates. Returned name, address, phone, and location live only in an ignored local cache or `pharmacy_google_places`. Place ID may be retained; all other cached response content is refreshed from day 25 and must be refreshed or purged by 30 days. The database enforces the maximum expiry, and both RLS and runtime checks reject stale or non-exact coordinates. Existing Nominatim/Geoapify data is never overwritten and remains comparison/fallback enrichment.
+
 The authoritative release is [Cyprus Pharmaceutical Services dataset 817](https://www.data.gov.cy/en/dataset/817), including its attached 2026 private-pharmacy directory and five May–September 2026 district rota CSVs. The older [private-pharmacies dataset 815](https://www.data.gov.cy/en/dataset/815) is retained only as research context because its published resource is labelled 2024–2025. All imported resources are CC BY 4.0. Exact resource URLs and coverage are versioned in `lib/ingestion/official-sources.ts` and copied into snapshot metadata and row provenance.
 
 ## Request and calculation flow
 
 1. The server determines Today/Tomorrow using the `Europe/Nicosia` IANA time zone.
-2. The data layer fetches active Paphos pharmacies, timed intervals overlapping the window, and date-only duty assignments for its local dates. Without configured Supabase credentials it maps the checked-in official snapshot and accepted Paphos geocoding artifact through the same domain shape.
+2. The data layer fetches active Paphos pharmacies, timed intervals overlapping the window, date-only duty assignments for its local dates, and any fresh exact Google cache rows. Without configured Supabase credentials it maps the checked-in official snapshot, durable Google Place links, the ignored fresh local Google cache when present, and existing accepted Paphos geocoding artifacts through the same domain shape.
 3. At a given instant, the domain layer derives status across timed and date-only facts:
    - **Open Now** is true if any active interval has `service_mode = open`;
    - **On Duty** is true if an active timed duty interval exists or an official assignment exists for the local date;
@@ -104,7 +113,7 @@ The authoritative release is [Cyprus Pharmaceutical Services dataset 817](https:
    - an active `ordinary/open` interval independently proves Open Now, even when an overlapping duty interval is `on_call` or `unknown`.
 4. When no complete ordinary-hours source exists, absence of an open interval is unknown rather than proof of closure, and the Open Now filter is omitted.
 5. The browser optionally obtains GPS or asks the server-only Geoapify route for Paphos manual-location suggestions. Choosing a suggestion replaces the prior `searchOrigin`; clearing it returns to no-origin mode.
-6. For any origin, the browser calculates approximate Haversine distance only for pharmacies with accepted, separately attributed coordinates. Known distances sort nearest-first within that verified-coordinate subset; this is not a claim that they are globally nearest among all 90 pharmacies. Unknown distances remain visible after them.
+6. For any origin, the browser calculates approximate Haversine distance only for pharmacies with accepted, separately attributed coordinates. Fresh exact Google coordinates take precedence; otherwise existing accepted Geoapify/Nominatim coordinates remain available. Known distances sort nearest-first within that verified-coordinate subset; this is not a claim that they are globally nearest among all 90 pharmacies. Unknown distances remain visible after them.
 7. The normal located All view initially shows the nearest 10 results and can reveal the complete set. On Duty is never truncated, and lack of an origin preserves the full existing list.
 8. The presentation layer renders exact status language, schedule times, call actions, and directions actions. Directions prefers accepted coordinates while the card continues to display the official address.
 
@@ -122,7 +131,7 @@ The authoritative release is [Cyprus Pharmaceutical Services dataset 817](https:
 
 The first slice uses a small pharmacy dataset, so Haversine distance in the browser is sufficient and avoids adding PostGIS. The result is straight-line distance and should be presented as approximate, not as travel distance. Directions are delegated to a mapping application/provider, which computes the route.
 
-Official records have nullable coordinates. Of the current 90 Paphos records, 8 retain conservatively accepted Nominatim enrichment and 20 have separately accepted Geoapify enrichment, for 28 trusted coordinate pairs (31.1%). Every other pharmacy remains visible without distance and uses its official address for Directions. The UI explicitly says distance is available only for verified map coordinates and does not describe that partial ordering as globally nearest. Distance is formatted in metres below 1 km and to one decimal kilometre otherwise. The UI attributes both providers and never presents coordinates as official Cyprus Pharmaceutical Services fields.
+Official records have nullable coordinates. The current Google reconciliation has 81 fresh exact matches (90.0%). Together with separately accepted fallback enrichment for 3 non-exact cases, the current runtime has 84 coordinate destinations; the other 6 pharmacies remain visible without distance and use their official address for Directions. Because Google coordinates expire, this count can fall safely rather than use stale data if refresh is missed. The UI explicitly says distance is available only for verified map coordinates and does not describe that partial ordering as globally nearest. Distance is formatted in metres below 1 km and to one decimal kilometre otherwise. The UI attributes every active provider and never presents coordinates as official Cyprus Pharmaceutical Services fields.
 
 If the dataset later expands nationally or server-side proximity queries become necessary, PostGIS can be evaluated then. It is not an MVP dependency.
 
@@ -136,6 +145,7 @@ PWA-ready means the application can provide appropriate manifest metadata and a 
 - Location permission is optional, requested in context, and denied permission falls back to manual search or browse-all.
 - Precise GPS is never sent to the server or persisted. Manual queries necessarily go to Geoapify through a no-store server route, but the selected origin is not stored.
 - `GEOAPIFY_API_KEY` is server-only and is never prefixed with `NEXT_PUBLIC_`.
+- `GOOGLE_PLACES_API_KEY` is server-only and is used only by the trusted reconciliation/refresh script.
 - Only public pharmacy and schedule fields are returned to the application.
 - Anonymous roles receive only required `SELECT` privileges and matching RLS policies.
 - Secret/service-role credentials are server-only and reserved for trusted operations.
@@ -143,7 +153,7 @@ PWA-ready means the application can provide appropriate manifest metadata and a 
 
 ## Verification strategy
 
-- Unit tests cover CSV quoting and Greek text, source dates, identity normalization, malformed records, deterministic upsert preparation, interval boundaries, date-only duty derivation, Cyprus day boundaries, GPS/manual/no-origin state, denied-location fallback, distance calculations, known/unknown distance ordering, progressive limits, manual request budgeting and caching, manual result handling, and two-provider geocoder reconciliation.
+- Unit tests cover CSV quoting and Greek text, source dates, identity normalization, malformed records, deterministic upsert preparation, interval boundaries, date-only duty derivation, Cyprus day boundaries, GPS/manual/no-origin state, denied-location fallback, distance calculations, known/unknown distance ordering, progressive limits, manual request budgeting and caching, manual result handling, phone-first Places classification, duplicate Place IDs, and 30-day cache trust/purge boundaries.
 - Data-access tests cover day-window queries and inactive pharmacies.
 - Database tests verify valid-pair constraints, allowed cross-kind overlaps, rejected same-kind overlaps, the date-only duty schema, grants, RLS allow/deny behavior, and indexes.
 - A focused mobile browser test covers location granted/denied, Today/Tomorrow, filters, call, and directions.
@@ -151,4 +161,4 @@ PWA-ready means the application can provide appropriate manifest metadata and a 
 
 ## Deferred architecture
 
-Do not introduce a map SDK, PostGIS, authentication, a CMS/admin portal, queues, realtime subscriptions, analytics, notification infrastructure, or a generalized rule engine in the first slice. Add a boundary only when an accepted requirement needs it.
+Do not introduce a map SDK, PostGIS, authentication, a CMS/admin portal, queues, realtime subscriptions, analytics, cloud refresh scheduling, notification infrastructure, or a generalized rule engine in the first slice. Add a boundary only when an accepted requirement needs it.
