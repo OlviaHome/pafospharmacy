@@ -17,6 +17,7 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - Located results sorted nearest-first with unknown distances retained, human-readable distance, a nearest-10 progressive reveal for All, and untruncated On Duty results.
 - Full 90-record Paphos Google Places API (New) reconciliation using official-phone-first identity evidence: 81 exact matches, 3 probable, 3 ambiguous, and 3 no match.
 - A 30-day expiring Google content/coordinate cache with day-25 manual refresh, durable Place IDs, exact-only runtime trust, and unchanged Geoapify/Nominatim fallback data.
+- View-independent GPS/manual origins retained across All, On Duty, Today, and Tomorrow, with nearest-first duty results and no repeated permission request on filter changes.
 
 ## NOW — validate the official-data experience
 

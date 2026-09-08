@@ -54,6 +54,8 @@ Manual search accepts Paphos areas, municipalities, streets, landmarks, hotels, 
 
 Distance ordering is limited to pharmacies with verified map coordinates. Pharmacies without coordinates remain visible without a distance, and the UI must not imply that the ordered subset is globally nearest among every Paphos pharmacy.
 
+Once the user chooses GPS or a manual area/address, that origin persists while switching between All, On Duty, Today, and Tomorrow. On Duty results use the same trusted pharmacy coordinates and sort known distances nearest-first, followed by every pharmacy without coordinates. Filter/day changes never request device location again; only an explicit location-button tap may do so.
+
 For the current Paphos reconciliation, only a fresh Google Places exact identity match may be preferred for distance and Directions. Probable or ambiguous Places candidates are never used silently. Existing independently accepted coordinate enrichment remains available as fallback, and the displayed pharmacy identity/address always remains the official Cyprus record.
 
 ## Day and filter behavior
