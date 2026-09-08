@@ -1,6 +1,6 @@
 begin;
 
-select plan(16);
+select plan(24);
 
 select has_table('public', 'duty_assignments');
 select col_is_pk('public', 'duty_assignments', 'id');
@@ -25,6 +25,42 @@ select policies_are(
   'public',
   'duty_assignments',
   array['duty_assignments_public_read_active_pharmacy']
+);
+select ok(
+  has_table_privilege('service_role', 'public.pharmacies', 'select'),
+  'service_role can inspect pharmacies for idempotent imports'
+);
+select ok(
+  has_table_privilege('service_role', 'public.pharmacies', 'insert'),
+  'service_role can insert official pharmacies'
+);
+select ok(
+  has_table_privilege('service_role', 'public.pharmacies', 'update'),
+  'service_role can update official pharmacies'
+);
+select ok(
+  has_sequence_privilege('service_role', 'public.pharmacies_id_seq', 'usage'),
+  'service_role can generate pharmacy identity values'
+);
+select ok(
+  has_table_privilege('service_role', 'public.duty_assignments', 'select'),
+  'service_role can inspect duty assignments for idempotent imports'
+);
+select ok(
+  has_table_privilege('service_role', 'public.duty_assignments', 'insert'),
+  'service_role can insert official duty assignments'
+);
+select ok(
+  has_table_privilege('service_role', 'public.duty_assignments', 'update'),
+  'service_role can update official duty assignments'
+);
+select ok(
+  has_sequence_privilege(
+    'service_role',
+    'public.duty_assignments_id_seq',
+    'usage'
+  ),
+  'service_role can generate duty-assignment identity values'
 );
 
 select * from finish();
