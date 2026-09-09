@@ -52,23 +52,23 @@ The 2026 official directory contains four `House Tel. No.` fields with multiple 
 
 ## `pharmacy_google_places`
 
-One Paphos-only row links a canonical official registration number to a Google Place reconciliation and its temporary cached response content. This table does not replace any official identity, name, address, phone, or existing Geoapify/Nominatim enrichment.
+One Paphos-only row links a canonical official registration number to durable Google Place reconciliation metadata and an optional temporary coordinate cache. This table does not replace any official identity, name, address, phone, or existing Geoapify/Nominatim enrichment.
 
 | Field | Type | Required | Purpose / constraint |
 |---|---|---:|---|
 | `official_registration_number` | `text` | yes | Primary key and foreign key to the canonical official pharmacy identity; deletion is restricted. |
 | `place_id` | `text` | no | Long-lived Google provider identifier. Required for exact, probable, or ambiguous matches; null for no match. |
-| `display_name` | `text` | no | Temporary Google response content; cleared at expiry unless refreshed. |
-| `formatted_address` | `text` | no | Temporary Google response content; never overwrites `pharmacies.address_line`. |
-| `latitude` / `longitude` | `double precision` | no | Temporary cache pair; both present or both null and range constrained. |
-| `google_phone_e164` | `text` | no | Temporary returned phone normalized for identity comparison; never replaces the official phone. |
+| `display_name` | `text` | no | Reserved compatibility column constrained to null; Google display names are not persisted. |
+| `formatted_address` | `text` | no | Reserved compatibility column constrained to null; Google addresses are not persisted or promoted to official data. |
+| `latitude` / `longitude` | `double precision` | no | Temporary cache pair for exact identity matches only; both present or both null and range constrained. It does not depend on descriptive Google fields. |
+| `google_phone_e164` | `text` | no | Reserved compatibility column constrained to null; Google phone values are used during reconciliation but not persisted. |
 | `classification` | `text` | yes | `exact_identity_match`, `probable_match`, `ambiguous`, or `no_match`. |
 | `matching_evidence` | `text[]` | yes | Machine-readable evidence such as exact phone, compatible postcode/locality/street, or conflicting/insufficient identity. |
 | `retrieved_at` | `timestamptz` | yes | Places response retrieval instant. |
-| `expires_at` | `timestamptz` | yes | Hard content-cache expiry, later than retrieval and no more than 720 hours afterward. |
+| `expires_at` | `timestamptz` | yes | Hard coordinate-cache expiry, later than retrieval and no more than 720 hours afterward. |
 | `created_at` / `updated_at` | `timestamptz` | yes | Audit timestamps. |
 
-Only a fresh `exact_identity_match` with a complete coordinate pair may supply distance sorting or Directions. Probable and ambiguous matches are review data, never silently trusted. On expiry, Google-returned name, address, phone, and coordinate fields are cleared while the Place ID and derived reconciliation decision may remain. A partial unique index prevents one exact Place ID from being assigned to multiple official pharmacies.
+Only a fresh `exact_identity_match` with a complete coordinate pair may supply distance sorting or Directions. Probable and ambiguous matches are durable review data but can never store or supply runtime coordinates. The database stores no Google-returned display name, formatted address, or phone; on expiry, coordinates are refreshed or cleared while the Place ID and reconciliation metadata may remain. A partial unique index prevents one exact Place ID from being assigned to multiple official pharmacies.
 
 RLS permits anonymous/authenticated reads only for active pharmacies with a fresh exact coordinate row. Trusted scripts receive explicit write grants through the server-side service role. The database constraint caps cache lifetime at 30 consecutive days, and the refresh script targets day 25.
 
@@ -147,11 +147,13 @@ The importer stores pharmacy identity/provenance and date-only duty assignments.
 
 `data/geocoding/paphos-nominatim-2026.json` is a separately versioned enrichment artifact keyed by official registration number. It contains provider/policy/license metadata, source-snapshot identity, exact queries and timestamps, cached raw results, reconciliation outcomes, accepted coordinates, and aggregate counts.
 
-`data/geocoding/paphos-geoapify-2026.json` has the same purpose for only the 82 Paphos pharmacies not accepted by Nominatim. It additionally retains provider confidence/match metadata and each result's underlying datasource attribution. Geoapify accepted 20 records after cross-record duplicate-result and non-pharmacy-amenity rejection; combined coverage is 28 of 90. The two artifacts remain separate so each provider's provenance and terms stay auditable.
+`data/geocoding/paphos-geoapify-2026.json` has the same purpose for only the 82 Paphos pharmacies not accepted by Nominatim. It additionally retains provider confidence/match metadata and each result's underlying datasource attribution. Geoapify accepted 20 records after cross-record duplicate-result and non-pharmacy-amenity rejection; combined accepted evidence is 28 of 90. Seven Geoapify results materially disagree with an exact Google identity location and are quarantined for manual review, leaving 21 trusted fallback rows eligible for persistence. The two artifacts remain separate so each provider's provenance and terms stay auditable.
 
-`data/geocoding/paphos-google-place-links-2026.json` records the full 90-pharmacy phone-first reconciliation without retaining Google response content or coordinates. It keeps canonical registration number, Place ID, classification, evidence, retrieval time, and comparison/report metadata. The full Google response fields requested for identity verification live only in ignored `data/geocoding/cache/paphos-google-places.json` or `pharmacy_google_places`; both are temporary cache layers. Current results are 81 exact, 3 probable, 3 ambiguous, and 3 no match. Exact fresh Google coordinates take runtime precedence; existing accepted Geoapify/Nominatim coordinates remain unchanged for comparison and fallback.
+`data/geocoding/paphos-google-place-links-2026.json` records the full 90-pharmacy phone-first reconciliation without retaining Google response content or coordinates. It keeps canonical registration number, Place ID, classification, evidence, retrieval time, and comparison/report metadata. Full fields requested for identity verification live only in the ignored local cache at `data/geocoding/cache/paphos-google-places.json`; Supabase persists only fresh exact coordinates from that cache, never Google name, address, or phone. Current results are 81 exact, 3 probable, 3 ambiguous, and 3 no match. Exact fresh Google coordinates take runtime precedence; only non-disputed accepted Geoapify/Nominatim coordinates may act as fallback.
 
-Only `accepted` records are merged into application data or written to coordinate columns. An accepted result must remain in Cyprus and Paphos and match a precise building/house or pharmacy POI using source-backed locality/postcode/street evidence. Street-only and locality-only coordinates are intentionally `ambiguous`, even when useful as search hints, because they are unsafe as Directions destinations. `failed` means the provider returned no result; it does not mean the official pharmacy or address is invalid.
+`scripts/sync-geocoding-snapshots.ts` is the Paphos-only offline synchronization boundary. It reads the official snapshot, durable Google links, temporary local Google cache, and accepted Nominatim/Geoapify artifacts; validates registration uniqueness, artifact agreement, cache limits, and expected coverage; and defaults to a no-write report. Its manual-review output contains the seven exact matches whose providers disagree by more than 250 m plus every probable, ambiguous, and no-match record. The seven disputed fallbacks stay in that evidence but are excluded from runtime merging and the 21-row trusted fallback write plan. It never changes official source fields or treats textual addresses as verified physical locations.
+
+Only `accepted` records not subsequently quarantined by cross-provider reconciliation are merged into application data or written to coordinate columns. An accepted result must remain in Cyprus and Paphos and match a precise building/house or pharmacy POI using source-backed locality/postcode/street evidence. Street-only and locality-only coordinates are intentionally `ambiguous`, even when useful as search hints, because they are unsafe as Directions destinations. `failed` means the provider returned no result; it does not mean the official pharmacy or address is invalid.
 
 `searchOrigin` is transient application state, not a database entity. GPS and selected manual-location coordinates are deliberately absent from the schema and are never stored as pharmacy coordinates.
 

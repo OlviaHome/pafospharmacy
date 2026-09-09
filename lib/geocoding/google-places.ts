@@ -23,6 +23,25 @@ export const GOOGLE_PLACES_FIELD_MASK = [
 ].join(",");
 export const GOOGLE_COORDINATE_CACHE_DAYS = 30;
 export const GOOGLE_COORDINATE_REFRESH_AFTER_DAYS = 25;
+export const PAPHOS_DISPUTED_FALLBACK_REGISTRATION_NUMBERS = [
+  "413",
+  "467",
+  "607",
+  "690",
+  "869",
+  "893",
+  "1210",
+] as const;
+
+const paphosDisputedFallbackRegistrations = new Set<string>(
+  PAPHOS_DISPUTED_FALLBACK_REGISTRATION_NUMBERS,
+);
+
+export function isPaphosFallbackDisputed(
+  officialRegistrationNumber: string,
+): boolean {
+  return paphosDisputedFallbackRegistrations.has(officialRegistrationNumber);
+}
 
 export type GoogleMatchClassification =
   | "exact_identity_match"

@@ -16,6 +16,7 @@ import {
   googleCacheRecord,
   googleCacheRefreshDueAt,
   haversineDistanceMeters,
+  isGoogleCoordinateCacheUsable,
   purgeExpiredGoogleContent,
   reconcileGooglePlacesResults,
   rejectDuplicateTrustedGooglePlaceIds,
@@ -359,20 +360,23 @@ async function writeCacheToSupabase(
     throw new Error(`Unable to clear expired Google content: ${purgeError.message}`);
   }
 
-  const rows = records.map((record) => ({
-    official_registration_number: record.officialRegistrationNumber,
-    place_id: record.placeId,
-    display_name: record.displayName,
-    formatted_address: record.formattedAddress,
-    latitude: record.latitude,
-    longitude: record.longitude,
-    google_phone_e164: record.googlePhoneE164,
-    classification: record.classification,
-    matching_evidence: record.matchingEvidence,
-    retrieved_at: record.retrievedAt,
-    expires_at: record.expiresAt,
-    updated_at: now.toISOString(),
-  }));
+  const rows = records.map((record) => {
+    const useCoordinates = isGoogleCoordinateCacheUsable(record, now);
+    return {
+      official_registration_number: record.officialRegistrationNumber,
+      place_id: record.placeId,
+      display_name: null,
+      formatted_address: null,
+      latitude: useCoordinates ? record.latitude : null,
+      longitude: useCoordinates ? record.longitude : null,
+      google_phone_e164: null,
+      classification: record.classification,
+      matching_evidence: record.matchingEvidence,
+      retrieved_at: record.retrievedAt,
+      expires_at: record.expiresAt,
+      updated_at: now.toISOString(),
+    };
+  });
   const { data, error } = await client
     .from("pharmacy_google_places")
     .upsert(rows, { onConflict: "official_registration_number" })

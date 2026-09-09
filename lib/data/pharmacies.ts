@@ -24,6 +24,7 @@ import type { GeoapifyResult } from "@/lib/geocoding/geoapify";
 import {
   GOOGLE_PLACES_PROVIDER,
   isGoogleCoordinateCacheUsable,
+  isPaphosFallbackDisputed,
   isTrustedGoogleCoordinateCache,
   type GooglePlaceLinkSnapshot,
   type GooglePlacesCacheRecord,
@@ -185,7 +186,9 @@ const geocodingByRegistration = new Map(
       (record) => [record, geoapifySnapshot.metadata.provider.id] as const,
     ),
   ].flatMap(([record, providerId]) =>
-    record.status === "accepted" && record.accepted
+    record.status === "accepted" &&
+    record.accepted &&
+    !isPaphosFallbackDisputed(record.officialRegistrationNumber)
       ? [[record.officialRegistrationNumber, {
           ...record.accepted,
           providerId,

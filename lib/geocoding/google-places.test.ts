@@ -168,6 +168,20 @@ describe("Google Places pharmacy reconciliation", () => {
     expect(isGoogleCoordinateCacheUsable(record, new Date("2026-09-04T10:00:00Z"))).toBe(false);
   });
 
+  it("uses fresh exact coordinates without storing Google descriptive content", () => {
+    const record = {
+      ...googleCacheRecord(
+        "607",
+        reconcileGooglePlacesResults(pharmacy, [place()]),
+        "2026-09-03T10:00:00.000Z",
+      ),
+      displayName: null,
+      formattedAddress: null,
+      googlePhoneE164: null,
+    };
+    expect(isGoogleCoordinateCacheUsable(record, new Date("2026-09-04T10:00:00Z"))).toBe(true);
+  });
+
   it("requires the fresh cache to agree with the durable registration-to-Place-ID link", () => {
     const record = googleCacheRecord(
       "607",

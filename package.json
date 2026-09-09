@@ -14,7 +14,8 @@
     "ingest:official": "tsx scripts/ingest-official.ts",
     "geocode:pharmacies": "tsx scripts/geocode-pharmacies.ts",
     "geocode:geoapify": "tsx scripts/geocode-geoapify.ts",
-    "geocode:google": "tsx scripts/reconcile-google-places.ts"
+    "geocode:google": "tsx scripts/reconcile-google-places.ts",
+    "geocode:sync": "tsx scripts/sync-geocoding-snapshots.ts"
   },
   "engines": {
     "node": ">=22"
