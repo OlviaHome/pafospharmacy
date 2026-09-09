@@ -62,13 +62,17 @@ interface SupabaseDutyAssignmentRow {
 
 interface SupabaseGooglePlaceRow {
   official_registration_number: string;
-  place_id: string;
-  display_name: string;
-  formatted_address: string;
-  latitude: number;
-  longitude: number;
+  place_id: string | null;
+  display_name: string | null;
+  formatted_address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   google_phone_e164: string | null;
-  classification: "exact_identity_match";
+  classification:
+    | "exact_identity_match"
+    | "probable_match"
+    | "ambiguous"
+    | "no_match";
   matching_evidence: string[];
   retrieved_at: string;
   expires_at: string;
@@ -280,9 +284,27 @@ function mapDutyAssignment(row: SupabaseDutyAssignmentRow): DutyAssignment {
   };
 }
 
+function hasTrustedPersistedFallback(row: SupabasePharmacyRow): boolean {
+  return (
+    row.official_registration_number !== null &&
+    !isPaphosFallbackDisputed(row.official_registration_number) &&
+    (row.geocode_provider === geocodingSnapshot.metadata.provider.id ||
+      row.geocode_provider === geoapifySnapshot.metadata.provider.id) &&
+    row.geocode_result_identifier !== null &&
+    row.geocode_query !== null &&
+    row.geocode_quality !== null &&
+    row.geocoded_at !== null &&
+    row.latitude !== null &&
+    row.longitude !== null &&
+    Number.isFinite(row.latitude) &&
+    Number.isFinite(row.longitude)
+  );
+}
+
 function mapPharmacy(row: SupabasePharmacyRow, now: Date): Pharmacy {
   const google = mapSupabaseGooglePlace(row.pharmacy_google_places);
   const useGoogle = google !== null && isGoogleCoordinateCacheUsable(google, now);
+  const useFallback = !useGoogle && hasTrustedPersistedFallback(row);
   return {
     id: String(row.id),
     name: row.name,
@@ -291,13 +313,29 @@ function mapPharmacy(row: SupabasePharmacyRow, now: Date): Pharmacy {
     locality: row.locality,
     district: row.district,
     postalCode: row.postal_code,
-    latitude: useGoogle ? google.latitude : row.latitude,
-    longitude: useGoogle ? google.longitude : row.longitude,
-    geocodeProvider: useGoogle ? GOOGLE_PLACES_PROVIDER : row.geocode_provider,
-    geocodeResultIdentifier: useGoogle ? google.placeId : row.geocode_result_identifier,
-    geocodeQuery: useGoogle ? null : row.geocode_query,
-    geocodeQuality: useGoogle ? "high" : row.geocode_quality,
-    geocodedAt: useGoogle ? google.retrievedAt : row.geocoded_at,
+    latitude: useGoogle ? google.latitude : useFallback ? row.latitude : null,
+    longitude: useGoogle ? google.longitude : useFallback ? row.longitude : null,
+    geocodeProvider: useGoogle
+      ? GOOGLE_PLACES_PROVIDER
+      : useFallback
+        ? row.geocode_provider
+        : null,
+    geocodeResultIdentifier: useGoogle
+      ? google.placeId
+      : useFallback
+        ? row.geocode_result_identifier
+        : null,
+    geocodeQuery: useGoogle ? null : useFallback ? row.geocode_query : null,
+    geocodeQuality: useGoogle
+      ? "high"
+      : useFallback
+        ? row.geocode_quality
+        : null,
+    geocodedAt: useGoogle
+      ? google.retrievedAt
+      : useFallback
+        ? row.geocoded_at
+        : null,
     phoneE164: row.phone_e164,
     housePhoneE164: row.house_phone_e164,
     housePhoneRaw: row.house_phone_raw,
@@ -395,14 +433,21 @@ async function getOfficialSnapshotDataset(now: Date): Promise<PharmacyDataset> {
 }
 
 export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
-  const url = process.env.SUPABASE_URL;
-  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const url = process.env.SUPABASE_URL?.trim();
+  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
 
-  if (!url && !publishableKey) return getOfficialSnapshotDataset(now);
+  if (!url && !publishableKey) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Supabase runtime configuration is required in production. Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.",
+      );
+    }
+    return getOfficialSnapshotDataset(now);
+  }
 
   if (!url || !publishableKey) {
     throw new Error(
-      "Supabase configuration is incomplete. Set both SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY, or neither to use the checked-in official snapshot.",
+      "Supabase runtime configuration is incomplete. Set both SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY. The checked-in snapshot fallback is available only outside production when both values are absent.",
     );
   }
 

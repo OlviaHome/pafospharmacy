@@ -76,7 +76,7 @@ PostgreSQL is the production source of truth for pharmacy details, explicit time
 
 The application should explicitly configure any required Data API exposure rather than relying on project defaults. Trusted seed, ingestion, or administrative writes run only in a server-side or development context.
 
-For local inspection, the server-only data module reads the checked-in normalized official snapshot when both Supabase environment variables are absent. The snapshot contains every imported district, while the repository selects Paphos for the current UI. A partial configuration or a failed configured Supabase read is an error rather than a silent fallback, so a production data outage cannot be disguised.
+For local development and tests only, the server-only data module reads the checked-in normalized official snapshot when both Supabase environment variables are absent. The snapshot contains every imported district, while the repository selects Paphos for the current UI. Production requires `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`; missing or partial configuration and failed configured reads are errors rather than silent fallback, so a production data outage cannot be disguised. The runtime never reads `SUPABASE_SECRET_KEY`.
 
 ### Official ingestion
 
@@ -105,7 +105,7 @@ The authoritative release is [Cyprus Pharmaceutical Services dataset 817](https:
 ## Request and calculation flow
 
 1. The server determines Today/Tomorrow using the `Europe/Nicosia` IANA time zone.
-2. The data layer fetches active Paphos pharmacies, timed intervals overlapping the window, date-only duty assignments for its local dates, and any fresh exact Google cache rows. Without configured Supabase credentials it maps the checked-in official snapshot, durable Google Place links, the ignored fresh local Google cache when present, and existing accepted Paphos geocoding artifacts through the same domain shape.
+2. The data layer fetches active Paphos pharmacies, timed intervals overlapping the window, date-only duty assignments for its local dates, and any fresh exact Google cache rows. Only in local development and tests, when both Supabase settings are absent, it maps the checked-in official snapshot, durable Google Place links, the ignored fresh local Google cache when present, and existing accepted Paphos geocoding artifacts through the same domain shape. Production has no snapshot fallback.
 3. At a given instant, the domain layer derives status across timed and date-only facts:
    - **Open Now** is true if any active interval has `service_mode = open`;
    - **On Duty** is true if an active timed duty interval exists or an official assignment exists for the local date;
@@ -156,7 +156,7 @@ PWA-ready means the application can provide appropriate manifest metadata and a 
 ## Verification strategy
 
 - Unit tests cover CSV quoting and Greek text, source dates, identity normalization, malformed records, deterministic upsert preparation, interval boundaries, date-only duty derivation, Cyprus day boundaries, GPS/manual/no-origin state, origin persistence across filter/day changes, no repeated permission request, duty-distance ordering, denied-location fallback, distance calculations, known/unknown distance ordering, progressive limits, manual request budgeting and caching, manual result handling, phone-first Places classification, duplicate Place IDs, disputed-fallback quarantine, and 30-day cache trust/purge boundaries.
-- Data-access tests cover day-window queries and inactive pharmacies.
+- Data-access tests cover Paphos/day-window Supabase queries, runtime coordinate priority, disputed-fallback rejection, and production fail-closed behavior.
 - Database tests verify valid-pair constraints, allowed cross-kind overlaps, rejected same-kind overlaps, the date-only duty schema, grants, RLS allow/deny behavior, and indexes.
 - A focused mobile browser test covers location granted/denied, Today/Tomorrow, filters, call, and directions.
 - Visual checks use realistic narrow-screen sizes and accessible tap targets.

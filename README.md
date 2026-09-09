@@ -9,9 +9,9 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. When Supabase variables are absent, the application uses the checked-in normalized Cyprus Pharmaceutical Services snapshot and keeps the UI focused on Paphos.
+Open `http://localhost:3000`. In local development and tests only, absence of both Supabase variables uses the checked-in normalized Cyprus Pharmaceutical Services snapshot while keeping the UI focused on Paphos.
 
-## Optional Supabase data
+## Supabase runtime data
 
 Copy `.env.example` to `.env.local` and set both values:
 
@@ -20,7 +20,7 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-Set both variables or neither. No service-role key is used by the application. Apply `supabase/migrations` and `supabase/seed.sql` with the Supabase CLI before connecting a project.
+Production requires both variables and fails clearly when either is absent or the configured read fails; it never serves the checked-in snapshot as stale production data. Local development and tests may omit both values to use the snapshot fallback. The application uses only the publishable key with public read grants and RLS. `SUPABASE_SECRET_KEY` is not required by production runtime and remains reserved for trusted local ingestion/sync commands.
 
 ## Refresh official data
 
