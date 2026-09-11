@@ -121,7 +121,7 @@ A date-only assignment may coexist with a later trustworthy timed duty interval.
 
 At instant `t` and its Cyprus local date:
 
-- **Open Now** is true if an active interval has `service_mode = open` or a supported official duty assignment is currently inside the cited notice's mandatory open period. Outside supported rule coverage, a date-only assignment never proves it. If ordinary-opening coverage is incomplete and no trustworthy open fact exists, the value is unknown rather than false.
+- **Open Now** is true if the supported versioned official regular schedule is open, an active interval has `service_mode = open`, or a supported official duty assignment is currently inside the cited notice's mandatory open period. Regular closure, a duty gap, overnight phone coverage, and unsupported rule dates do not prove opening.
 - **On Duty** is true if an active timed duty interval exists, a `duty_assignments` row exists for the local date, or the previous date's supported assignment is still in its overnight phone period.
 - **On Call** is true from an active `duty/on_call` interval or the supported official notice's 23:00–08:00 period for the preceding assignment date. The date-only row by itself still establishes no service mode.
 - An overlapping `ordinary/open` interval independently proves physical opening even when duty information has no service mode.
@@ -141,7 +141,7 @@ Today/Tomorrow duty filtering uses `duty_date` for date-only assignments and int
 
 The current snapshot contains the 2026 private-pharmacy directory and May–September 2026 district duty resources published by Cyprus Pharmaceutical Services through the National Open Data Portal under CC BY 4.0. It preserves all five published districts while the UI selects Paphos.
 
-The importer stores pharmacy identity/provenance and date-only duty assignments. It creates no ordinary-opening intervals, duty intervals, service modes, or coordinates from these files. The 2026 duty-hours evaluator is pure runtime logic sourced from the separate official notice and never persists generated intervals. Synthetic intervals remain limited to automated tests and the development seed.
+The importer stores pharmacy identity/provenance and date-only duty assignments. It creates no ordinary-opening intervals, duty intervals, service modes, or coordinates from these files. The versioned 2026 regular-hours and duty-hours evaluators are pure runtime logic sourced from separate official rules and never persist generated intervals. The regular evaluator contains an explicit verified 2026 closure calendar; unsupported years are unknown. Seasonal status is not assigned without an official per-pharmacy registry. Synthetic intervals remain limited to automated tests and the development seed.
 
 ## Geocoding enrichment snapshots
 
@@ -159,7 +159,7 @@ Only `accepted` records not subsequently quarantined by cross-provider reconcili
 
 ## Deferred concepts
 
-- Trustworthy pharmacy-specific ordinary-opening intervals.
+- An official per-pharmacy seasonal profile or trustworthy exceptional opening-hours intervals.
 - Persisted timed duty/open or duty/on-call facts from a pharmacy-specific timed source; the current notice-derived schedule remains transient.
 - Import-run history and field-level provenance if reconciliation needs justify them.
 - Translations, pharmacy accounts, services, profiles, PostGIS, and national UI selection.

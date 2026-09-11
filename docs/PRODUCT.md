@@ -40,9 +40,9 @@ The first slice includes only:
 - PWA-ready structure, including basic install metadata, without promising offline schedule accuracy.
 - Supabase/PostgreSQL with `pharmacies`, timed `availability_intervals`, and date-only `duty_assignments` tables.
 - Official Cyprus Pharmaceutical Services pharmacy identities and date-only rota assignments, with visible CC BY 4.0 attribution.
-- Availability calculated from explicit timed facts and, during the published May–September 2026 coverage only, the official duty-hours notice applied to an explicit official duty-date record.
+- Availability calculated from explicit timed facts, the versioned 2026 official regular pharmacy schedule, and—during the published May–September 2026 coverage only—the official duty-hours notice applied to an explicit official duty-date record.
 - Optional browser geolocation or a user-selected Paphos area/address as the origin for approximate distance.
-- A temporarily labelled **Confirmed Open** filter for the current instant when a trustworthy open fact is available. Until regular pharmacy opening hours are sourced, it is explicitly the confirmed official duty-open subset rather than a complete open-now result.
+- An **Open Now** filter whose current official-schedule meaning is the union of the regular pharmacy schedule and any active mandatory duty-open period.
 - An **On Duty** filter for the selected local calendar day.
 - A Today/Tomorrow selector using Cyprus local time.
 - Call and directions actions.
@@ -64,17 +64,18 @@ For the current Paphos reconciliation, only a fresh Google Places exact identity
 - **Tomorrow** shows explicit schedule periods that overlap tomorrow in Cyprus local time.
 - **Open now** always means the real current instant. It is hidden or disabled for Tomorrow rather than being redefined.
 - **On duty** for a selected day means that an explicit on-duty interval overlaps that day or an official date-only rota assignment exists. During the supported 2026 notice period, cards may also show the notice's mandatory duty-open and overnight phone periods without modifying the assignment row.
-- Until pharmacy-specific ordinary hours are available through an approved source, **Open now** is a truthful but incomplete set: it includes official duty pharmacies currently inside a mandatory open period, but does not claim that other pharmacies are closed.
+- **Open now** includes a pharmacy when the supported official regular schedule is open or an assigned pharmacy is inside a supported mandatory duty-open period. A scheduled duty gap, overnight phone coverage, or unsupported schedule date does not qualify.
 
 ## Trust and safety rules
 
 - Apply duty hours only from a cited, versioned official notice and only within its explicit effective dates; do not infer them from general opening-hours conventions.
+- Apply regular hours only from the cited, versioned pharmacy-hours order and its verified 2026 holiday calendar. Unsupported years are unknown rather than extrapolated.
 - Do not present synthetic seed records as real operating information.
 - Show the three availability concepts separately, even when combining them would make the UI simpler.
 - Time-sensitive schedule responses must not be served as current from an unbounded offline cache.
 - Unknown or missing data should be presented as unknown, not guessed.
 - A date-only duty assignment alone must not be presented as proof of physical opening or on-call mode. The supported official 2026 notice plus that assignment may establish the applicable duty-open or overnight phone period at runtime.
-- General statutory pharmacy hours do not prove that an individual pharmacy is physically open; this is especially important because seasonal pharmacies are exceptions from 2026.
+- The regular schedule is a product-level “should be open” claim under the official order, not evidence against exceptional individual closures such as illness or staffing. No Paphos pharmacy receives the 2026 seasonal exception because an official per-pharmacy seasonal registry is not integrated.
 - Paid placement must never alter safety-critical truth or ranking, including which pharmacy is closest, physically open, or officially on duty.
 
 ## Commercial direction
@@ -90,13 +91,13 @@ The basic consumer experience is expected to remain free. Potential monetization
 - Automated official-data synchronization.
 - Pharmacy verification or pharmacy business accounts.
 - Push notifications, SEO landing pages, analytics, or product/service catalogues.
-- General or open-ended rule engines that encode Cyprus legislation beyond the cited, versioned 2026 duty notice.
+- General or open-ended rule engines beyond the cited, versioned 2026 regular and duty profiles.
 - Paid placement.
 
 ## Open product questions
 
 - What refresh and reconciliation process should run after the current official May–September 2026 release?
-- What trustworthy pharmacy-specific source should supply ordinary opening hours after the Places UI Kit evaluation?
+- What official per-pharmacy source can identify seasonal pharmacies or exceptional individual schedules?
 - Does official on-call data use the pharmacy's public number or a separate contact mechanism?
 - What ranking best answers the urgent question without implying that “on duty” means “open”?
 - Which directions provider or neutral handoff gives the best experience across common Cyprus devices?

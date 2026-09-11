@@ -240,21 +240,21 @@ describe("PharmacyFinder official duty hours", () => {
     expect(screen.getByText("19:30–23:00")).toBeTruthy();
     expect(
       screen.getByText(
-        /Confirmed Open currently includes pharmacies confirmed open by the official duty schedule/,
+        /Open Now is based on the official Cyprus regular pharmacy schedule and official duty rota/,
       ),
     ).toBeTruthy();
   });
 
   it("keeps a scheduled gap on duty without labelling it open", () => {
-    renderFinder([pharmacy("gap")], "2026-09-01T14:00:00.000Z");
+    renderFinder([pharmacy("gap")], "2026-09-01T04:00:00.000Z");
 
     expect(screen.getByText("ON DUTY TODAY")).toBeTruthy();
     expect(
-      screen.getByText("Mandatory duty opening starts at 19:30."),
+      screen.getByText("Mandatory duty opening starts at 13:30."),
     ).toBeTruthy();
     expect(screen.queryByText("OPEN NOW")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Confirmed Open" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
     expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
   });
 
@@ -278,5 +278,86 @@ describe("PharmacyFinder official duty hours", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "On Duty" }));
     expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
+  });
+});
+
+describe("PharmacyFinder official regular hours", () => {
+  it("shows a regular-schedule pharmacy as open with its closing time", () => {
+    renderFinder(
+      [pharmacy("ordinary-open", { dutyAssignments: [] })],
+      "2026-08-31T07:00:00.000Z",
+    );
+
+    expect(screen.getByText("OPEN NOW")).toBeTruthy();
+    expect(screen.getByText("Regular schedule · until 13:30")).toBeTruthy();
+    expect(screen.queryByText("ON DUTY TODAY")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
+    expect(screen.getByRole("heading", { name: "Pharmacy ordinary-open" })).toBeTruthy();
+  });
+
+  it("shows the summer afternoon break and excludes it from Open Now", () => {
+    renderFinder(
+      [pharmacy("ordinary-break", { dutyAssignments: [] })],
+      "2026-08-31T11:30:00.000Z",
+    );
+
+    expect(screen.getByText("CLOSED")).toBeTruthy();
+    expect(screen.getByText("Afternoon break · reopens at 16:00")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
+    expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
+  });
+
+  it("shows regular hours ended after the ordinary closing time", () => {
+    renderFinder(
+      [pharmacy("ordinary-ended", { dutyAssignments: [] })],
+      "2026-08-31T17:30:00.000Z",
+    );
+
+    expect(screen.getByText("CLOSED")).toBeTruthy();
+    expect(screen.getByText("Regular hours ended")).toBeTruthy();
+  });
+
+  it("keeps a Sunday ordinary pharmacy closed while a duty pharmacy is open", () => {
+    const sundayDuty = pharmacy("sunday-duty", {
+      dutyAssignments: [
+        {
+          ...pharmacy("source").dutyAssignments[0],
+          id: "sunday-duty-assignment",
+          pharmacyId: "sunday-duty",
+          dutyDate: "2026-09-06",
+        },
+      ],
+    });
+    renderFinder(
+      [pharmacy("sunday-ordinary", { dutyAssignments: [] }), sundayDuty],
+      "2026-09-06T09:00:00.000Z",
+    );
+
+    expect(screen.getAllByText("CLOSED")).toHaveLength(1);
+    expect(screen.getByText("Closed by regular schedule")).toBeTruthy();
+    expect(screen.getAllByText("OPEN NOW")).toHaveLength(1);
+    expect(screen.getByText("Duty pharmacy — open until 23:00")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
+    expect(screen.getByRole("heading", { name: "Pharmacy sunday-duty" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Pharmacy sunday-ordinary" })).toBeNull();
+  });
+
+  it("keeps registration 607 call, coordinates, and Directions unchanged", () => {
+    renderFinder([
+      pharmacy("607", {
+        dutyAssignments: [],
+        latitude: 34.7565252,
+        longitude: 32.4164677,
+        phoneE164: "+35726938784",
+      }),
+    ]);
+
+    expect(screen.getByRole("link", { name: "Call" }).getAttribute("href")).toBe(
+      "tel:+35726938784",
+    );
+    expect(screen.getByRole("link", { name: "Directions" }).getAttribute("href")).toBe(
+      "https://www.google.com/maps/search/?api=1&query=34.7565252%2C32.4164677",
+    );
   });
 });

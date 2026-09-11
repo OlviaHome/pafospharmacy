@@ -10,7 +10,7 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - Cyprus Pharmaceutical Services ingestion pipeline for the current 2026 private-pharmacy directory and May–September 2026 rota resources.
 - Registration-number identity, pragmatic provenance, idempotent upsert keys, validation/reporting, and a checked-in normalized snapshot.
 - All published districts retained in data; the UI remains Paphos-only and displays 90 real pharmacy identities with applicable official date-only assignments.
-- Nullable coordinates, address-based Directions, and no invented ordinary hours or persisted duty modes.
+- Nullable coordinates, address-based Directions, and no persisted generated schedule modes.
 - Reproducible Paphos-only Nominatim enrichment with cached raw results, conservative ambiguity handling, separate coordinate provenance, and eight accepted precise matches.
 - Geoapify second-provider reconciliation for the 82 unresolved records, with 20 additional accepted coordinates, retained provider/source provenance, and conservative rejection of reused geometries and non-pharmacy amenities.
 - Three optional proximity paths—GPS, explicit manual Paphos location selection, or browse-all—using transient `searchOrigin` state and no GPS persistence.
@@ -19,6 +19,7 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - A 30-day expiring Google content/coordinate cache with day-25 manual refresh, durable Place IDs, exact-only runtime trust, and unchanged Geoapify/Nominatim fallback data.
 - View-independent GPS/manual origins retained across All, On Duty, Today, and Tomorrow, with nearest-first duty results and no repeated permission request on filter changes.
 - A source-bounded `Europe/Nicosia` evaluator for the official May–September 2026 duty notice, including scheduled gaps and previous-day overnight phone coverage through 08:00, without generated database intervals.
+- A separate versioned `Europe/Nicosia` evaluator for the official 2026 regular summer/winter pharmacy schedule and verified closure holidays; **Open Now** is the union of regular-open and duty-open periods.
 
 ## NOW — validate the official-data experience
 
@@ -29,8 +30,8 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 
 ## NEXT — improve actionable availability
 
-- Prototype lazy Places UI Kit Place Details on exact-match cards for Google-rendered ordinary open-now/hours, using a separately restricted browser key and preserving attribution. Do not extract widget content into application filtering.
-- Find and validate a pharmacy-specific ordinary-opening source that can cleanly power a complete official-set Open Now filter; until then the UI uses **Confirmed Open** for the explicitly incomplete confirmed duty-open subset.
+- If separately approved, prototype lazy Places UI Kit Place Details on exact-match cards for Google-rendered supplementary hours, using a separately restricted browser key and preserving attribution. Do not extract widget content into application filtering.
+- Integrate an official per-pharmacy seasonal registry before applying a seasonal exception; add trustworthy exceptional schedules only as separate, attributable facts.
 - Revisit persisted `duty/open` or `duty/on_call` intervals only if a future pharmacy-specific timed source adds facts beyond the current transient official notice profile.
 - Manually review the 9 non-exact Google identity results and 7 exact results that differ by more than 250 m from existing enrichment. Six pharmacies currently remain without any trusted coordinate source.
 - Schedule the existing importer only after refresh, failure, alerting, and reconciliation behavior are accepted.

@@ -8,6 +8,7 @@ import type {
 
 import { getCyprusDayWindow } from "./date";
 import { deriveOfficialDutyStatus } from "./duty-hours";
+import { deriveOfficialRegularStatus } from "./regular-hours";
 
 export type AvailabilityFilter = "all" | "open_now" | "on_duty";
 
@@ -53,6 +54,7 @@ export function hasDutyInWindow(
 export interface AvailabilityDerivationOptions {
   dutyAssignments?: DutyAssignment[];
   ordinaryOpeningCoverageKnown?: boolean;
+  applyOfficialRegularSchedule?: boolean;
 }
 
 export function deriveAvailability(
@@ -62,6 +64,9 @@ export function deriveAvailability(
 ): DerivedAvailability {
   const dutyAssignments = options.dutyAssignments ?? [];
   const ordinaryOpeningCoverageKnown = options.ordinaryOpeningCoverageKnown ?? true;
+  const officialRegularStatus = options.applyOfficialRegularSchedule
+    ? deriveOfficialRegularStatus(instant)
+    : null;
   const localDate = getCyprusDayWindow(instant).localDate;
   const activeIntervals = intervals.filter((interval) => isIntervalActive(interval, instant));
   const todaysDutyAssignments = dutyAssignments.filter(
@@ -81,7 +86,8 @@ export function deriveAvailability(
   const hasExplicitDutyOpen = duty.some((interval) => interval.serviceMode === "open");
   const hasOpenFact =
     activeIntervals.some((interval) => interval.serviceMode === "open") ||
-    officialDutyStatus.mode === "open";
+    officialDutyStatus.mode === "open" ||
+    officialRegularStatus?.mode === "open";
   const hasUnknownDuty =
     duty.some((interval) => interval.serviceMode === "unknown") ||
     officialDutyStatus.mode === "unknown";
@@ -96,7 +102,9 @@ export function deriveAvailability(
     openNow:
       hasOpenFact
         ? true
-        : hasUnknownDuty || !ordinaryOpeningCoverageKnown
+        : hasUnknownDuty ||
+            (!ordinaryOpeningCoverageKnown &&
+              officialRegularStatus?.mode !== "closed")
           ? "unknown"
           : false,
     onDuty:
@@ -124,6 +132,7 @@ export function filterPharmaciesByAvailability(
   window: DayWindow,
   instant: Date,
   ordinaryOpeningCoverageKnown = true,
+  applyOfficialRegularSchedule = false,
 ): Pharmacy[] {
   if (filter === "open_now") {
     return pharmacies.filter(
@@ -131,6 +140,7 @@ export function filterPharmaciesByAvailability(
         deriveAvailability(pharmacy.intervals, instant, {
           dutyAssignments: pharmacy.dutyAssignments,
           ordinaryOpeningCoverageKnown,
+          applyOfficialRegularSchedule,
         }).openNow === true,
     );
   }
