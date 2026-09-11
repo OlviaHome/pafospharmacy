@@ -35,9 +35,6 @@ function pharmacy(
     geocodeQuality: "high",
     geocodedAt: generatedAt,
     phoneE164: "+35726000000",
-    housePhoneE164: null,
-    housePhoneRaw: null,
-    housePhoneE164Values: [],
     officialRegistrationNumber: id,
     pharmacistGivenName: "Test",
     pharmacistSurname: "Pharmacist",
@@ -98,9 +95,14 @@ afterEach(() => {
 
 describe("PharmacyFinder location controls", () => {
   it("renders GPS, manual search, complete no-origin browse, and standard tel call paths", () => {
+    const publicPharmacy = Object.assign(pharmacy("1"), {
+      housePhoneRaw: "PRIVATE-HOUSE-99111111",
+      housePhoneE164: "+35799111111",
+      housePhoneE164Values: ["+35799111111"],
+    });
     const markup = renderToStaticMarkup(
       <PharmacyFinder
-        pharmacies={[pharmacy("1")]}
+        pharmacies={[publicPharmacy]}
         source="official_snapshot"
         generatedAt={generatedAt}
         ordinaryOpeningDataAvailable={false}
@@ -119,6 +121,8 @@ describe("PharmacyFinder location controls", () => {
     expect(markup).toContain('href="tel:+35726000000"');
     expect(markup).not.toContain("facetime:");
     expect(markup).not.toContain("facetime-audio:");
+    expect(markup).not.toContain("PRIVATE-HOUSE-99111111");
+    expect(markup).not.toContain("+35799111111");
   });
 
   it("keeps a GPS origin and distance when switching to On Duty", () => {

@@ -34,9 +34,9 @@ function supabasePharmacyRow(options: {
     geocode_quality: options.provider ? "high" : null,
     geocoded_at: options.provider ? "2026-09-01T00:00:00.000Z" : null,
     phone_e164: "+35726900000",
-    house_phone_e164: null,
-    house_phone_raw: null,
-    house_phone_e164_values: [],
+    house_phone_e164: "+35799111111",
+    house_phone_raw: "99111111",
+    house_phone_e164_values: ["+35799111111"],
     official_registration_number: options.registration,
     pharmacist_given_name: null,
     pharmacist_surname: null,
@@ -119,6 +119,11 @@ describe("Google Places pharmacy data selection", () => {
     );
 
     expect(dataset.pharmacies).toHaveLength(90);
+    for (const pharmacy of dataset.pharmacies) {
+      expect(pharmacy).not.toHaveProperty("housePhoneE164");
+      expect(pharmacy).not.toHaveProperty("housePhoneRaw");
+      expect(pharmacy).not.toHaveProperty("housePhoneE164Values");
+    }
     expect(
       dataset.pharmacies.filter(
         (pharmacy) => pharmacy.geocodeProvider === "google_places",
@@ -224,8 +229,16 @@ describe("Supabase runtime pharmacy data", () => {
     expect(query.eq).toHaveBeenCalledWith("district", "Paphos");
     expect(query.gte).toHaveBeenCalledWith("duty_assignments.duty_date", "2026-09-09");
     expect(query.lte).toHaveBeenCalledWith("duty_assignments.duty_date", "2026-09-10");
+    const publicSelect = String(query.select.mock.calls[0]?.[0]);
+    expect(publicSelect).not.toContain("house_phone_e164");
+    expect(publicSelect).not.toContain("house_phone_raw");
     expect(dataset.source).toBe("supabase");
     expect(dataset.pharmacies).toHaveLength(2);
+    for (const pharmacy of dataset.pharmacies) {
+      expect(pharmacy).not.toHaveProperty("housePhoneE164");
+      expect(pharmacy).not.toHaveProperty("housePhoneRaw");
+      expect(pharmacy).not.toHaveProperty("housePhoneE164Values");
+    }
     expect(
       dataset.pharmacies.find(
         (pharmacy) => pharmacy.officialRegistrationNumber === "607",

@@ -1,14 +1,14 @@
 import {
-  buildGeoapifySearchUrl,
-  buildManualLocationQuery,
-  manualLocationSuggestions,
-  type GeoapifyResponse,
-} from "@/lib/geocoding/geoapify";
-import {
-  MANUAL_SUGGESTION_LIMIT,
-  MINIMUM_MANUAL_QUERY_CHARACTERS,
-  normalizeManualLocationQuery,
-} from "@/lib/location/manual-search";
+  checkLocationSearchBudget,
+  fetchManualLocationSuggestions,
+  LocationSearchProviderError,
+  LocationSearchRequestError,
+  LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS,
+  manualLocationProviderIsConfigured,
+  parseLocationSearchRequest,
+  readCachedManualLocationSuggestions,
+  writeCachedManualLocationSuggestions,
+} from "@/lib/location/location-search-server";
 
 export const dynamic = "force-dynamic";
 
@@ -19,29 +19,41 @@ function json(body: unknown, init: ResponseInit = {}): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  let body: unknown;
+  let query: string;
   try {
-    body = await request.json();
-  } catch {
-    return json({ error: "Enter an area or address." }, { status: 400 });
+    query = await parseLocationSearchRequest(request);
+  } catch (error) {
+    if (error instanceof LocationSearchRequestError) {
+      return json({ error: error.message }, { status: error.status });
+    }
+    return json({ error: "Enter a valid location search." }, { status: 400 });
   }
 
-  const query =
-    typeof body === "object" && body !== null && "query" in body
-      ? String(body.query).trim().replace(/\s+/g, " ")
-      : "";
-  if (
-    normalizeManualLocationQuery(query).length < MINIMUM_MANUAL_QUERY_CHARACTERS ||
-    query.length > 120
-  ) {
+  const cachedSuggestions = await readCachedManualLocationSuggestions(query);
+  if (cachedSuggestions !== null) {
+    return json({ suggestions: cachedSuggestions });
+  }
+
+  if (!manualLocationProviderIsConfigured()) {
     return json(
-      { error: "Enter between 3 and 120 characters." },
-      { status: 400 },
+      { error: "Manual location search is temporarily unavailable." },
+      { status: 503 },
     );
   }
 
-  const apiKey = process.env.GEOAPIFY_API_KEY;
-  if (!apiKey) {
+  const budgetStatus = await checkLocationSearchBudget(request);
+  if (budgetStatus === "rate_limited") {
+    return json(
+      { error: "Too many location searches. Try again shortly." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS),
+        },
+      },
+    );
+  }
+  if (budgetStatus === "unavailable") {
     return json(
       { error: "Manual location search is temporarily unavailable." },
       { status: 503 },
@@ -49,31 +61,27 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const response = await fetch(
-      buildGeoapifySearchUrl(buildManualLocationQuery(query), apiKey, {
-        limit: MANUAL_SUGGESTION_LIMIT,
-        language: "en",
-      }),
-      {
-        cache: "no-store",
-        headers: { accept: "application/json" },
-        signal: AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]),
-      },
-    );
-    if (!response.ok) {
+    const suggestions = await fetchManualLocationSuggestions(query, request.signal);
+    await writeCachedManualLocationSuggestions(query, suggestions);
+    return json({ suggestions });
+  } catch (error) {
+    if (error instanceof LocationSearchProviderError && error.status === 429) {
       return json(
-        { error: "Location search is temporarily unavailable. Try again." },
-        { status: 502 },
+        { error: "Too many location searches. Try again shortly." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS),
+          },
+        },
       );
     }
-    const providerResponse = (await response.json()) as GeoapifyResponse;
-    return json({
-      suggestions: manualLocationSuggestions(providerResponse.results ?? []).slice(
-        0,
-        MANUAL_SUGGESTION_LIMIT,
-      ),
-    });
-  } catch {
+    if (error instanceof LocationSearchProviderError && error.status === 503) {
+      return json(
+        { error: "Manual location search is temporarily unavailable." },
+        { status: 503 },
+      );
+    }
     return json(
       { error: "Location search is temporarily unavailable. Try again." },
       { status: 502 },

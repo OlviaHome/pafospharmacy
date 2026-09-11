@@ -48,7 +48,7 @@ Names and addresses are not identity keys. Coordinates, postal codes, and teleph
 
 Geocoding provenance is all-or-none: if `geocode_provider` is set, a complete coordinate pair, result identifier, query, quality, and timestamp are required. Rows with non-geocoded coordinates such as synthetic fixtures may leave all geocoding provenance null. Official directory imports omit every coordinate/provenance column during database upsert, preserving the separation between official address facts and later enrichment.
 
-The 2026 official directory contains four `House Tel. No.` fields with multiple distinct valid numbers, using spaces, hyphens, or a line break as separators. The importer preserves the exact decoded field in `house_phone_raw` and every distinct valid number in `house_phone_e164_values`. It leaves `house_phone_e164` null for those rows rather than choosing a preferred number without a source-backed rule. The current UI Call action continues to use the separate singular pharmacy telephone and does not expose or prioritize these house-number alternatives.
+The 2026 official directory contains four `House Tel. No.` fields with multiple distinct valid numbers, using spaces, hyphens, or a line break as separators. The importer preserves the exact decoded field in `house_phone_raw` and every distinct valid number in `house_phone_e164_values`. It leaves `house_phone_e164` null for those rows rather than choosing a preferred number without a source-backed rule. All three House Tel. columns are internal source/provenance fields: anonymous and authenticated Data API roles have no `SELECT` privilege on them, and the runtime repository does not place them in the public `Pharmacy` domain object or client serialization. The current UI Call action continues to use the separate singular pharmacy telephone and does not expose or prioritize these house-number alternatives.
 
 ## `pharmacy_google_places`
 
@@ -134,7 +134,7 @@ Today/Tomorrow duty filtering uses `duty_date` for date-only assignments and int
 - `availability_intervals.pharmacy_id` and `duty_assignments(duty_date, pharmacy_id)` are indexed.
 - `pharmacy_google_places.expires_at` is indexed for refresh/purge work; exact Place IDs are unique.
 - `pharmacies(district)` has a partial index for active rows.
-- Anonymous/authenticated application roles receive read-only access to active pharmacy data; public writes are denied and RLS policies are explicit.
+- Anonymous/authenticated application roles receive column-level read-only access to the pharmacy fields required by the runtime; House Tel. columns are excluded, public writes are denied, and RLS policies remain explicit.
 - Trusted ingestion uses a server-side secret key only when explicitly asked to write to Supabase. The browser never receives it.
 
 ## Official data snapshot
