@@ -19,7 +19,7 @@ Browser / installed PWA
               ▼
 Next.js application
   ├─ presentation: App Router pages and React components
-  ├─ domain: time-window, status, filtering, and distance functions
+  ├─ domain: time-window, versioned duty rules, status, filtering, and distance
   └─ data access: server-only Supabase repository/modules
               │
               ▼
@@ -82,7 +82,7 @@ For local development and tests only, the server-only data module reads the chec
 
 Official data import is a separate trusted boundary and never runs during page rendering. The script downloads the exact Cyprus Open Data CSV resources, parses quoted/Greek content, validates required fields and dates, normalizes phones and registration identity, preserves provenance, produces a deterministic-shape snapshot, and can optionally upsert to Supabase in batches.
 
-The current resources establish pharmacy-directory facts and date-only rota assignments. They do not establish ordinary hours, exact duty hours, open/on-call mode, or coordinates. The importer therefore writes `pharmacies` and `duty_assignments` only; it does not manufacture `availability_intervals`. Unexpected records are reported rather than silently discarded. Stable registration numbers and source record identifiers make reruns idempotent. Multi-number house-phone fields retain both their exact decoded source value and every distinct valid normalized number; no number is promoted to the singular convenience field without an unambiguous source value. These House Tel. fields remain in the official snapshot and privileged database model for provenance, but the runtime repository deliberately omits them from its public domain object and client serialization. The Call action continues to use only the separately published pharmacy telephone.
+The current CSV resources establish pharmacy-directory facts and date-only rota assignments. They do not establish ordinary hours, exact duty hours, open/on-call mode, or coordinates. The importer therefore writes `pharmacies` and `duty_assignments` only; it does not manufacture `availability_intervals`. A separate cited Cyprus Pharmaceutical Services notice establishes a fixed May–September 2026 duty-hours profile. The domain layer may combine that profile with an assignment at runtime, but the importer and database row remain date-only. Unexpected records are reported rather than silently discarded. Stable registration numbers and source record identifiers make reruns idempotent. Multi-number house-phone fields retain both their exact decoded source value and every distinct valid normalized number; no number is promoted to the singular convenience field without an unambiguous source value. These House Tel. fields remain in the official snapshot and privileged database model for provenance, but the runtime repository deliberately omits them from its public domain object and client serialization. The Call action continues to use only the separately published pharmacy telephone.
 
 ### Coordinate enrichment
 
@@ -100,20 +100,26 @@ Official registration number remains canonical. The durable checked-in artifact 
 
 The offline `scripts/sync-geocoding-snapshots.ts` command is the only preparation path for copying the existing Paphos artifacts without contacting a geocoder. It defaults to dry-run, validates the complete 90-registration set and provider agreement, produces the 16-record manual-review report, excludes the seven disputed fallback coordinates, and requires `--write-supabase` before constructing a privileged client. Its 21 pharmacy updates are restricted to the six coordinate/provenance columns; official name, address, phone, and registration are never in an update payload. Material provider disagreement is review evidence, not an address correction.
 
+### Ordinary opening-hours research
+
+Direct Places API opening-hours content is not an approved ordinary-hours source for this EEA-billed product. Places UI Kit is the preferred Google proof-of-concept because the EEA Places API permitted-use and no-use-with-any-map restrictions do not apply to the kit, provided its attribution, links, and notices remain intact. An Essentials Place Details element can be configured by an existing exact Place ID to render only Google-managed open-now/opening-hours content inside an official pharmacy card; Google content remains visually and logically separate from the official Cyprus identity. The JavaScript UI Kit is currently experimental/pre-GA, so production adoption must retain a graceful “hours unavailable” fallback and be rechecked against current terms and component stability.
+
+The widget is a presentation boundary, not an application data source. Its public API exposes the rendered place's ID/location/viewport and load/error events, but not opening status as structured output. Place Search's `isOpenNow` option filters a new Google search, not this application's known official Place-ID set. Therefore the application must not inspect widget text or shadow DOM, persist its content, or use it to drive the custom opening filter. The current filter is temporarily labelled **Confirmed Open** and remains the union of trustworthy application-owned open facts—currently the official duty-open evaluator because ordinary coverage is absent. A future UI Kit experiment should instantiate details lazily for an exact-match card only after explicit user action, preserving the official list and avoiding 81 homepage requests.
+
 The authoritative release is [Cyprus Pharmaceutical Services dataset 817](https://www.data.gov.cy/en/dataset/817), including its attached 2026 private-pharmacy directory and five May–September 2026 district rota CSVs. The older [private-pharmacies dataset 815](https://www.data.gov.cy/en/dataset/815) is retained only as research context because its published resource is labelled 2024–2025. All imported resources are CC BY 4.0. Exact resource URLs and coverage are versioned in `lib/ingestion/official-sources.ts` and copied into snapshot metadata and row provenance.
 
 ## Request and calculation flow
 
 1. The server determines Today/Tomorrow using the `Europe/Nicosia` IANA time zone.
-2. The data layer fetches active Paphos pharmacies, timed intervals overlapping the window, date-only duty assignments for its local dates, and any fresh exact Google cache rows. Only in local development and tests, when both Supabase settings are absent, it maps the checked-in official snapshot, durable Google Place links, the ignored fresh local Google cache when present, and existing accepted Paphos geocoding artifacts through the same domain shape. Production has no snapshot fallback.
-3. At a given instant, the domain layer derives status across timed and date-only facts:
-   - **Open Now** is true if any active interval has `service_mode = open`;
+2. The data layer fetches active Paphos pharmacies, timed intervals overlapping the window, date-only duty assignments from the previous local date through Tomorrow (the previous date is needed only for overnight coverage), and any fresh exact Google cache rows. Only in local development and tests, when both Supabase settings are absent, it maps the checked-in official snapshot, durable Google Place links, the ignored fresh local Google cache when present, and existing accepted Paphos geocoding artifacts through the same domain shape. Production has no snapshot fallback.
+3. At a given instant, the domain layer derives status across timed, date-only, and versioned official-rule facts:
+   - **Open Now** is true if any active interval has `service_mode = open` or a supported official assignment is inside the notice's mandatory duty-open period;
    - **On Duty** is true if an active timed duty interval exists or an official assignment exists for the local date;
-   - **On Call** is true if the active duty interval has `service_mode = on_call`;
+   - **On Call** is true if the active duty interval has `service_mode = on_call` or the supported previous/current assignment is inside the notice's 23:00–08:00 phone period;
    - a duty interval with `service_mode = unknown` proves duty assignment but does not establish open or on-call mode;
-   - a date-only assignment has no service mode and cannot establish Open Now or On Call;
+   - a date-only assignment has no service mode; only its combination with the separately sourced, date-bounded official notice can derive the transient duty mode;
    - an active `ordinary/open` interval independently proves Open Now, even when an overlapping duty interval is `on_call` or `unknown`.
-4. When no complete ordinary-hours source exists, absence of an open interval is unknown rather than proof of closure, and the Open Now filter is omitted.
+4. When no complete ordinary-hours source exists, absence of an ordinary open fact is unknown rather than proof of closure. During supported official duty-rule coverage, the filter remains available under the temporary **Confirmed Open** label and is explicitly described as the confirmed duty-open subset rather than a complete ordinary-hours result.
 5. The browser optionally obtains GPS or asks the server-only Geoapify route for Paphos manual-location suggestions. Choosing a suggestion replaces the prior `searchOrigin`; clearing it returns to no-origin mode.
 6. For any origin and availability filter, including On Duty, the browser calculates approximate Haversine distance only for pharmacies with accepted, separately attributed coordinates. Fresh exact Google coordinates take precedence; otherwise existing accepted Geoapify/Nominatim coordinates remain available. The official address string is never re-geocoded when a trusted coordinate exists. Known distances sort nearest-first within that verified-coordinate subset; this is not a claim that they are globally nearest among all 90 pharmacies. Unknown distances remain visible after them. Device-to-device distance differences may reflect different GPS fixes, not different pharmacy coordinates.
 7. The normal located All view initially shows the nearest 10 results and can reveal the complete set. On Duty is never truncated, and lack of an origin preserves the full existing list.
@@ -128,6 +134,8 @@ The authoritative release is [Cyprus Pharmaceutical Services dataset 817](https:
 - Use half-open interval semantics, `[starts_at, ends_at)`, so adjacent periods do not overlap at their boundary.
 - Keep intervals for the same pharmacy and `schedule_kind` non-overlapping. Ordinary and duty intervals may overlap each other; a mode change within the duty timeline uses adjacent duty intervals.
 - Use an injected clock in domain tests so daylight-saving and boundary cases are deterministic.
+- The supported official duty profile is `cyprus-duty-2026-may-september`: Mon/Tue/Thu/Fri 13:30–16:00 and 19:30–23:00; Wed/Sat 13:30–23:00; Sunday and the notice holidays (1 May, 1 June, 15 August) 08:00–23:00; then phone availability for prescriptions until 08:00. It applies only to assignment dates from 1 May through 30 September 2026, with the final overnight period allowed to finish on 1 October.
+- General statutory hours never establish that an individual pharmacy is physically open. They are not ordinary-hours input, including for seasonal pharmacies excepted from 2026.
 
 ## Distance and directions
 

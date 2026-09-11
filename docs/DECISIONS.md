@@ -41,6 +41,8 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 | D-033 | 2026-09-09 | Use Supabase as the configured runtime source and permit the checked-in snapshot fallback only in local development and tests. | Production requires the server-only `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` pair and fails on missing, partial, or unavailable Supabase access instead of silently serving stale snapshot data. The runtime does not require or read a privileged key. |
 | D-034 | 2026-09-10 | Retain official House Tel. fields for privileged ingestion and provenance, but exclude them from the public runtime and public Data API grants. | The product calls only the ordinary pharmacy telephone. Removing House Tel. from the runtime domain object, serialization, and anonymous/authenticated column privileges reduces unnecessary personal-data exposure without deleting source evidence or weakening the importer. |
 | D-035 | 2026-09-10 | Protect manual Geoapify lookup with strict server-side parsing, a five-minute shared normalized-query cache, and one constant-key Vercel Firewall budget bucket checked only on cache misses. | Client debounce cannot protect a directly callable route. The application now bounds and validates all input, rejects cross-site browser requests as defense in depth, returns generic provider errors, and avoids an in-memory limiter. The temporary Vercel Hobby rule uses the global `paphos-location-search` key with a fixed 60-second window and two provider-bound cache misses; shared cache hits bypass it. |
+| D-036 | 2026-09-11 | Apply the cited May–September 2026 official duty-hours notice to official date assignments at runtime without persisting generated intervals. | The notice now supplies trustworthy, date-bounded duty-open and 23:00–08:00 phone rules. The assignment row remains date-only; a pure `Europe/Nicosia` evaluator derives open, scheduled-gap, and overnight states with half-open boundaries, and unsupported dates remain unknown. This narrows rather than generalizes D-002/D-016. |
+| D-037 | 2026-09-11 | Reject direct Places API ordinary-hours content for the EEA product and limit any future Google ordinary-hours experiment to Places UI Kit rendering. | UI Kit can render selected open-now/opening-hours content for an existing exact Place ID while preserving Google attribution, but it does not expose open status as structured output for filtering the application's known official set. Google widget content therefore remains presentation-only and lazy/on-demand; the application opening filter uses only independently trusted application-owned facts and is temporarily labelled **Confirmed Open** while ordinary-hours coverage is absent. |
 
 ## Current assumptions requiring validation
 
@@ -48,7 +50,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - The Next.js server can fetch the complete 90-record Paphos result set for client-side display and any future distance calculation.
 - The IANA `Europe/Nicosia` zone is the correct display/calendar zone for the initial market.
 - A normal call to the published pharmacy number is an appropriate first action, while the published house number remains stored but is not automatically presented as an on-call instruction.
-- Today/Tomorrow date-level duty filtering is useful when cards explicitly state that exact hours were not published.
+- The cited 2026 notice wording is sufficient for users to distinguish mandatory duty-open periods from overnight phone availability.
 
 ## Decisions intentionally deferred
 
@@ -56,7 +58,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - Production ranking and tie-breaking beyond truthful status and the accepted nearest-first behavior.
 - Directions-provider strategy.
 - National Google Places reconciliation, cloud scheduling, quota monitoring, and production refresh alerting beyond the current manual Paphos process.
-- A trustworthy source for pharmacy-specific ordinary opening hours and timed duty modes.
+- A trustworthy source for pharmacy-specific ordinary opening hours; Places UI Kit can display Google status but cannot cleanly power the official-set filter.
 - Multilingual routing and content model.
 - Pharmacy verification and B2B authorization model.
 
@@ -76,4 +78,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - [Google Geocoding API usage and billing](https://developers.google.com/maps/documentation/geocoding/usage-and-billing)
 - [Google Places API (New) Text Search](https://developers.google.com/maps/documentation/places/web-service/text-search)
 - [Google Places content and attribution policies](https://developers.google.com/maps/documentation/places/web-service/policies)
-- [Google Maps Platform EEA service terms](https://cloud.google.com/archive/terms/maps-platform/eea/maps-service-terms-20251118)
+- [Google Maps Platform EEA service terms](https://cloud.google.com/terms/maps-platform/eea/maps-service-terms)
+- [Places UI Kit overview](https://developers.google.com/maps/documentation/javascript/places-ui-kit/overview)
+- [Places UI Kit Place Details](https://developers.google.com/maps/documentation/javascript/places-ui-kit/place-details)
+- [Cyprus Pharmaceutical Services 2026 duty-hours notice](https://www.moh.gov.cy/MOH/phs/phs.nsf/All/091BC51661367EE1C225857B002F972D)

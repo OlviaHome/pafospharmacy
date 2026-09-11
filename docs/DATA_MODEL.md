@@ -3,7 +3,7 @@
 ## Principles
 
 - PostgreSQL is the production source of truth; the checked-in normalized snapshot keeps local development reproducible without cloud credentials.
-- Store only what a source actually establishes. Never turn a date-only duty assignment into invented start/end times or a service mode.
+- Store only what a source actually establishes. Never turn a date-only duty assignment into stored start/end times or a service mode; a separately sourced, versioned duty-hours notice may be evaluated at runtime.
 - `availability_intervals` contains only trustworthy timed facts. `duty_assignments` contains official date-only rota facts.
 - Google Places identity reconciliation is keyed by official registration number and kept separate from official fields and existing geocoding enrichment.
 - Ordinary opening, timed duty service, and date-only duty assignment are related but independent dimensions.
@@ -115,18 +115,18 @@ One row records the official fact that a pharmacy is assigned to the rota on one
 
 There is deliberately no `service_mode`, `starts_at`, or `ends_at`. The current official source establishes none of them. A uniqueness constraint on pharmacy, date, and dataset also prevents duplicate semantic assignments.
 
-A date-only assignment may coexist with a later trustworthy timed duty interval. It proves `On Duty` for that date, while the timed interval—if present—provides any instant-level duty mode.
+A date-only assignment may coexist with a later trustworthy timed duty interval. The row proves `On Duty` for that date but has no stored service mode. During a separately supported official rule period, the application may combine the row with the versioned notice profile to derive a transient duty-open, scheduled-gap, or overnight on-call state.
 
 ## Derived state
 
 At instant `t` and its Cyprus local date:
 
-- **Open Now** is true only if an active interval has `service_mode = open`. A date-only duty assignment never proves it. If ordinary-opening coverage is incomplete and no timed open fact exists, the value is unknown rather than false.
-- **On Duty** is true if an active timed duty interval exists or a `duty_assignments` row exists for the local date.
-- **On Call** is true only from an active `duty/on_call` interval. A date-only assignment establishes no mode, so On Call is unavailable/unknown rather than inferred.
+- **Open Now** is true if an active interval has `service_mode = open` or a supported official duty assignment is currently inside the cited notice's mandatory open period. Outside supported rule coverage, a date-only assignment never proves it. If ordinary-opening coverage is incomplete and no trustworthy open fact exists, the value is unknown rather than false.
+- **On Duty** is true if an active timed duty interval exists, a `duty_assignments` row exists for the local date, or the previous date's supported assignment is still in its overnight phone period.
+- **On Call** is true from an active `duty/on_call` interval or the supported official notice's 23:00–08:00 period for the preceding assignment date. The date-only row by itself still establishes no service mode.
 - An overlapping `ordinary/open` interval independently proves physical opening even when duty information has no service mode.
 
-Today/Tomorrow duty filtering uses `duty_date` for date-only assignments and interval overlap (`starts_at < day_end AND ends_at > day_start`) for timed facts. “Open Now” is never redefined for Tomorrow.
+Today/Tomorrow duty filtering uses `duty_date` for date-only assignments and interval overlap (`starts_at < day_end AND ends_at > day_start`) for timed facts. The current Today view also retains the previous assignment through its supported 08:00 overnight boundary. “Open Now” is never redefined for Tomorrow.
 
 ## Indexes, access, and idempotency
 
@@ -141,7 +141,7 @@ Today/Tomorrow duty filtering uses `duty_date` for date-only assignments and int
 
 The current snapshot contains the 2026 private-pharmacy directory and May–September 2026 district duty resources published by Cyprus Pharmaceutical Services through the National Open Data Portal under CC BY 4.0. It preserves all five published districts while the UI selects Paphos.
 
-The importer stores pharmacy identity/provenance and date-only duty assignments. It creates no ordinary-opening intervals, duty intervals, service modes, or coordinates from these files. Synthetic intervals remain limited to automated tests and the development seed.
+The importer stores pharmacy identity/provenance and date-only duty assignments. It creates no ordinary-opening intervals, duty intervals, service modes, or coordinates from these files. The 2026 duty-hours evaluator is pure runtime logic sourced from the separate official notice and never persists generated intervals. Synthetic intervals remain limited to automated tests and the development seed.
 
 ## Geocoding enrichment snapshots
 
@@ -160,6 +160,6 @@ Only `accepted` records not subsequently quarantined by cross-provider reconcili
 ## Deferred concepts
 
 - Trustworthy pharmacy-specific ordinary-opening intervals.
-- Trustworthy timed duty/open or duty/on-call intervals.
+- Persisted timed duty/open or duty/on-call facts from a pharmacy-specific timed source; the current notice-derived schedule remains transient.
 - Import-run history and field-level provenance if reconciliation needs justify them.
 - Translations, pharmacy accounts, services, profiles, PostGIS, and national UI selection.

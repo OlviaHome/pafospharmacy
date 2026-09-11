@@ -227,7 +227,7 @@ describe("Supabase runtime pharmacy data", () => {
     expect(from).toHaveBeenCalledWith("pharmacies");
     expect(query.eq).toHaveBeenCalledWith("is_active", true);
     expect(query.eq).toHaveBeenCalledWith("district", "Paphos");
-    expect(query.gte).toHaveBeenCalledWith("duty_assignments.duty_date", "2026-09-09");
+    expect(query.gte).toHaveBeenCalledWith("duty_assignments.duty_date", "2026-09-08");
     expect(query.lte).toHaveBeenCalledWith("duty_assignments.duty_date", "2026-09-10");
     const publicSelect = String(query.select.mock.calls[0]?.[0]);
     expect(publicSelect).not.toContain("house_phone_e164");

@@ -58,12 +58,12 @@ function pharmacy(
   };
 }
 
-function renderFinder(pharmacies: Pharmacy[]) {
+function renderFinder(pharmacies: Pharmacy[], now = generatedAt) {
   return render(
     <PharmacyFinder
       pharmacies={pharmacies}
       source="official_snapshot"
-      generatedAt={generatedAt}
+      generatedAt={now}
       ordinaryOpeningDataAvailable={false}
       attribution={null}
       coordinateAttributions={[]}
@@ -226,5 +226,57 @@ describe("PharmacyFinder location controls", () => {
 
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Your location")).toBeTruthy();
+  });
+});
+
+describe("PharmacyFinder official duty hours", () => {
+  it("shows a current mandatory duty-open period as open", () => {
+    renderFinder([pharmacy("open")], "2026-09-01T11:00:00.000Z");
+
+    expect(screen.getByText("OPEN NOW")).toBeTruthy();
+    expect(screen.getByText("ON DUTY TODAY")).toBeTruthy();
+    expect(screen.getByText("Duty pharmacy — open until 16:00")).toBeTruthy();
+    expect(screen.getByText("13:30–16:00")).toBeTruthy();
+    expect(screen.getByText("19:30–23:00")).toBeTruthy();
+    expect(
+      screen.getByText(
+        /Confirmed Open currently includes pharmacies confirmed open by the official duty schedule/,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("keeps a scheduled gap on duty without labelling it open", () => {
+    renderFinder([pharmacy("gap")], "2026-09-01T14:00:00.000Z");
+
+    expect(screen.getByText("ON DUTY TODAY")).toBeTruthy();
+    expect(
+      screen.getByText("Mandatory duty opening starts at 19:30."),
+    ).toBeTruthy();
+    expect(screen.queryByText("OPEN NOW")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmed Open" }));
+    expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
+  });
+
+  it("carries the previous assignment overnight into the current On Duty view", () => {
+    renderFinder([pharmacy("overnight")], "2026-09-01T21:30:00.000Z");
+
+    expect(screen.getAllByText("ON DUTY — CALL PHARMACIST").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        "23:00–08:00: pharmacist available by phone for prescriptions",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("OPEN NOW")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "On Duty" }));
+    expect(screen.getByRole("heading", { name: "Pharmacy overnight" })).toBeTruthy();
+  });
+
+  it("ends previous-day overnight coverage at exactly 08:00", () => {
+    renderFinder([pharmacy("ended")], "2026-09-02T05:00:00.000Z");
+
+    fireEvent.click(screen.getByRole("button", { name: "On Duty" }));
+    expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
   });
 });

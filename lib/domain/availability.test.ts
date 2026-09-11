@@ -83,16 +83,16 @@ describe("deriveAvailability", () => {
     });
   });
 
-  it("derives only On Duty from a date-only duty assignment", () => {
+  it("combines a date-only assignment with the applicable official duty rule", () => {
     expect(
       deriveAvailability([], instant, {
         dutyAssignments: [dateOnlyDuty],
         ordinaryOpeningCoverageKnown: false,
       }),
     ).toMatchObject({
-      openNow: "unknown",
+      openNow: true,
       onDuty: true,
-      onCall: "unknown",
+      onCall: false,
       activeDutyAssignments: [dateOnlyDuty],
     });
   });
@@ -103,7 +103,30 @@ describe("deriveAvailability", () => {
         dutyAssignments: [dateOnlyDuty],
         ordinaryOpeningCoverageKnown: false,
       }),
-    ).toMatchObject({ openNow: true, onDuty: true, onCall: "unknown" });
+    ).toMatchObject({ openNow: true, onDuty: true, onCall: false });
+  });
+
+  it("derives overnight on-call from the previous local date assignment", () => {
+    expect(
+      deriveAvailability([], new Date("2026-08-31T21:30:00.000Z"), {
+        dutyAssignments: [dateOnlyDuty],
+        ordinaryOpeningCoverageKnown: false,
+      }),
+    ).toMatchObject({
+      openNow: "unknown",
+      onDuty: true,
+      onCall: true,
+      activeDutyAssignments: [dateOnlyDuty],
+    });
+  });
+
+  it("does not label a scheduled duty gap as open", () => {
+    expect(
+      deriveAvailability([], new Date("2026-08-31T14:00:00.000Z"), {
+        dutyAssignments: [dateOnlyDuty],
+        ordinaryOpeningCoverageKnown: false,
+      }),
+    ).toMatchObject({ openNow: "unknown", onDuty: true, onCall: false });
   });
 
   it("combines an allowed ordinary/open and duty/open overlap", () => {

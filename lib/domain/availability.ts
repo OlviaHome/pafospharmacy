@@ -7,6 +7,7 @@ import type {
 } from "./types";
 
 import { getCyprusDayWindow } from "./date";
+import { deriveOfficialDutyStatus } from "./duty-hours";
 
 export type AvailabilityFilter = "all" | "open_now" | "on_duty";
 
@@ -63,36 +64,54 @@ export function deriveAvailability(
   const ordinaryOpeningCoverageKnown = options.ordinaryOpeningCoverageKnown ?? true;
   const localDate = getCyprusDayWindow(instant).localDate;
   const activeIntervals = intervals.filter((interval) => isIntervalActive(interval, instant));
-  const activeDutyAssignments = dutyAssignments.filter(
+  const todaysDutyAssignments = dutyAssignments.filter(
     (assignment) => assignment.dutyDate === localDate,
+  );
+  const officialDutyStatus = deriveOfficialDutyStatus(dutyAssignments, instant);
+  const activeDutyAssignments = Array.from(
+    new Map(
+      [
+        ...todaysDutyAssignments,
+        ...(officialDutyStatus.assignment ? [officialDutyStatus.assignment] : []),
+      ].map((assignment) => [assignment.id, assignment]),
+    ).values(),
   );
   const ordinary = activeIntervals.filter((interval) => interval.scheduleKind === "ordinary");
   const duty = activeIntervals.filter((interval) => interval.scheduleKind === "duty");
-  const hasOpenFact = activeIntervals.some((interval) => interval.serviceMode === "open");
-  const hasUnknownDuty = duty.some((interval) => interval.serviceMode === "unknown");
-  const hasOnCallDuty = duty.some((interval) => interval.serviceMode === "on_call");
+  const hasExplicitDutyOpen = duty.some((interval) => interval.serviceMode === "open");
+  const hasOpenFact =
+    activeIntervals.some((interval) => interval.serviceMode === "open") ||
+    officialDutyStatus.mode === "open";
+  const hasUnknownDuty =
+    duty.some((interval) => interval.serviceMode === "unknown") ||
+    officialDutyStatus.mode === "unknown";
+  const hasOnCallDuty =
+    duty.some((interval) => interval.serviceMode === "on_call") ||
+    officialDutyStatus.mode === "on_call";
+  const hasConflictingDutyModes =
+    hasOnCallDuty && (hasExplicitDutyOpen || officialDutyStatus.mode === "open");
   const dutyModes = new Set(duty.map((interval) => interval.serviceMode));
 
   return {
     openNow:
       hasOpenFact
         ? true
-        : hasUnknownDuty || activeDutyAssignments.length > 0 || !ordinaryOpeningCoverageKnown
+        : hasUnknownDuty || !ordinaryOpeningCoverageKnown
           ? "unknown"
           : false,
-    onDuty: duty.length > 0 || activeDutyAssignments.length > 0,
+    onDuty:
+      duty.length > 0 ||
+      officialDutyStatus.mode !== "inactive" ||
+      officialDutyStatus.onDutyToday,
     onCall:
-      duty.length === 0
-        ? activeDutyAssignments.length > 0
-          ? "unknown"
-          : false
-        : duty.length > 1 || hasUnknownDuty
+      hasUnknownDuty || hasConflictingDutyModes
           ? "unknown"
           : hasOnCallDuty,
     hasConflict:
       ordinary.length > 1 ||
       duty.length > 1 ||
       dutyModes.size > 1 ||
+      hasConflictingDutyModes ||
       (ordinary.some((interval) => interval.serviceMode === "open") && hasOnCallDuty),
     activeIntervals,
     activeDutyAssignments,
@@ -117,9 +136,16 @@ export function filterPharmaciesByAvailability(
   }
 
   if (filter === "on_duty") {
-    return pharmacies.filter((pharmacy) =>
-      hasDutyInWindow(pharmacy.intervals, window, pharmacy.dutyAssignments),
-    );
+    const currentLocalDate = getCyprusDayWindow(instant).localDate;
+    return pharmacies.filter((pharmacy) => {
+      if (hasDutyInWindow(pharmacy.intervals, window, pharmacy.dutyAssignments)) {
+        return true;
+      }
+      return (
+        window.localDate === currentLocalDate &&
+        deriveOfficialDutyStatus(pharmacy.dutyAssignments, instant).mode === "on_call"
+      );
+    });
   }
 
   return pharmacies;

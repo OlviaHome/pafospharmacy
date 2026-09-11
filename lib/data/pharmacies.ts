@@ -442,6 +442,7 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
     );
   }
 
+  const yesterday = getCyprusDayWindow(now, -1);
   const today = getCyprusDayWindow(now);
   const tomorrow = getCyprusDayWindow(now, 1);
   const supabase = createClient(url, publishableKey, {
@@ -457,7 +458,7 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
     .eq("district", "Paphos")
     .lt("availability_intervals.starts_at", tomorrow.end)
     .gt("availability_intervals.ends_at", today.start)
-    .gte("duty_assignments.duty_date", today.localDate)
+    .gte("duty_assignments.duty_date", yesterday.localDate)
     .lte("duty_assignments.duty_date", tomorrow.localDate)
     .order("name");
 

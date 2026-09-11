@@ -25,6 +25,12 @@ import {
   formatCyprusTime,
   getCyprusDayWindow,
 } from "@/lib/domain/date";
+import {
+  CYPRUS_DUTY_RULE_SOURCE_URL,
+  deriveOfficialDutyStatus,
+  officialDutyRuleAppliesAtInstant,
+  officialDutyScheduleForDate,
+} from "@/lib/domain/duty-hours";
 import { haversineDistanceKm } from "@/lib/domain/distance";
 import {
   formatDistance,
@@ -70,7 +76,7 @@ interface PharmacyFinderProps {
 const filters: Record<SelectedDay, { value: AvailabilityFilter; label: string }[]> = {
   today: [
     { value: "all", label: "All" },
-    { value: "open_now", label: "Open Now" },
+    { value: "open_now", label: "Confirmed Open" },
     { value: "on_duty", label: "On Duty" },
   ],
   tomorrow: [
@@ -115,10 +121,12 @@ function StatusBadges({
     dutyAssignments: pharmacy.dutyAssignments,
     ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
   });
+  const officialDuty = deriveOfficialDutyStatus(pharmacy.dutyAssignments, now);
 
   if (
     availability.activeIntervals.length === 0 &&
-    availability.activeDutyAssignments.length === 0
+    availability.activeDutyAssignments.length === 0 &&
+    officialDuty.mode === "inactive"
   ) {
     return (
       <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[var(--ink-muted)]">
@@ -134,19 +142,24 @@ function StatusBadges({
           OPEN NOW
         </span>
       )}
-      {availability.onDuty && (
+      {officialDuty.onDutyToday && (
         <span className="rounded-full bg-[#e8eef9] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[#304f83]">
-          ON DUTY
+          ON DUTY TODAY
         </span>
       )}
+      {availability.onDuty &&
+        !officialDuty.onDutyToday &&
+        officialDuty.mode !== "on_call" && (
+          <span className="rounded-full bg-[#e8eef9] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[#304f83]">
+            ON DUTY
+          </span>
+        )}
       {availability.onCall === true && (
         <span className="rounded-full bg-[var(--amber-soft)] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[var(--amber)]">
-          ON CALL — CALL FIRST
+          ON DUTY — CALL PHARMACIST
         </span>
       )}
-      {availability.activeDutyAssignments.length > 0 &&
-        availability.activeIntervals.filter((interval) => interval.scheduleKind === "duty")
-          .length === 0 && (
+      {officialDuty.mode === "unknown" && (
         <span className="rounded-full bg-[var(--amber-soft)] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[var(--amber)]">
           HOURS NOT PUBLISHED — CALL FIRST
         </span>
@@ -175,10 +188,15 @@ function PharmacyCard({
   const relevantDutyAssignments = pharmacy.dutyAssignments.filter(
     (assignment) => assignment.dutyDate === dayWindow.localDate,
   );
+  const relevantOfficialDutySchedules = relevantDutyAssignments.map((assignment) => ({
+    assignment,
+    schedule: officialDutyScheduleForDate(assignment.dutyDate),
+  }));
   const availability = deriveAvailability(pharmacy.intervals, now, {
     dutyAssignments: pharmacy.dutyAssignments,
     ordinaryOpeningCoverageKnown: ordinaryOpeningDataAvailable,
   });
+  const officialDuty = deriveOfficialDutyStatus(pharmacy.dutyAssignments, now);
   const address = `${pharmacy.addressLine}${pharmacy.addressAdditional ? `, ${pharmacy.addressAdditional}` : ""}, ${pharmacy.locality}${pharmacy.postalCode ? ` ${pharmacy.postalCode}` : ""}`;
   const directionsQuery =
     pharmacy.latitude !== null && pharmacy.longitude !== null
@@ -224,10 +242,34 @@ function PharmacyCard({
         </div>
       )}
 
+      {selectedDay === "today" && officialDuty.mode === "open" && officialDuty.activePeriod && (
+        <div className="mt-4 rounded-2xl border border-[#b9dfcf] bg-[var(--brand-soft)] p-3 text-sm leading-5 text-[var(--brand-strong)]">
+          <strong>
+            Duty pharmacy — open until {formatCyprusTime(officialDuty.activePeriod.endsAt)}
+          </strong>
+        </div>
+      )}
+
+      {selectedDay === "today" && officialDuty.mode === "scheduled_gap" && (
+        <div className="mt-4 rounded-2xl border border-[#cbd8ed] bg-[#f0f5fc] p-3 text-sm leading-5 text-[#304f83]">
+          <strong>On duty today.</strong>{" "}
+          {officialDuty.nextOpenAt
+            ? `Mandatory duty opening starts at ${formatCyprusTime(officialDuty.nextOpenAt)}.`
+            : "The premises are not in a mandatory duty-open interval now."}
+        </div>
+      )}
+
+      {selectedDay === "today" && officialDuty.mode === "on_call" && (
+        <div className="mt-4 rounded-2xl border border-[#edc983] bg-[var(--amber-soft)] p-3 text-sm leading-5 text-[#68420b]">
+          <strong>ON DUTY — CALL PHARMACIST</strong>
+          <p>23:00–08:00: pharmacist available by phone for prescriptions</p>
+        </div>
+      )}
+
       <div className="mt-4 border-t border-[var(--line)] pt-4">
         <div className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
           <Clock3 className="size-4" aria-hidden="true" />
-          {selectedDay === "today" ? "Today's recorded periods" : "Tomorrow's recorded periods"}
+          {selectedDay === "today" ? "Today's schedule information" : "Tomorrow's schedule information"}
         </div>
         {relevantIntervals.length > 0 || relevantDutyAssignments.length > 0 ? (
           <ul className="space-y-2">
@@ -237,14 +279,49 @@ function PharmacyCard({
                 <span className="text-right text-[var(--ink-muted)]">{intervalTime(interval)}</span>
               </li>
             ))}
-            {relevantDutyAssignments.map((assignment) => (
-              <li key={assignment.id} className="flex items-start justify-between gap-3 text-sm leading-5">
-                <span className="font-semibold text-[var(--ink)]">Official duty assignment</span>
-                <span className="text-right text-[var(--ink-muted)]">
-                  Date only · call for exact hours
-                </span>
-              </li>
-            ))}
+            {relevantOfficialDutySchedules.flatMap(({ assignment, schedule }) =>
+              schedule
+                ? [
+                    ...schedule.openPeriods.map((dutyPeriod, index) => (
+                      <li
+                        key={`${assignment.id}-open-${index}`}
+                        className="flex items-start justify-between gap-3 text-sm leading-5"
+                      >
+                        <span className="font-semibold text-[var(--ink)]">
+                          Official duty · open
+                        </span>
+                        <span className="text-right text-[var(--ink-muted)]">
+                          {formatCyprusTime(dutyPeriod.startsAt)}–
+                          {formatCyprusTime(dutyPeriod.endsAt)}
+                        </span>
+                      </li>
+                    )),
+                    <li
+                      key={`${assignment.id}-on-call`}
+                      className="flex items-start justify-between gap-3 text-sm leading-5"
+                    >
+                      <span className="font-semibold text-[var(--ink)]">
+                        After 23:00 · call for prescriptions
+                      </span>
+                      <span className="text-right text-[var(--ink-muted)]">
+                        23:00–08:00 next day
+                      </span>
+                    </li>,
+                  ]
+                : [
+                    <li
+                      key={assignment.id}
+                      className="flex items-start justify-between gap-3 text-sm leading-5"
+                    >
+                      <span className="font-semibold text-[var(--ink)]">
+                        Official duty assignment
+                      </span>
+                      <span className="text-right text-[var(--ink-muted)]">
+                        Hours unavailable
+                      </span>
+                    </li>,
+                  ],
+            )}
           </ul>
         ) : (
           <p className="text-sm leading-5 text-[var(--ink-muted)]">
@@ -309,6 +386,8 @@ export function PharmacyFinder({
   );
   const [resultsExpanded, setResultsExpanded] = useState(false);
   const coordinates: Coordinates | null = searchOrigin?.coordinates ?? null;
+  const openNowFilterAvailable =
+    ordinaryOpeningDataAvailable || officialDutyRuleAppliesAtInstant(now);
 
   useEffect(() => {
     const initialLocalDate = getCyprusDayWindow(new Date(generatedAt)).localDate;
@@ -541,7 +620,16 @@ export function PharmacyFinder({
             {attribution.license}
           </a>). Duty coverage is {formatCoverageDate(attribution.dutyCoverageStart)}–
           {formatCoverageDate(attribution.dutyCoverageEnd)}; snapshot retrieved{" "}
-          {formatCoverageDate(attribution.retrievedAt.slice(0, 10))}. It does not publish ordinary opening hours or exact duty hours; call before travelling.
+          {formatCoverageDate(attribution.retrievedAt.slice(0, 10))}. Ordinary opening
+          hours are separate. Mandatory duty hours come from the{" "}
+          <a
+            className="font-bold underline"
+            href={CYPRUS_DUTY_RULE_SOURCE_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Cyprus Pharmaceutical Services 2026 duty notice
+          </a>.
         </aside>
       )}
 
@@ -587,7 +675,7 @@ export function PharmacyFinder({
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Availability filter">
           {filters[selectedDay]
-            .filter((option) => option.value !== "open_now" || ordinaryOpeningDataAvailable)
+            .filter((option) => option.value !== "open_now" || openNowFilterAvailable)
             .map((option) => (
               <button
                 key={option.value}
@@ -604,6 +692,13 @@ export function PharmacyFinder({
               </button>
             ))}
         </div>
+
+        {!ordinaryOpeningDataAvailable && openNowFilterAvailable && (
+          <p className="mt-2 text-xs leading-5 text-[var(--ink-muted)]">
+            Confirmed Open currently includes pharmacies confirmed open by the official
+            duty schedule. Regular pharmacy opening hours are not yet available.
+          </p>
+        )}
 
         <div className="mt-4 border-t border-[var(--line)] pt-4">
           <h2 className="text-base font-extrabold text-[var(--ink)]">
@@ -806,7 +901,7 @@ export function PharmacyFinder({
       </section>
 
       <footer className="py-7 text-center text-xs leading-5 text-[var(--ink-muted)]">
-        Dates use Europe/Nicosia. “On Duty” means an official date assignment; it does not prove the pharmacy is open or on call at the current instant.
+        Dates and duty-rule times use Europe/Nicosia. “Confirmed Open” means an active official mandatory duty-open interval; overnight duty is telephone availability, not an open premises claim.
       </footer>
     </main>
   );
