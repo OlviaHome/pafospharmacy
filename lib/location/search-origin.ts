@@ -43,7 +43,7 @@ export function geolocationFallbackMessage(
   status: GeolocationStatus,
 ): string | null {
   if (status === "denied" || status === "unavailable") {
-    return "Couldn't access your location. Enter an area instead.";
+    return "Couldn't access your location. Enter an area or address instead.";
   }
   if (status === "locating") return "Finding your location…";
   return null;

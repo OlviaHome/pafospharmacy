@@ -150,7 +150,13 @@ If the dataset later expands nationally or server-side proximity queries become 
 
 ## PWA and freshness
 
-PWA-ready means the application can provide appropriate manifest metadata and a mobile install experience. It does not mean duty data is safely available offline. Schedule/API responses should be network-fresh or have a short, explicit freshness policy; the UI must not label stale cached data as current. Offline schedule caching and push notifications are deferred.
+PWA-ready currently means the application has basic manifest metadata and a standalone display target; it is not yet marketed as a verified installable PWA. The repository does not provide dedicated 192×192 and 512×512 install icons, an install prompt, or a service-worker/offline boundary. Before adding “Add to Home Screen” copy, installation must be verified across the supported browsers and devices. Even then, installability must not imply that current duty data is safely available offline. Schedule/API responses should be network-fresh or have a short, explicit freshness policy; the UI must not label stale cached data as current. Offline schedule caching and push notifications are deferred.
+
+## Content and future localization
+
+English is the current master copy. Multilingual routing and translation resources are deliberately deferred, but new presentation copy stays in page and component boundaries rather than being embedded in schedule or data-access logic. A later localization slice should replace sentence fragments and interpolated status strings with complete parameterized messages so translators can change word order safely.
+
+Arabic requires an explicit right-to-left review rather than only setting `dir="rtl"`. The card label/time rows, icon-and-text controls, manual-search suggestions, legal-page list indentation, and left/right text-alignment utilities need logical start/end styling. Pharmacy names, official addresses, telephone numbers, registration identifiers, coordinates, clock ranges, and external provider names may mix scripts; those dynamic values need appropriate bidirectional isolation while telephone, coordinate, and URL values remain left-to-right. Status badges, narrow-screen wrapping, and Call/Directions action order also need visual and assistive-technology testing in RTL.
 
 ## Security and privacy
 

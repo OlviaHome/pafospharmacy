@@ -12,6 +12,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -26,13 +27,11 @@ import {
   getCyprusDayWindow,
 } from "@/lib/domain/date";
 import {
-  CYPRUS_DUTY_RULE_SOURCE_URL,
   deriveOfficialDutyStatus,
   officialDutyRuleAppliesAtInstant,
   officialDutyScheduleForDate,
 } from "@/lib/domain/duty-hours";
 import {
-  CYPRUS_REGULAR_RULE_SOURCE_URL,
   deriveOfficialRegularStatus,
   officialRegularRuleSupportsDate,
   officialRegularScheduleForDate,
@@ -93,10 +92,10 @@ const filters: Record<SelectedDay, { value: AvailabilityFilter; label: string }[
 };
 
 function intervalLabel(interval: AvailabilityInterval): string {
-  if (interval.scheduleKind === "ordinary") return "Ordinary · open";
-  if (interval.serviceMode === "open") return "Duty · open";
-  if (interval.serviceMode === "on_call") return "Duty · on call";
-  return "Duty · service mode unconfirmed";
+  if (interval.scheduleKind === "ordinary") return "Recorded regular hours · open";
+  if (interval.serviceMode === "open") return "Recorded duty hours · open";
+  if (interval.serviceMode === "on_call") return "Recorded duty hours · on call";
+  return "Recorded duty hours · status unknown";
 }
 
 function intervalTime(interval: AvailabilityInterval): string {
@@ -106,21 +105,12 @@ function intervalTime(interval: AvailabilityInterval): string {
   return `${startsOn} · ${formatCyprusTime(interval.startsAt)}–${end}`;
 }
 
-function formatCoverageDate(value: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Europe/Nicosia",
-  }).format(new Date(`${value}T12:00:00.000Z`));
-}
-
 function regularClosedMessage(status: OfficialRegularStatus): string {
   if (status.closureReason === "afternoon_break" && status.nextOpenAt) {
     return `Afternoon break · reopens at ${formatCyprusTime(status.nextOpenAt)}`;
   }
   if (status.closureReason === "before_open" && status.nextOpenAt) {
-    return `Regular schedule · opens at ${formatCyprusTime(status.nextOpenAt)}`;
+    return `Regular hours · opens at ${formatCyprusTime(status.nextOpenAt)}`;
   }
   if (status.closureReason === "public_holiday") return "Closed — public holiday";
   if (status.closureReason === "sunday") return "Closed by regular schedule";
@@ -189,7 +179,7 @@ function StatusBadges({
       )}
       {officialDuty.mode === "unknown" && (
         <span className="rounded-full bg-[var(--amber-soft)] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[var(--amber)]">
-          HOURS NOT PUBLISHED — CALL FIRST
+          DUTY HOURS UNAVAILABLE — CALL FIRST
         </span>
       )}
     </>
@@ -268,7 +258,8 @@ function PharmacyCard({
         <div className="mt-4 flex gap-2 rounded-2xl border border-[#edc983] bg-[var(--amber-soft)] p-3 text-sm leading-5 text-[#68420b]">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <p>
-            <strong>SCHEDULE CONFLICT — CALL TO CONFIRM.</strong> Ordinary hours say open while the duty record says on call; neither fact has been discarded.
+            <strong>HOURS CONFLICT — CALL TO CONFIRM.</strong> Regular hours indicate
+            opening while the duty record indicates telephone availability.
           </p>
         </div>
       )}
@@ -288,7 +279,7 @@ function PharmacyCard({
         officialRegular.activePeriod && (
           <div className="mt-4 rounded-2xl border border-[#b9dfcf] bg-[var(--brand-soft)] p-3 text-sm leading-5 text-[var(--brand-strong)]">
             <strong>
-              Regular schedule · until {formatCyprusTime(officialRegular.activePeriod.endsAt)}
+              Regular hours · open until {formatCyprusTime(officialRegular.activePeriod.endsAt)}
             </strong>
           </div>
         )}
@@ -323,7 +314,7 @@ function PharmacyCard({
       <div className="mt-4 border-t border-[var(--line)] pt-4">
         <div className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
           <Clock3 className="size-4" aria-hidden="true" />
-          {selectedDay === "today" ? "Today's schedule information" : "Tomorrow's schedule information"}
+          {selectedDay === "today" ? "Today's hours" : "Tomorrow's hours"}
         </div>
         {officialRegularSchedule !== null ||
         relevantIntervals.length > 0 ||
@@ -335,7 +326,7 @@ function PharmacyCard({
                 className="flex items-start justify-between gap-3 text-sm leading-5"
               >
                 <span className="font-semibold text-[var(--ink)]">
-                  Official regular · open
+                  Regular pharmacy hours
                 </span>
                 <span className="text-right text-[var(--ink-muted)]">
                   {formatCyprusTime(regularPeriod.startsAt)}–
@@ -346,7 +337,7 @@ function PharmacyCard({
             {officialRegularSchedule?.closedAllDayReason && (
               <li className="flex items-start justify-between gap-3 text-sm leading-5">
                 <span className="font-semibold text-[var(--ink)]">
-                  Official regular · closed
+                  Regular pharmacy hours
                 </span>
                 <span className="text-right text-[var(--ink-muted)]">
                   {officialRegularSchedule.holidayName ?? "Sunday"}
@@ -368,7 +359,7 @@ function PharmacyCard({
                         className="flex items-start justify-between gap-3 text-sm leading-5"
                       >
                         <span className="font-semibold text-[var(--ink)]">
-                          Official duty · open
+                          Duty pharmacy hours
                         </span>
                         <span className="text-right text-[var(--ink-muted)]">
                           {formatCyprusTime(dutyPeriod.startsAt)}–
@@ -394,7 +385,7 @@ function PharmacyCard({
                       className="flex items-start justify-between gap-3 text-sm leading-5"
                     >
                       <span className="font-semibold text-[var(--ink)]">
-                        Official duty assignment
+                        On duty
                       </span>
                       <span className="text-right text-[var(--ink-muted)]">
                         Hours unavailable
@@ -405,7 +396,7 @@ function PharmacyCard({
           </ul>
         ) : (
           <p className="text-sm leading-5 text-[var(--ink-muted)]">
-            No schedule information is recorded for this day.
+            Hours are unavailable for this day.
           </p>
         )}
       </div>
@@ -608,7 +599,7 @@ export function PharmacyFinder({
           error?: string;
         };
         if (!response.ok) {
-          throw new Error(body.error ?? "Location search failed.");
+          throw new Error(body.error ?? "Location search is temporarily unavailable.");
         }
         return body.suggestions ?? [];
       })
@@ -681,7 +672,10 @@ export function PharmacyFinder({
           <h1 className="text-xl font-extrabold tracking-[-0.025em] text-[var(--ink)]">
             Paphos Pharmacy
           </h1>
-          <p className="text-sm text-[var(--ink-muted)]">Official directory and duty rota for Paphos.</p>
+          <p className="text-sm text-[var(--ink-muted)]">
+            Find open and on-duty pharmacies in Paphos using official Cyprus pharmacy
+            and duty data.
+          </p>
         </div>
       </header>
 
@@ -692,60 +686,23 @@ export function PharmacyFinder({
       )}
 
       {attribution && (
-        <aside className="mb-4 rounded-2xl border border-[#cbd8ed] bg-[#f0f5fc] px-4 py-3 text-sm leading-5 text-[#304f83]">
-          Pharmacy identities and date-only duty assignments come from the{" "}
+        <aside className="mb-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm leading-6 text-[var(--ink-muted)]">
+          Pharmacy and duty data are based on{" "}
           <a
             className="font-bold underline"
             href={attribution.datasetPage}
             target="_blank"
             rel="noreferrer"
           >
-            {attribution.organization} open-data release
+            {attribution.organization} sources
           </a>{" "}
           (<a className="underline" href={attribution.licenseUrl} target="_blank" rel="noreferrer">
             {attribution.license}
-          </a>). Duty coverage is {formatCoverageDate(attribution.dutyCoverageStart)}–
-          {formatCoverageDate(attribution.dutyCoverageEnd)}; snapshot retrieved{" "}
-          {formatCoverageDate(attribution.retrievedAt.slice(0, 10))}. The official
-          regular schedule comes from the{" "}
-          <a
-            className="font-bold underline"
-            href={CYPRUS_REGULAR_RULE_SOURCE_URL}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Cyprus pharmacy-hours orders
-          </a>
-          . Mandatory duty hours come from the{" "}
-          <a
-            className="font-bold underline"
-            href={CYPRUS_DUTY_RULE_SOURCE_URL}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Cyprus Pharmaceutical Services 2026 duty notice
-          </a>.
-        </aside>
-      )}
-
-      {coordinateAttributions.length > 0 && (
-        <aside className="mb-4 rounded-2xl border border-[#d6ddd8] bg-[#f5f8f6] px-4 py-3 text-sm leading-5 text-[#405149]">
-          Coordinates, where available, are separate address enrichment. Providers:{" "}
-          {coordinateAttributions.map((item, index) => (
-            <span key={item.providerId}>
-              {index > 0 ? "; " : ""}
-              <a
-                className="font-bold underline"
-                href={item.attributionUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {item.attribution}
-              </a>{" "}
-              via {item.provider}
-            </span>
-          ))}
-          . Official addresses remain unchanged.
+          </a>). Published schedules may not reflect exceptional same-day closures. Call
+          the pharmacy when confirmation matters.{" "}
+          <Link className="font-bold text-[var(--brand-strong)] underline" href="/data-sources">
+            Data Sources &amp; Disclaimer
+          </Link>
         </aside>
       )}
 
@@ -790,8 +747,8 @@ export function PharmacyFinder({
 
         {openNowFilterAvailable && (
           <p className="mt-2 text-xs leading-5 text-[var(--ink-muted)]">
-            Open Now is based on the official Cyprus regular pharmacy schedule and
-            official duty rota.
+            Open Now uses the official Cyprus regular schedule plus current duty-opening
+            hours.
           </p>
         )}
 
@@ -943,7 +900,7 @@ export function PharmacyFinder({
         <div className="mb-3 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand)]">
-              {selectedDay === "today" ? "Available today" : "Schedule for tomorrow"}
+              {selectedDay === "today" ? "Today in Paphos" : "Tomorrow's schedule"}
             </p>
             <h2 id="results-heading" className="mt-1 text-lg font-extrabold tracking-[-0.015em]">
               Pharmacy results
@@ -982,7 +939,7 @@ export function PharmacyFinder({
           <div className="rounded-3xl border border-dashed border-[var(--line-strong)] bg-[var(--surface)] px-5 py-10 text-center">
             <h3 className="font-extrabold text-[var(--ink)]">No pharmacies match this filter</h3>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[var(--ink-muted)]">
-              Try All to see every pharmacy with its recorded periods and contact actions.
+              Try All to see every pharmacy, its available hours, and contact options.
             </p>
             <button
               type="button"
@@ -995,9 +952,32 @@ export function PharmacyFinder({
         )}
       </section>
 
-      <footer className="py-7 text-center text-xs leading-5 text-[var(--ink-muted)]">
-        Times use Europe/Nicosia. “Open Now” means the official regular schedule or an active mandatory duty-open interval applies; overnight duty is telephone availability, not an open premises claim.
-      </footer>
+      <section aria-label="Schedule and location notes" className="space-y-2 py-7 text-center text-xs leading-5 text-[var(--ink-muted)]">
+        <p>
+          Times use Europe/Nicosia. Open Now means the regular schedule or a mandatory
+          duty-opening period applies. Overnight duty means telephone availability, not
+          an open premises.
+        </p>
+        {coordinateAttributions.length > 0 && (
+          <p>
+            Location data:{" "}
+            {coordinateAttributions.map((item, index) => (
+              <span key={item.providerId}>
+                {index > 0 ? " · " : ""}
+                <a
+                  className="font-bold underline"
+                  href={item.attributionUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {item.attribution}
+                </a>
+              </span>
+            ))}
+            . Official addresses remain unchanged.
+          </p>
+        )}
+      </section>
     </main>
   );
 }

@@ -41,10 +41,10 @@ describe("search origin", () => {
 
   it("turns denied or unavailable GPS into an actionable manual fallback", () => {
     expect(geolocationFallbackMessage("denied")).toBe(
-      "Couldn't access your location. Enter an area instead.",
+      "Couldn't access your location. Enter an area or address instead.",
     );
     expect(geolocationFallbackMessage("unavailable")).toBe(
-      "Couldn't access your location. Enter an area instead.",
+      "Couldn't access your location. Enter an area or address instead.",
     );
     expect(geolocationFallbackMessage("idle")).toBeNull();
   });

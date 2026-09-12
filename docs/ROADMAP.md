@@ -20,6 +20,7 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - View-independent GPS/manual origins retained across All, On Duty, Today, and Tomorrow, with nearest-first duty results and no repeated permission request on filter changes.
 - A source-bounded `Europe/Nicosia` evaluator for the official May–September 2026 duty notice, including scheduled gaps and previous-day overnight phone coverage through 08:00, without generated database intervals.
 - A separate versioned `Europe/Nicosia` evaluator for the official 2026 regular summer/winter pharmacy schedule and verified closure holidays; **Open Now** is the union of regular-open and duty-open periods.
+- Original English master copy with independent-service branding, concise homepage disclosure, and About, Privacy, Terms, and Data Sources pages.
 
 ## NOW — validate the official-data experience
 
@@ -28,19 +29,20 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - Confirm how corrections and disappeared/renumbered pharmacy records should be reconciled before automating imports.
 - Keep source, coverage, and retrieval information visible enough for users to understand the data limit.
 
-## NEXT — improve actionable availability
+## NEXT — product sequence
 
-- If separately approved, prototype lazy Places UI Kit Place Details on exact-match cards for Google-rendered supplementary hours, using a separately restricted browser key and preserving attribution. Do not extract widget content into application filtering.
-- Integrate an official per-pharmacy seasonal registry before applying a seasonal exception; add trustworthy exceptional schedules only as separate, attributable facts.
-- Revisit persisted `duty/open` or `duty/on_call` intervals only if a future pharmacy-specific timed source adds facts beyond the current transient official notice profile.
-- Manually review the 9 non-exact Google identity results and 7 exact results that differ by more than 250 m from existing enrichment. Six pharmacies currently remain without any trusted coordinate source.
-- Schedule the existing importer only after refresh, failure, alerting, and reconciliation behavior are accepted.
-- Decide the next language based on validated need and design the translation/content boundary.
+1. Internationalization for English, Greek, Russian, and Arabic, including automatic browser-language detection, a manual language selector, persisted user choice, and full Arabic right-to-left support.
+2. A local Paphos location index with Geoapify retained as fallback.
+3. Map view.
+4. Doctors / Medical help 24/7.
+5. Verified PWA installability.
+6. Revisit formal legal/operator details when the product becomes commercial or a formal entity and custom domain are established.
+
+Supporting data work remains deliberately source-led: integrate an official per-pharmacy seasonal registry before applying seasonal exceptions; manually review non-exact or materially disagreeing location matches; and schedule imports only after refresh, failure, alerting, and reconciliation behavior are accepted. Any future Places UI Kit experiment remains separately approved and presentation-only.
 
 ## LATER — expansion and B2B
 
 - Add district selection when product scope expands beyond Paphos.
-- Greek, Russian, and Arabic support.
 - Pharmacy verification and business accounts.
 - Pharmacy profile, product, and service information.
 - Push notifications, SEO pages, and privacy-respecting analytics.

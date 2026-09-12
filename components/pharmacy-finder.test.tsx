@@ -94,6 +94,70 @@ afterEach(() => {
 });
 
 describe("PharmacyFinder location controls", () => {
+  it("uses independent branding and keeps required attribution lightweight", () => {
+    render(
+      <PharmacyFinder
+        pharmacies={[pharmacy("branding")]}
+        source="official_snapshot"
+        generatedAt={generatedAt}
+        ordinaryOpeningDataAvailable={false}
+        attribution={{
+          organization: "Cyprus Pharmaceutical Services",
+          datasetPage: "https://www.data.gov.cy/en/dataset/817",
+          license: "CC BY 4.0",
+          licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+          retrievedAt: "2026-08-31T12:28:58.074Z",
+          dutyCoverageStart: "2026-05-01",
+          dutyCoverageEnd: "2026-09-30",
+        }}
+        coordinateAttributions={[
+          {
+            providerId: "openstreetmap_nominatim",
+            provider: "OpenStreetMap Nominatim",
+            attribution: "© OpenStreetMap contributors",
+            attributionUrl: "https://www.openstreetmap.org/copyright",
+            license: "ODbL 1.0",
+            licenseUrl: "https://opendatacommons.org/licenses/odbl/1-0/",
+            policyUrl: "https://operations.osmfoundation.org/policies/nominatim/",
+            generatedAt,
+          },
+          {
+            providerId: "geoapify",
+            provider: "Geoapify",
+            attribution: "Powered by Geoapify",
+            attributionUrl: "https://www.geoapify.com/",
+            license: "Geoapify Terms",
+            licenseUrl: "https://www.geoapify.com/terms-and-conditions/",
+            policyUrl: "https://www.geoapify.com/terms-and-conditions/",
+            generatedAt,
+          },
+          {
+            providerId: "google_places",
+            provider: "Google Places API (New)",
+            attribution: "Google Maps",
+            attributionUrl: "https://www.google.com/maps",
+            license: "Google Maps Platform Terms",
+            licenseUrl: "https://cloud.google.com/maps-platform/terms",
+            policyUrl: "https://developers.google.com/maps/documentation/places/web-service/policies",
+            generatedAt,
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        /Find open and on-duty pharmacies in Paphos using official Cyprus pharmacy and duty data/,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Official directory/)).toBeNull();
+    expect(screen.getByText(/Published schedules may not reflect exceptional same-day closures/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "CC BY 4.0" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "© OpenStreetMap contributors" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Powered by Geoapify" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Google Maps" })).toBeTruthy();
+  });
+
   it("renders GPS, manual search, complete no-origin browse, and standard tel call paths", () => {
     const publicPharmacy = Object.assign(pharmacy("1"), {
       housePhoneRaw: "PRIVATE-HOUSE-99111111",
@@ -240,7 +304,7 @@ describe("PharmacyFinder official duty hours", () => {
     expect(screen.getByText("19:30–23:00")).toBeTruthy();
     expect(
       screen.getByText(
-        /Open Now is based on the official Cyprus regular pharmacy schedule and official duty rota/,
+        /Open Now uses the official Cyprus regular schedule plus current duty-opening hours/,
       ),
     ).toBeTruthy();
   });
@@ -289,7 +353,7 @@ describe("PharmacyFinder official regular hours", () => {
     );
 
     expect(screen.getByText("OPEN NOW")).toBeTruthy();
-    expect(screen.getByText("Regular schedule · until 13:30")).toBeTruthy();
+    expect(screen.getByText("Regular hours · open until 13:30")).toBeTruthy();
     expect(screen.queryByText("ON DUTY TODAY")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
     expect(screen.getByRole("heading", { name: "Pharmacy ordinary-open" })).toBeTruthy();

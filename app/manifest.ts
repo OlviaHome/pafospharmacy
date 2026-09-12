@@ -4,7 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Paphos Pharmacy",
     short_name: "Pharmacy",
-    description: "Find a pharmacy you can use now in Paphos.",
+    description:
+      "Find open and on-duty pharmacies in Paphos using official Cyprus pharmacy and duty data.",
     start_url: "/",
     display: "standalone",
     background_color: "#f4f7f5",
