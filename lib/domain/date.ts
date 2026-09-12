@@ -95,8 +95,8 @@ export function getCyprusDayWindow(reference: Date, dayOffset = 0): DayWindow {
   };
 }
 
-export function formatCyprusTime(instant: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
+export function formatCyprusTime(instant: string, locale = "en-GB"): string {
+  return new Intl.DateTimeFormat(locale, {
     timeZone: CYPRUS_TIME_ZONE,
     hour: "2-digit",
     minute: "2-digit",
@@ -104,8 +104,8 @@ export function formatCyprusTime(instant: string): string {
   }).format(new Date(instant));
 }
 
-export function formatCyprusDate(instant: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
+export function formatCyprusDate(instant: string, locale = "en-GB"): string {
+  return new Intl.DateTimeFormat(locale, {
     timeZone: CYPRUS_TIME_ZONE,
     weekday: "short",
     day: "numeric",

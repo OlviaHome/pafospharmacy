@@ -45,6 +45,7 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 | D-037 | 2026-09-11 | Reject direct Places API ordinary-hours content for the EEA product and limit any future Google ordinary-hours experiment to Places UI Kit rendering. | UI Kit can render selected open-now/opening-hours content for an existing exact Place ID while preserving Google attribution, but it does not expose open status as structured output for filtering the application's known official set. Google widget content therefore remains presentation-only and lazy/on-demand; application filtering uses only independently trusted application-owned facts. |
 | D-038 | 2026-09-11 | Evaluate the official 2026 regular pharmacy schedule separately from duty hours and define **Open Now** as the union of their physical-opening periods. | The cited pharmacy-hours order supplies summer/winter weekday periods and an explicit pharmacy-closure holiday list. A pure `Europe/Nicosia` evaluator uses a verified 2026 calendar, returns unknown outside that coverage, and persists no generated intervals. The claim is “should be open according to the official schedule,” not proof against exceptional individual closure. Seasonal exceptions remain unsupported until an official per-pharmacy registry exists. |
 | D-039 | 2026-09-11 | Describe Paphos Pharmacy as an independent service that uses official Cyprus data, with concise homepage disclosure and original About, Privacy, Terms, and Data Sources pages. | Source authority must not be confused with website affiliation. English remains the master copy for this slice; future localization must preserve status distinctions, source attribution, safety wording, and explicit RTL handling without moving copy into domain logic. The current manifest is PWA-ready metadata, not a promise of verified cross-browser installation or offline schedule access. |
+| D-040 | 2026-09-12 | Use locale-prefixed EN/EL/RU/AR routes, English master resources, and one necessary language-preference cookie. | A saved explicit choice overrides `Accept-Language`, English is the fallback, and unprefixed requests redirect without duplicating pages. Typed presentation resources keep domain logic language-neutral. Arabic owns the document `dir="rtl"`, while official pharmacy identity, telephone values, coordinates, times, and URLs use bidi isolation rather than translation or reinterpretation. |
 
 ## Current assumptions requiring validation
 
@@ -61,7 +62,6 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - Directions-provider strategy.
 - National Google Places reconciliation, cloud scheduling, quota monitoring, and production refresh alerting beyond the current manual Paphos process.
 - An official per-pharmacy seasonal registry and a trustworthy source for exceptional individual opening schedules; Places UI Kit remains presentation-only if later approved.
-- Multilingual routing and content model.
 - Pharmacy verification and B2B authorization model.
 
 ## References

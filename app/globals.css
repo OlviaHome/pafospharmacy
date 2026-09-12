@@ -25,6 +25,7 @@
 html {
   background: var(--background);
   color: var(--ink);
+  overflow-x: clip;
   text-rendering: optimizeLegibility;
 }
 
@@ -47,9 +48,16 @@ button {
 }
 
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+select:focus-visible,
+input:focus-visible {
   outline: 3px solid rgba(8, 120, 95, 0.3);
   outline-offset: 3px;
+}
+
+bdi,
+[dir="ltr"] {
+  unicode-bidi: isolate;
 }
 
 ::selection {

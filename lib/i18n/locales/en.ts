@@ -1,0 +1,257 @@
+import type { TranslationDictionary } from "../types";
+
+export const en = {
+  locale: "en",
+  languageSelectorLabel: "Language",
+  siteTitle: "Paphos Pharmacy",
+  metadataDescription:
+    "Find open and on-duty pharmacies in Paphos using official Cyprus pharmacy and duty data.",
+  backToFinder: "Back to pharmacy finder",
+  lastUpdated: "Last updated 12 September 2026",
+  googlePrivacyPolicyLabel: "Google Privacy Policy",
+  finder: {
+    heroDescription:
+      "Find open and on-duty pharmacies in Paphos using official Cyprus pharmacy and duty data.",
+    loading: "Loading pharmacy information…",
+    developmentTitle: "Development data only.",
+    developmentBody:
+      "Pharmacy details, opening hours, and duty status are synthetic and must not be treated as official or current information.",
+    attributionPrefix: "Pharmacy and duty data are based on",
+    attributionSourcesSuffix: "sources",
+    attributionWarning:
+      "Published schedules may not reflect exceptional same-day closures. Call the pharmacy when confirmation matters.",
+    dataSources: "Data Sources & Disclaimer",
+    searchControls: "Search controls",
+    today: "Today",
+    tomorrow: "Tomorrow",
+    all: "All",
+    openNow: "Open Now",
+    onDuty: "On Duty",
+    availabilityFilter: "Availability filter",
+    openNowExplanation:
+      "Open Now uses the official Cyprus regular schedule plus current duty-opening hours.",
+    findNear: "Find pharmacies near you",
+    browseWithoutLocation:
+      "You can also browse all pharmacies without sharing your location.",
+    near: "Near:",
+    change: "Change",
+    clear: "Clear",
+    yourLocation: "Your location",
+    findingLocation: "Finding your location…",
+    locationUnavailable: "Location unavailable",
+    updateLocation: "Update my location",
+    useLocation: "Use my location",
+    enterArea: "Enter area or address",
+    locationInputLabel: "Hotel, area, landmark, or address in Paphos",
+    locationPlaceholder: "Hotel / area / address",
+    searching: "Searching…",
+    search: "Search",
+    chooseLocation: "Choose a matching location",
+    minimumSearch: "Enter at least 3 characters for an area or address.",
+    noLocationMatch:
+      "No matching Paphos location was found. Try a nearby area or fuller address.",
+    searchUnavailable: "Location search is temporarily unavailable.",
+    searchRateLimited: "Too many location searches. Try again shortly.",
+    distanceCoverage:
+      "Distance is shown only for pharmacies with verified map coordinates; others remain listed without distance.",
+    locationOptional: "Location is optional and requested only when you tap the button.",
+    locationDenied: "Couldn't access your location. Enter an area or address instead.",
+    browseAllInstead: "Browse all pharmacies instead",
+    todayInPaphos: "Today in Paphos",
+    tomorrowSchedule: "Tomorrow's schedule",
+    pharmacyResults: "Pharmacy results",
+    resultOne: "{count} result",
+    resultFew: "{count} results",
+    resultMany: "{count} results",
+    resultOther: "{count} results",
+    showingResults: "Showing {visible} of {total}",
+    showAllPharmacies: "Show all {count} pharmacies",
+    noMatches: "No pharmacies match this filter",
+    noMatchesHelp: "Try All to see every pharmacy, its available hours, and contact options.",
+    showAll: "Show all",
+    scheduleLocationNotes: "Schedule and location notes",
+    scheduleNote:
+      "Times use Europe/Nicosia. Open Now means the regular schedule or a mandatory duty-opening period applies. Overnight duty means telephone availability, not an open premises.",
+    locationData: "Location data:",
+    officialAddressesUnchanged: "Official addresses remain unchanged.",
+    hoursUnavailableBadge: "HOURS UNAVAILABLE",
+    openNowBadge: "OPEN NOW",
+    closedBadge: "CLOSED",
+    onDutyTodayBadge: "ON DUTY TODAY",
+    onDutyBadge: "ON DUTY",
+    onCallBadge: "ON DUTY — CALL PHARMACIST",
+    dutyHoursUnavailableBadge: "DUTY HOURS UNAVAILABLE — CALL FIRST",
+    recordedRegularOpen: "Recorded regular hours · open",
+    recordedDutyOpen: "Recorded duty hours · open",
+    recordedDutyOnCall: "Recorded duty hours · on call",
+    recordedDutyUnknown: "Recorded duty hours · status unknown",
+    conflictTitle: "HOURS CONFLICT — CALL TO CONFIRM.",
+    conflictBody:
+      "Regular hours indicate opening while the duty record indicates telephone availability.",
+    dutyOpenUntil: "Duty pharmacy — open until {time}",
+    regularOpenUntil: "Regular hours · open until {time}",
+    afternoonBreak: "Afternoon break · reopens at {time}",
+    regularOpensAt: "Regular hours · opens at {time}",
+    closedPublicHoliday: "Closed — public holiday",
+    closedRegularSchedule: "Closed by regular schedule",
+    regularHoursEnded: "Regular hours ended",
+    scheduledGapTitle: "On duty today.",
+    dutyStartsAt: "Mandatory duty opening starts at {time}.",
+    dutyNotOpenNow: "The premises are not in a mandatory duty-open interval now.",
+    overnightPhone: "23:00–08:00: pharmacist available by phone for prescriptions",
+    todayHours: "Today's hours",
+    tomorrowHours: "Tomorrow's hours",
+    regularPharmacyHours: "Regular pharmacy hours",
+    dutyPharmacyHours: "Duty pharmacy hours",
+    afterTwentyThree: "After 23:00 · call for prescriptions",
+    nextDay: "23:00–08:00 next day",
+    hoursUnavailable: "Hours unavailable",
+    hoursUnavailableForDay: "Hours are unavailable for this day.",
+    sunday: "Sunday",
+    call: "Call",
+    phoneUnavailable: "Phone unavailable",
+    directions: "Directions",
+  },
+  footer: {
+    navigation: "Legal and information",
+    about: "About",
+    privacy: "Privacy",
+    terms: "Terms",
+    dataSources: "Data Sources & Disclaimer",
+    independent: "Independent service using official Cyprus pharmacy data.",
+    corrections: "Questions or corrections:",
+    emergencyBefore:
+      "Paphos Pharmacy is not an emergency service. In a serious or life-threatening emergency in Cyprus, call",
+    emergencyAfter:
+      "This website does not replace a doctor, pharmacist, or emergency medical service.",
+  },
+  pages: {
+    about: {
+      title: "About",
+      description: "Why Paphos Pharmacy exists and how the independent service works.",
+      introduction:
+        "Paphos Pharmacy is a simple way to find a pharmacy in Paphos that should be open now or is listed on the official duty rota.",
+      sections: [
+        {
+          heading: "Why this service exists",
+          blocks: [{ type: "paragraphs", items: ["Finding a pharmacy can be harder when ordinary business hours have ended, a pharmacy is closed for an afternoon break, or duty cover continues by telephone overnight. The information exists, but the useful answer is often spread across addresses, schedules, and rota records. Paphos Pharmacy brings those facts into one clear Paphos-focused view."] }],
+        },
+        {
+          heading: "What it does",
+          blocks: [{ type: "paragraphs", items: ["The service combines official Cyprus pharmacy records and duty assignments with the supported regular and duty schedule rules. It keeps regular opening, official duty assignment, and overnight telephone availability separate so that one label is not mistaken for another."] }],
+        },
+        {
+          heading: "How to use it",
+          blocks: [
+            { type: "steps", items: ["Browse every Paphos pharmacy or filter by Open Now or On Duty.", "Use your device location, or select a Paphos area or address, to see approximate distance where verified coordinates are available.", "Use Call to contact the pharmacy or Directions to open Google Maps."] },
+            { type: "paragraphs", items: ["No account is required."] },
+          ],
+        },
+        {
+          heading: "Web-first and multilingual",
+          blocks: [{ type: "paragraphs", items: ["Paphos Pharmacy is a mobile-first website that also works on desktop. The interface is available in English, Greek, Russian, and Arabic, and you can change language at any time."] }],
+        },
+        {
+          heading: "Independent and informational",
+          blocks: [{ type: "paragraphs", items: ["This is an independent service, not a Cyprus government or Pharmaceutical Services website. It does not provide medical advice and is not an emergency service. In a serious or life-threatening emergency in Cyprus, call {{emergency}}."] }],
+        },
+        {
+          heading: "Contact",
+          blocks: [{ type: "paragraphs", items: ["Questions, corrections, and practical feedback are welcome at {{contact}}."] }],
+        },
+      ],
+    },
+    privacy: {
+      title: "Privacy",
+      description: "How Paphos Pharmacy handles location searches and technical data.",
+      introduction:
+        "This page explains the limited information used by the current Paphos Pharmacy website and what happens when you use its location tools.",
+      sections: [
+        {
+          heading: "What we collect",
+          blocks: [{ type: "paragraphs", items: ["The application does not build a user profile. A manual location search sends the search text to our server, as explained below. If you choose an interface language, one preference cookie stores that choice. Vercel may process standard technical request information needed to deliver and protect the website, such as an IP address, browser or device details, request time, and operational logs.", "If you email us, we receive your email address and the information you choose to include so that we can reply or review a correction. Please do not include medical or other sensitive personal information."] }],
+        },
+        {
+          heading: "What we do not collect",
+          blocks: [{ type: "paragraphs", items: ["You can use the pharmacy finder without an account. The website does not ask for your name, medical history, prescriptions, symptoms, or other medical records. The current application code does not run advertising or product analytics and does not use tracking profiles."] }],
+        },
+        {
+          heading: "Location",
+          blocks: [{ type: "paragraphs", items: ["If you tap “Use my location”, your browser asks for permission to read your device location. The coordinates are kept in the current browser tab and used there to calculate approximate distance to pharmacies. The application does not send that precise GPS location to its server, Supabase, or a geocoding provider, and it does not save it after the page is closed or refreshed.", "Your browser, device, and operating system control the permission prompt and may apply their own location-service settings."] }],
+        },
+        {
+          heading: "Manual area or address search",
+          blocks: [{ type: "paragraphs", items: ["If you enter an area, landmark, hotel, street, or address, the search text is sent to the Paphos Pharmacy server. The server checks a short shared cache and, when a lookup is needed, sends the text to Geoapify to find possible Paphos locations. Successful normalized searches and their short result lists may be cached in Vercel's shared runtime cache for up to five minutes. The selected result is then kept only in the current browser tab.", "Geoapify and Vercel may process request and network information under their own policies. Do not enter medical details or other sensitive personal information in the location box."] }],
+        },
+        {
+          heading: "Language preference",
+          blocks: [{ type: "paragraphs", items: ["When you choose a language, the website stores a strictly necessary cookie named “paphos_locale” so it can use that language on future visits. The cookie contains only one of the supported language codes, is not used for tracking, and remains for up to 12 months unless you change it or clear browser data."] }],
+        },
+        {
+          heading: "Hosting and service providers",
+          blocks: [
+            { type: "paragraphs", items: ["Vercel hosts and serves the website. Supabase stores the public pharmacy, duty, and trusted location records used by the application. Supabase does not receive your GPS origin or manual search origin through the current application flow. Geoapify receives manual search text only when a provider lookup is needed."] },
+            { type: "bullets", items: ["{{vercelPrivacy}} hosts and serves the application.", "{{supabasePrivacy}} hosts the public pharmacy-data backend.", "{{geoapifyPrivacy}} receives manual location searches when a provider lookup is needed."] },
+            { type: "paragraphs", items: ["Apart from the necessary language-preference cookie, the current application code does not use cookies, local storage, session storage, advertising identifiers, or tracking storage. Search origins and filters are held in memory and reset when the page reloads."] },
+          ],
+        },
+        {
+          heading: "Why we process technical data",
+          blocks: [{ type: "paragraphs", items: ["Technical request information is processed only as needed to deliver, secure, troubleshoot, and protect the service from abuse. Manual search text is processed to return relevant Paphos location suggestions. The language choice is stored to provide the interface you selected. Contact emails are used to reply and to review the issue raised. We do not use this information for advertising or medical profiling.", "Where data-protection law requires a legal basis, this limited processing is intended to rely on the legitimate interest in operating, securing, and troubleshooting the service, except where another basis is required. The language cookie is necessary to provide your saved interface choice. An email you send is handled so that we can respond to your request."] }],
+        },
+        {
+          heading: "Retention",
+          blocks: [{ type: "paragraphs", items: ["Successful normalized manual searches and their short result lists may remain in Vercel's shared runtime cache for up to five minutes. GPS and selected search origins are not saved by the application after the page reloads. The language-preference cookie remains for up to 12 months unless you change it or clear browser data.", "We do not state a fixed period for hosting logs, provider records, or contact emails because it has not been verified from current provider configuration and operating practice. Those services may keep security or operational records under their own settings, agreements, and policies. Contact correspondence should not be kept longer than reasonably needed to respond or address the issue."] }],
+        },
+        {
+          heading: "Your rights",
+          blocks: [{ type: "paragraphs", items: ["Depending on the law that applies, you may have rights relating to personal information about you, including access, correction, deletion, restriction, or objection. You may also have the right to complain to the relevant data-protection authority. Contact us using the email below if you want to make a request."] }],
+        },
+        {
+          heading: "Third-party links",
+          blocks: [{ type: "paragraphs", items: ["Directions and source links open other websites. Their privacy terms apply once you follow those links. Google Maps is contacted only when you choose a Google Maps Directions link. Other source and attribution links work in the same way.", "See the {{googlePrivacy}} before using Google Maps if you want more information about its processing."] }],
+        },
+        {
+          heading: "Changes",
+          blocks: [{ type: "paragraphs", items: ["This page will be updated when the application begins using information in a materially different way. The latest update date appears at the top of the page."] }],
+        },
+        {
+          heading: "Contact",
+          blocks: [{ type: "paragraphs", items: ["For privacy questions or requests, email {{contact}}."] }],
+        },
+      ],
+    },
+    terms: {
+      title: "Terms",
+      description: "Important terms for using the independent Paphos Pharmacy service.",
+      introduction: "Paphos Pharmacy is an independent informational service designed to help people find pharmacies in Paphos. Please use its information with the limits below in mind.",
+      sections: [
+        { heading: "Independent service", blocks: [{ type: "paragraphs", items: ["Paphos Pharmacy is not a government website and is not affiliated with or endorsed by the Cyprus Ministry of Health or Cyprus Pharmaceutical Services. It uses data published by Cyprus Pharmaceutical Services and identifies those sources separately."] }] },
+        { heading: "What the service provides", blocks: [{ type: "paragraphs", items: ["The website presents pharmacy contact details, schedule-based availability, official duty assignments, approximate distance where trusted coordinates exist, and links for calling or directions. It is provided as practical information and may change or be temporarily unavailable."] }] },
+        { heading: "Information, not medical advice", blocks: [{ type: "paragraphs", items: ["The website helps you locate and contact pharmacies. It does not diagnose a condition, recommend treatment, replace a doctor or pharmacist, or provide medical advice."] }] },
+        { heading: "Not an emergency service", blocks: [{ type: "paragraphs", items: ["Do not rely on this website for emergency assistance. In a serious or life-threatening emergency in Cyprus, call {{emergency}} or seek appropriate professional medical care."] }] },
+        { heading: "Schedules and source data can change", blocks: [{ type: "paragraphs", items: ["Opening and duty labels are calculated from the published sources and supported official schedule rules described on the Data Sources page. Exceptional closures, late source updates, staffing issues, seasonal status, or other real-world changes may not appear immediately. Call the pharmacy when confirmation matters."] }] },
+        { heading: "Location and external services", blocks: [{ type: "paragraphs", items: ["Distances are approximate straight-line calculations. Coordinates and official textual addresses can differ, and some pharmacies have no verified coordinates. Directions links open a third-party mapping service, which is responsible for its route, map content, availability, and terms. Check the destination before travelling."] }] },
+        { heading: "Reasonable use", blocks: [{ type: "paragraphs", items: ["Use the service lawfully and do not attempt to disrupt it or exhaust third-party service quotas. These terms do not remove any rights or protections that cannot lawfully be excluded."] }] },
+        { heading: "Changes and availability", blocks: [{ type: "paragraphs", items: ["The service, its sources, and these terms may be updated as the product changes. An updated date will be shown on this page. Access may occasionally be interrupted by maintenance, provider outages, source problems, or other technical issues."] }] },
+        { heading: "Contact", blocks: [{ type: "paragraphs", items: ["For questions about these terms, email {{contact}}."] }] },
+      ],
+    },
+    dataSources: {
+      title: "Data Sources & Disclaimer",
+      description: "Sources, freshness, and limitations of Paphos Pharmacy data.",
+      introduction: "Paphos Pharmacy combines official Cyprus pharmacy records with separately attributed schedule and location information. The website itself is independent and is not an official government service.",
+      sections: [
+        { heading: "Pharmacy directory and duty rota", blocks: [{ type: "paragraphs", items: ["Pharmacy identities, published addresses, public pharmacy telephone numbers, registration numbers, and date-only duty assignments come from the {{openData}}. The source snapshot used by the service was retrieved on 31 August 2026 and contains duty assignments from 1 May through 30 September 2026. Source data is attributed under {{ccBy}}."] }] },
+        { heading: "Regular pharmacy schedule", blocks: [{ type: "paragraphs", items: ["Regular hours are calculated from the {{regularRules}}. The service supports the versioned 2026 summer/winter schedule and verified 2026 pharmacy-closure holidays in Europe/Nicosia time. It describes when a pharmacy should be open under the general schedule; it cannot detect an exceptional same-day closure."] }] },
+        { heading: "Duty hours and overnight telephone cover", blocks: [{ type: "paragraphs", items: ["Duty-opening and overnight telephone periods are calculated only when an official duty assignment exists and the date is covered by the {{dutyRules}}. “On duty” is not automatically the same as “open”. From 23:00 until 08:00 after the duty date, the published rule requires telephone availability for prescriptions; the website does not label the premises open during that period."] }] },
+        { heading: "Addresses, coordinates, and directions", blocks: [
+          { type: "paragraphs", items: ["The official textual address is preserved as source data, but it is not treated as proof of a verified physical destination. Coordinates are separate enrichment. Fresh exact Google Places identity matches are preferred temporarily for distance and Directions. Trusted OpenStreetMap Nominatim or Geoapify results are used only as fallbacks. Ambiguous matches and material provider disagreements are excluded from automatic routing."] },
+          { type: "bullets", items: ["{{osm}} — Nominatim coordinate enrichment retrieved 31 August 2026.", "{{geoapify}} — fallback enrichment retrieved 1 September 2026 and manual location search.", "{{googleMaps}} — exact pharmacy identity links reconciled 3 September 2026; coordinate caches expire within 30 days."] },
+        ] },
+        { heading: "Current limitations and freshness", blocks: [{ type: "bullets", items: ["Official imports and coordinate reconciliations are currently deliberate manual processes, not live government feeds.", "The supported duty rules and assignments end on 30 September 2026; unsupported dates are shown as unavailable rather than guessed.", "No official per-pharmacy seasonal registry is integrated, so seasonal status is not inferred for any Paphos pharmacy.", "Exceptional closures, temporary changes, and corrections may not be reflected immediately. Call before travelling when confirmation matters.", "Distance is shown only for pharmacies with trusted coordinates; pharmacies without them remain visible."] }] },
+        { heading: "Corrections", blocks: [{ type: "paragraphs", items: ["If you believe a pharmacy, schedule, phone number, or location is incorrect, please confirm with the pharmacy or original source and contact us at {{contact}}."] }] },
+      ],
+    },
+  },
+} satisfies TranslationDictionary;

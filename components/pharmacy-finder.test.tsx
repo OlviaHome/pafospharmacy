@@ -10,10 +10,25 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Pharmacy } from "@/lib/domain/types";
+import { ar } from "@/lib/i18n/locales/ar";
+import { el } from "@/lib/i18n/locales/el";
+import { en } from "@/lib/i18n/locales/en";
+import { ru } from "@/lib/i18n/locales/ru";
+import type { TranslationDictionary } from "@/lib/i18n/types";
 
 import { PharmacyFinder } from "./pharmacy-finder";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/en",
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 const generatedAt = "2026-09-01T10:00:00.000Z";
+
+function expectPageText(text: string) {
+  expect(document.body.textContent).toContain(text);
+}
 
 function pharmacy(
   id: string,
@@ -67,7 +82,32 @@ function renderFinder(pharmacies: Pharmacy[], now = generatedAt) {
       ordinaryOpeningDataAvailable={false}
       attribution={null}
       coordinateAttributions={[]}
+      locale="en"
+      messages={en.finder}
+      languageLabel={en.languageSelectorLabel}
     />,
+  );
+}
+
+function renderLocalizedFinder(
+  dictionary: TranslationDictionary,
+  pharmacies: Pharmacy[],
+  now = generatedAt,
+) {
+  return render(
+    <div lang={dictionary.locale} dir={dictionary.locale === "ar" ? "rtl" : "ltr"}>
+      <PharmacyFinder
+        pharmacies={pharmacies}
+        source="official_snapshot"
+        generatedAt={now}
+        ordinaryOpeningDataAvailable={false}
+        attribution={null}
+        coordinateAttributions={[]}
+        locale={dictionary.locale}
+        messages={dictionary.finder}
+        languageLabel={dictionary.languageSelectorLabel}
+      />
+    </div>,
   );
 }
 
@@ -142,6 +182,9 @@ describe("PharmacyFinder location controls", () => {
             generatedAt,
           },
         ]}
+        locale="en"
+        messages={en.finder}
+        languageLabel={en.languageSelectorLabel}
       />,
     );
 
@@ -172,6 +215,9 @@ describe("PharmacyFinder location controls", () => {
         ordinaryOpeningDataAvailable={false}
         attribution={null}
         coordinateAttributions={[]}
+        locale="en"
+        messages={en.finder}
+        languageLabel={en.languageSelectorLabel}
       />,
     );
 
@@ -299,7 +345,7 @@ describe("PharmacyFinder official duty hours", () => {
 
     expect(screen.getByText("OPEN NOW")).toBeTruthy();
     expect(screen.getByText("ON DUTY TODAY")).toBeTruthy();
-    expect(screen.getByText("Duty pharmacy — open until 16:00")).toBeTruthy();
+    expectPageText("Duty pharmacy — open until 16:00");
     expect(screen.getByText("13:30–16:00")).toBeTruthy();
     expect(screen.getByText("19:30–23:00")).toBeTruthy();
     expect(
@@ -313,9 +359,7 @@ describe("PharmacyFinder official duty hours", () => {
     renderFinder([pharmacy("gap")], "2026-09-01T04:00:00.000Z");
 
     expect(screen.getByText("ON DUTY TODAY")).toBeTruthy();
-    expect(
-      screen.getByText("Mandatory duty opening starts at 13:30."),
-    ).toBeTruthy();
+    expectPageText("Mandatory duty opening starts at 13:30.");
     expect(screen.queryByText("OPEN NOW")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
@@ -326,11 +370,7 @@ describe("PharmacyFinder official duty hours", () => {
     renderFinder([pharmacy("overnight")], "2026-09-01T21:30:00.000Z");
 
     expect(screen.getAllByText("ON DUTY — CALL PHARMACIST").length).toBeGreaterThan(0);
-    expect(
-      screen.getByText(
-        "23:00–08:00: pharmacist available by phone for prescriptions",
-      ),
-    ).toBeTruthy();
+    expectPageText("23:00–08:00: pharmacist available by phone for prescriptions");
     expect(screen.queryByText("OPEN NOW")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "On Duty" }));
@@ -353,7 +393,7 @@ describe("PharmacyFinder official regular hours", () => {
     );
 
     expect(screen.getByText("OPEN NOW")).toBeTruthy();
-    expect(screen.getByText("Regular hours · open until 13:30")).toBeTruthy();
+    expectPageText("Regular hours · open until 13:30");
     expect(screen.queryByText("ON DUTY TODAY")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
     expect(screen.getByRole("heading", { name: "Pharmacy ordinary-open" })).toBeTruthy();
@@ -366,7 +406,7 @@ describe("PharmacyFinder official regular hours", () => {
     );
 
     expect(screen.getByText("CLOSED")).toBeTruthy();
-    expect(screen.getByText("Afternoon break · reopens at 16:00")).toBeTruthy();
+    expectPageText("Afternoon break · reopens at 16:00");
     fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
     expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
   });
@@ -400,7 +440,7 @@ describe("PharmacyFinder official regular hours", () => {
     expect(screen.getAllByText("CLOSED")).toHaveLength(1);
     expect(screen.getByText("Closed by regular schedule")).toBeTruthy();
     expect(screen.getAllByText("OPEN NOW")).toHaveLength(1);
-    expect(screen.getByText("Duty pharmacy — open until 23:00")).toBeTruthy();
+    expectPageText("Duty pharmacy — open until 23:00");
 
     fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
     expect(screen.getByRole("heading", { name: "Pharmacy sunday-duty" })).toBeTruthy();
@@ -423,5 +463,105 @@ describe("PharmacyFinder official regular hours", () => {
     expect(screen.getByRole("link", { name: "Directions" }).getAttribute("href")).toBe(
       "https://www.google.com/maps/search/?api=1&query=34.7565252%2C32.4164677",
     );
+  });
+});
+
+describe("PharmacyFinder localization", () => {
+  it.each([en, el, ru, ar])(
+    "keeps schedule, Call, and Directions semantics unchanged in $locale",
+    (dictionary) => {
+      const officialName = "Μάη - Φραγκούδη Ελένη";
+      const officialAddress = "Λεωφόρος Ελλάδος 1";
+      renderLocalizedFinder(
+        dictionary,
+        [
+          pharmacy("607", {
+            name: officialName,
+            addressLine: officialAddress,
+            addressAdditional: null,
+            locality: "Πάφος",
+            latitude: 34.7565252,
+            longitude: 32.4164677,
+            phoneE164: "+35726938784",
+          }),
+        ],
+        "2026-09-01T11:00:00.000Z",
+      );
+
+      expect(screen.getAllByText(dictionary.finder.openNowBadge).length).toBeGreaterThan(0);
+      expect(screen.getByText(officialName).textContent).toBe(officialName);
+      expect(screen.getByText(new RegExp(officialAddress)).textContent).toContain(officialAddress);
+      expect(screen.getByRole("link", { name: dictionary.finder.call }).getAttribute("href"))
+        .toBe("tel:+35726938784");
+      expect(
+        screen.getByRole("link", { name: dictionary.finder.directions }).getAttribute("href"),
+      ).toBe("https://www.google.com/maps/search/?api=1&query=34.7565252%2C32.4164677");
+    },
+  );
+
+  it("isolates mixed-script official identity and stable numeric values in Arabic", () => {
+    const { container } = renderLocalizedFinder(
+      ar,
+      [pharmacy("mixed", { name: "صيدلية Δοκιμή 607", addressLine: "Οδός 12" })],
+    );
+
+    expect(container.firstElementChild?.getAttribute("dir")).toBe("rtl");
+    expect(screen.getByText("صيدلية Δοκιμή 607").closest("bdi")?.getAttribute("dir"))
+      .toBe("auto");
+    expect(screen.getByRole("link", { name: ar.finder.call }).getAttribute("href"))
+      .toBe("tel:+35726000000");
+    expect(screen.getByText("13:30").closest("bdi")?.getAttribute("dir")).toBe("ltr");
+  });
+
+  it.each([
+    [en, "Kings Avenue Mall", "Kings Avenue Mall, Paphos, Cyprus"],
+    [el, "Κάτω Πάφος", "Κάτω Πάφος, Κύπρος"],
+    [ru, "набережная Пафоса", "Набережная Пафоса, Кипр"],
+    [ar, "ميناء بافوس", "ميناء بافوس، قبرص"],
+  ] as const)(
+    "submits and safely renders %s manual-location text",
+    async (dictionary, query, label) => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          suggestions: [
+            {
+              label,
+              latitude: 34.75,
+              longitude: 32.41,
+              resultIdentifier: `${dictionary.locale}-result`,
+            },
+          ],
+        }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      renderLocalizedFinder(dictionary, [pharmacy(dictionary.locale)]);
+
+      fireEvent.click(
+        screen.getByRole("button", { name: dictionary.finder.enterArea }),
+      );
+      fireEvent.change(screen.getByLabelText(dictionary.finder.locationInputLabel), {
+        target: { value: query },
+      });
+      fireEvent.click(screen.getByRole("button", { name: dictionary.finder.search }));
+
+      const suggestion = await screen.findByRole("button", { name: label });
+      expect(suggestion.querySelector("bdi")?.getAttribute("dir")).toBe("auto");
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({ query });
+    },
+  );
+
+  it("uses a localized generic error for an Arabic network failure", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    renderLocalizedFinder(ar, [pharmacy("ar-error")]);
+
+    fireEvent.click(screen.getByRole("button", { name: ar.finder.enterArea }));
+    fireEvent.change(screen.getByLabelText(ar.finder.locationInputLabel), {
+      target: { value: "ميناء بافوس" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: ar.finder.search }));
+
+    expect(await screen.findByText(ar.finder.searchUnavailable)).toBeTruthy();
+    expect(screen.queryByText("Failed to fetch")).toBeNull();
   });
 });

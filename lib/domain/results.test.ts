@@ -70,6 +70,9 @@ describe("pharmacy result ordering and presentation", () => {
   it("formats sub-kilometre distances in metres and longer distances to one decimal", () => {
     expect(formatDistance(0.742)).toBe("742 m");
     expect(formatDistance(1.24)).toBe("1.2 km");
+    expect(formatDistance(1.24, "el-CY")).toBe("1,2 χλμ.");
+    expect(formatDistance(1.24, "ru-RU")).toBe("1,2 км");
+    expect(formatDistance(1.24, "ar")).toBe("1.2 كم");
   });
 
   it("does not limit results when geolocation is unavailable", () => {

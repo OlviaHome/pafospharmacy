@@ -6,7 +6,7 @@ Paphos Pharmacy is a mobile-first pharmacy finder for Paphos, Cyprus. Its primar
 
 > Which pharmacy can I use right now?
 
-The first product is an English-language web app with PWA-ready architecture. It is not a native mobile application and it is not intended to be a generic pharmacy directory.
+The first product is a multilingual web app with English master copy, Greek, Russian, and Arabic interfaces, and PWA-ready architecture. It is not a native mobile application and it is not intended to be a generic pharmacy directory.
 
 ## Users
 
@@ -46,7 +46,7 @@ The first slice includes only:
 - An **On Duty** filter for the selected local calendar day.
 - A Today/Tomorrow selector using Cyprus local time.
 - Call and directions actions.
-- English-only UI.
+- Locale-prefixed English, Greek, Russian, and Arabic UI with browser-language detection, an explicit saved language choice, and Arabic right-to-left layout.
 
 The default experience must remain useful when location permission is denied or unavailable. Users have three explicit paths: **Use my location**, **Enter area or address**, or browse every pharmacy without sharing location. A denied device permission exposes manual search immediately rather than ending in an error. No origin is required for pharmacy status, address, call, or directions.
 
@@ -86,7 +86,6 @@ The basic consumer experience is expected to remain free. Potential monetization
 
 - Native iOS or Android applications.
 - User accounts or mandatory login.
-- Greek, Russian, or Arabic UI.
 - Map view.
 - Automated official-data synchronization.
 - Pharmacy verification or pharmacy business accounts.

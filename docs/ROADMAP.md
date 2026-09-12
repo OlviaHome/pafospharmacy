@@ -21,6 +21,7 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - A source-bounded `Europe/Nicosia` evaluator for the official May–September 2026 duty notice, including scheduled gaps and previous-day overnight phone coverage through 08:00, without generated database intervals.
 - A separate versioned `Europe/Nicosia` evaluator for the official 2026 regular summer/winter pharmacy schedule and verified closure holidays; **Open Now** is the union of regular-open and duty-open periods.
 - Original English master copy with independent-service branding, concise homepage disclosure, and About, Privacy, Terms, and Data Sources pages.
+- Full EN/EL/RU/AR localization with locale-prefixed routes, browser-language detection, a saved manual language choice, localized finder/legal content, and Arabic right-to-left support.
 
 ## NOW — validate the official-data experience
 
@@ -31,12 +32,11 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 
 ## NEXT — product sequence
 
-1. Internationalization for English, Greek, Russian, and Arabic, including automatic browser-language detection, a manual language selector, persisted user choice, and full Arabic right-to-left support.
-2. A local Paphos location index with Geoapify retained as fallback.
-3. Map view.
-4. Doctors / Medical help 24/7.
-5. Verified PWA installability.
-6. Revisit formal legal/operator details when the product becomes commercial or a formal entity and custom domain are established.
+1. A local Paphos location index with Geoapify retained as fallback.
+2. Map view.
+3. Doctors / Medical help 24/7.
+4. Verified PWA installability.
+5. Revisit formal legal/operator details when the product becomes commercial or a formal entity and custom domain are established.
 
 Supporting data work remains deliberately source-led: integrate an official per-pharmacy seasonal registry before applying seasonal exceptions; manually review non-exact or materially disagreeing location matches; and schedule imports only after refresh, failure, alerting, and reconciliation behavior are accepted. Any future Places UI Kit experiment remains separately approved and presentation-only.
 

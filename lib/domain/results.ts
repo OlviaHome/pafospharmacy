@@ -21,9 +21,22 @@ export function sortPharmacyResults(
   });
 }
 
-export function formatDistance(distanceKm: number): string {
-  if (distanceKm < 1) return `${Math.round(distanceKm * 1_000)} m`;
-  return `${distanceKm.toFixed(1)} km`;
+export function formatDistance(distanceKm: number, locale = "en-GB"): string {
+  if (distanceKm < 1) {
+    return new Intl.NumberFormat(locale, {
+      style: "unit",
+      unit: "meter",
+      unitDisplay: "short",
+      maximumFractionDigits: 0,
+    }).format(distanceKm * 1_000);
+  }
+  return new Intl.NumberFormat(locale, {
+    style: "unit",
+    unit: "kilometer",
+    unitDisplay: "short",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(distanceKm);
 }
 
 export function visiblePharmacyResults(

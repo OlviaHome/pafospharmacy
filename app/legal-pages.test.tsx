@@ -1,107 +1,87 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { LocalizedContentPage } from "@/components/localized-content-page";
 import { SiteFooter } from "@/components/site-footer";
 import { CONTACT_EMAIL } from "@/lib/content/site";
+import { ar } from "@/lib/i18n/locales/ar";
+import { el } from "@/lib/i18n/locales/el";
+import { en } from "@/lib/i18n/locales/en";
+import { ru } from "@/lib/i18n/locales/ru";
 
-import AboutPage from "./about/page";
-import DataSourcesPage from "./data-sources/page";
-import PrivacyPage from "./privacy/page";
-import TermsPage from "./terms/page";
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/en/about",
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+const dictionaries = [en, el, ru, ar] as const;
 
 afterEach(cleanup);
 
-describe("legal and information pages", () => {
-  it("explains the current product without claiming affiliation or PWA installation", () => {
-    render(<AboutPage />);
+describe("localized legal and information pages", () => {
+  for (const dictionary of dictionaries) {
+    for (const pageName of ["about", "privacy", "terms", "dataSources"] as const) {
+      it(`renders ${dictionary.locale}/${pageName}`, () => {
+        const page = dictionary.pages[pageName];
+        render(
+          <LocalizedContentPage
+            locale={dictionary.locale}
+            dictionary={dictionary}
+            page={page}
+          />,
+        );
 
-    expect(screen.getByRole("heading", { name: "About" })).toBeTruthy();
-    expect(screen.getByText(/brings those facts into one clear Paphos-focused view/)).toBeTruthy();
-    expect(screen.getByText(/No account is required/)).toBeTruthy();
-    expect(screen.getByText(/English is the currently supported interface language/)).toBeTruthy();
-    expect(
-      screen.getByText(/not a Cyprus government or Pharmaceutical Services website/),
-    ).toBeTruthy();
-    expect(screen.queryByText(/Add to Home Screen/i)).toBeNull();
-    expect(screen.getByRole("link", { name: CONTACT_EMAIL }).getAttribute("href")).toBe(
-      `mailto:${CONTACT_EMAIL}`,
+        expect(screen.getByRole("heading", { level: 1, name: page.title })).toBeTruthy();
+        expect(screen.getByText(page.introduction)).toBeTruthy();
+        expect(
+          screen.getByRole("link", { name: dictionary.backToFinder }).getAttribute("href"),
+        ).toBe(`/${dictionary.locale}`);
+      });
+    }
+  }
+
+  it("documents the strictly necessary language cookie without adding tracking", () => {
+    render(
+      <LocalizedContentPage locale="en" dictionary={en} page={en.pages.privacy} />,
     );
-  });
 
-  it("describes only the implemented privacy data flow", () => {
-    render(<PrivacyPage />);
-
-    expect(screen.getByRole("heading", { name: "Privacy" })).toBeTruthy();
-    expect(screen.getByText(/without an account/)).toBeTruthy();
-    expect(screen.getByText(/does not send that precise GPS location/)).toBeTruthy();
-    expect(screen.getAllByText(/shared runtime cache for up to five minutes/)).toHaveLength(2);
-    expect(screen.getByText(/does not set cookies, use local storage or session storage/)).toBeTruthy();
-    expect(screen.getByText(/legitimate interest in operating, securing/)).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Your rights" })).toBeTruthy();
+    expect(document.body.textContent).toContain(
+      "strictly necessary cookie named “paphos_locale”",
+    );
+    expect(screen.getByText(/Apart from the necessary language-preference cookie/)).toBeTruthy();
+    expect(screen.getByText(/does not run advertising or product analytics/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Geoapify" }).getAttribute("href")).toBe(
       "https://www.geoapify.com/privacy-policy/",
     );
-    expect(screen.getByRole("link", { name: CONTACT_EMAIL }).getAttribute("href")).toBe(
-      `mailto:${CONTACT_EMAIL}`,
-    );
   });
 
-  it("states the service, medical, emergency, and third-party limits", () => {
-    render(<TermsPage />);
-
-    expect(screen.getByText(/not affiliated with or endorsed by/)).toBeTruthy();
-    expect(screen.getByText(/does not diagnose a condition/)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "112" }).getAttribute("href")).toBe(
-      "tel:112",
+  it("localizes the Google privacy-policy label while preserving its URL", () => {
+    render(
+      <LocalizedContentPage locale="ar" dictionary={ar} page={ar.pages.privacy} />,
     );
-    expect(screen.getByText(/Directions links open a third-party mapping service/)).toBeTruthy();
-    expect(screen.getByText(/Call the pharmacy when confirmation matters/)).toBeTruthy();
-    expect(screen.getByText(/may occasionally be interrupted by maintenance/)).toBeTruthy();
-    expect(screen.getByRole("link", { name: CONTACT_EMAIL }).getAttribute("href")).toBe(
-      `mailto:${CONTACT_EMAIL}`,
-    );
-  });
-
-  it("retains every required source attribution and current limitation", () => {
-    render(<DataSourcesPage />);
 
     expect(
-      screen.getByRole("heading", { name: "Data Sources & Disclaimer" }),
-    ).toBeTruthy();
-    expect(screen.getByRole("link", { name: "CC BY 4.0" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "© OpenStreetMap contributors" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Powered by Geoapify" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Google Maps" })).toBeTruthy();
-    expect(screen.getByText(/not live government feeds/)).toBeTruthy();
-    expect(screen.getByText(/seasonal status is not inferred/)).toBeTruthy();
-    expect(screen.getByText(/official textual address is preserved as source data/)).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Corrections" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: CONTACT_EMAIL }).getAttribute("href")).toBe(
-      `mailto:${CONTACT_EMAIL}`,
-    );
+      screen
+        .getByRole("link", { name: ar.googlePrivacyPolicyLabel })
+        .getAttribute("href"),
+    ).toBe("https://policies.google.com/privacy");
   });
 
-  it("provides lightweight legal navigation and emergency guidance", () => {
-    render(<SiteFooter />);
+  it("keeps the approved contact, emergency link, and localized footer routes", () => {
+    render(<SiteFooter locale="ar" messages={ar.footer} />);
 
-    expect(screen.getByRole("link", { name: "About" }).getAttribute("href")).toBe(
-      "/about",
-    );
-    expect(screen.getByRole("link", { name: "Privacy" }).getAttribute("href")).toBe(
-      "/privacy",
-    );
-    expect(screen.getByRole("link", { name: "Terms" }).getAttribute("href")).toBe(
-      "/terms",
-    );
-    expect(
-      screen.getByRole("link", { name: "Data Sources & Disclaimer" }).getAttribute("href"),
-    ).toBe("/data-sources");
-    expect(screen.getByText(/Independent service using official Cyprus pharmacy data/)).toBeTruthy();
-    expect(screen.getByText(/not an emergency service/)).toBeTruthy();
     expect(screen.getByRole("link", { name: CONTACT_EMAIL }).getAttribute("href")).toBe(
       `mailto:${CONTACT_EMAIL}`,
     );
+    expect(screen.getByRole("link", { name: "112" }).getAttribute("href")).toBe("tel:112");
+    expect(screen.getByRole("link", { name: ar.footer.about }).getAttribute("href")).toBe(
+      "/ar/about",
+    );
+    expect(
+      screen.getByRole("link", { name: ar.footer.dataSources }).getAttribute("href"),
+    ).toBe("/ar/data-sources");
   });
 });

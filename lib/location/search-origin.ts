@@ -3,7 +3,7 @@ import type { Coordinates } from "../domain/types";
 export type SearchOrigin =
   | {
       source: "gps";
-      label: "Your location";
+      label: string;
       coordinates: Coordinates;
     }
   | {
@@ -21,8 +21,11 @@ export type GeolocationStatus =
   | "denied"
   | "unavailable";
 
-export function gpsSearchOrigin(coordinates: Coordinates): SearchOrigin {
-  return { source: "gps", label: "Your location", coordinates };
+export function gpsSearchOrigin(
+  coordinates: Coordinates,
+  label: string = "Your location",
+): SearchOrigin {
+  return { source: "gps", label, coordinates };
 }
 
 export function manualSearchOrigin(value: {
