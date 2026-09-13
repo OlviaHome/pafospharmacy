@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/next";
 
 import { SiteFooter } from "@/components/site-footer";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -61,6 +62,7 @@ export default async function LocaleLayout({
       <body>
         {children}
         <SiteFooter locale={locale} messages={dictionary.footer} />
+        <Analytics />
       </body>
     </html>
   );
