@@ -42,11 +42,11 @@ function RichText({
 }) {
   return text
     .split(
-      /(\{\{\w+\}\}|[0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Europe\/Nicosia|paphos_locale|Paphos Pharmacy|Google Maps|OpenStreetMap Nominatim|Geoapify|Vercel|Supabase|IP)/g,
+      /(\{\{\w+\}\}|[0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Europe\/Nicosia|paphos_locale|Paphos Pharmacy|Vercel Web Analytics|Google Maps|OpenStreetMap Nominatim|Geoapify|Vercel|Supabase|IP)/g,
     )
     .map((part, index) => {
     if (
-      /^(?:[0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Europe\/Nicosia|paphos_locale|Paphos Pharmacy|Google Maps|OpenStreetMap Nominatim|Geoapify|Vercel|Supabase|IP)$/.test(
+      /^(?:[0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Europe\/Nicosia|paphos_locale|Paphos Pharmacy|Vercel Web Analytics|Google Maps|OpenStreetMap Nominatim|Geoapify|Vercel|Supabase|IP)$/.test(
         part,
       )
     ) {
@@ -108,7 +108,7 @@ export function LocalizedContentPage({
       locale={locale}
       languageLabel={dictionary.languageSelectorLabel}
       backLabel={dictionary.backToFinder}
-      lastUpdated={dictionary.lastUpdated}
+      lastUpdated={page.lastUpdated ?? dictionary.lastUpdated}
     >
       {page.sections.map((section) => (
         <section key={section.heading}>

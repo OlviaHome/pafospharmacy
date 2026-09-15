@@ -163,17 +163,18 @@ export const en = {
     },
     privacy: {
       title: "Privacy",
-      description: "How Paphos Pharmacy handles location searches and technical data.",
+      description: "How Paphos Pharmacy handles location searches, aggregate usage analytics, and technical data.",
       introduction:
-        "This page explains the limited information used by the current Paphos Pharmacy website and what happens when you use its location tools.",
+        "This page explains the limited information used by the current Paphos Pharmacy website, including its location tools and aggregate usage analytics.",
+      lastUpdated: "Last updated 14 September 2026",
       sections: [
         {
           heading: "What we collect",
-          blocks: [{ type: "paragraphs", items: ["The application does not build a user profile. A manual location search sends the search text to our server, as explained below. If you choose an interface language, one preference cookie stores that choice. Vercel may process standard technical request information needed to deliver and protect the website, such as an IP address, browser or device details, request time, and operational logs.", "If you email us, we receive your email address and the information you choose to include so that we can reply or review a correction. Please do not include medical or other sensitive personal information."] }],
+          blocks: [{ type: "paragraphs", items: ["The application does not build a user profile. A manual location search sends the search text to our server, as explained below. If you choose an interface language, one preference cookie stores that choice. Vercel Web Analytics collects aggregate visit and page-view information as explained below. Vercel may also process standard technical request information needed to deliver and protect the website, such as an IP address, browser or device details, request time, and operational logs.", "If you email us, we receive your email address and the information you choose to include so that we can reply or review a correction. Please do not include medical or other sensitive personal information."] }],
         },
         {
           heading: "What we do not collect",
-          blocks: [{ type: "paragraphs", items: ["You can use the pharmacy finder without an account. The website does not ask for your name, medical history, prescriptions, symptoms, or other medical records. The current application code does not run advertising or product analytics and does not use tracking profiles."] }],
+          blocks: [{ type: "paragraphs", items: ["You can use the pharmacy finder without an account. The website does not ask for your name, medical history, prescriptions, symptoms, or other medical records. The current application does not use analytics for advertising and does not build tracking profiles."] }],
         },
         {
           heading: "Location",
@@ -188,20 +189,24 @@ export const en = {
           blocks: [{ type: "paragraphs", items: ["When you choose a language, the website stores a strictly necessary cookie named “paphos_locale” so it can use that language on future visits. The cookie contains only one of the supported language codes, is not used for tracking, and remains for up to 12 months unless you change it or clear browser data."] }],
         },
         {
+          heading: "Vercel Web Analytics",
+          blocks: [{ type: "paragraphs", items: ["The site uses Vercel Web Analytics to understand aggregate visits and page views, which pages are used, and how the website can be improved. The current integration records ordinary page views only and does not send custom analytics events. We do not use these analytics for advertising or to track people across unrelated websites.", "Vercel Web Analytics is separate from the language-preference cookie described above. According to Vercel, Web Analytics does not use analytics cookies and provides anonymized, aggregate data. Vercel processes this analytics data under its own terms and privacy documentation."] }],
+        },
+        {
           heading: "Hosting and service providers",
           blocks: [
-            { type: "paragraphs", items: ["Vercel hosts and serves the website. Supabase stores the public pharmacy, duty, and trusted location records used by the application. Supabase does not receive your GPS origin or manual search origin through the current application flow. Geoapify receives manual search text only when a provider lookup is needed."] },
-            { type: "bullets", items: ["{{vercelPrivacy}} hosts and serves the application.", "{{supabasePrivacy}} hosts the public pharmacy-data backend.", "{{geoapifyPrivacy}} receives manual location searches when a provider lookup is needed."] },
-            { type: "paragraphs", items: ["Apart from the necessary language-preference cookie, the current application code does not use cookies, local storage, session storage, advertising identifiers, or tracking storage. Search origins and filters are held in memory and reset when the page reloads."] },
+            { type: "paragraphs", items: ["Vercel hosts and serves the website and provides Vercel Web Analytics. Supabase stores the public pharmacy, duty, and trusted location records used by the application. Supabase does not receive your GPS origin or manual search origin through the current application flow. Geoapify receives manual search text only when a provider lookup is needed."] },
+            { type: "bullets", items: ["{{vercelPrivacy}} hosts and serves the application and processes Web Analytics data.", "{{supabasePrivacy}} hosts the public pharmacy-data backend.", "{{geoapifyPrivacy}} receives manual location searches when a provider lookup is needed."] },
+            { type: "paragraphs", items: ["Apart from the necessary language-preference cookie, the current application code does not use other cookies, local storage, session storage, advertising identifiers, or tracking storage. Vercel Web Analytics is described separately above and does not add another application cookie in the current setup. Search origins and filters are held in memory and reset when the page reloads."] },
           ],
         },
         {
           heading: "Why we process technical data",
-          blocks: [{ type: "paragraphs", items: ["Technical request information is processed only as needed to deliver, secure, troubleshoot, and protect the service from abuse. Manual search text is processed to return relevant Paphos location suggestions. The language choice is stored to provide the interface you selected. Contact emails are used to reply and to review the issue raised. We do not use this information for advertising or medical profiling.", "Where data-protection law requires a legal basis, this limited processing is intended to rely on the legitimate interest in operating, securing, and troubleshooting the service, except where another basis is required. The language cookie is necessary to provide your saved interface choice. An email you send is handled so that we can respond to your request."] }],
+          blocks: [{ type: "paragraphs", items: ["Technical request information is processed only as needed to deliver, secure, troubleshoot, and protect the service from abuse. Aggregate page-view information is used to understand visits, see which pages are used, and improve the website. Manual search text is processed to return relevant Paphos location suggestions. The language choice is stored to provide the interface you selected. Contact emails are used to reply and to review the issue raised. We do not use this information for advertising or medical profiling.", "Where data-protection law requires a legal basis, this limited processing is intended to rely on the legitimate interest in operating, securing, understanding, and improving the service, except where another basis is required. The language cookie is necessary to provide your saved interface choice. An email you send is handled so that we can respond to your request."] }],
         },
         {
           heading: "Retention",
-          blocks: [{ type: "paragraphs", items: ["Successful normalized manual searches and their short result lists may remain in Vercel's shared runtime cache for up to five minutes. GPS and selected search origins are not saved by the application after the page reloads. The language-preference cookie remains for up to 12 months unless you change it or clear browser data.", "We do not state a fixed period for hosting logs, provider records, or contact emails because it has not been verified from current provider configuration and operating practice. Those services may keep security or operational records under their own settings, agreements, and policies. Contact correspondence should not be kept longer than reasonably needed to respond or address the issue."] }],
+          blocks: [{ type: "paragraphs", items: ["Successful normalized manual searches and their short result lists may remain in Vercel's shared runtime cache for up to five minutes. GPS and selected search origins are not saved by the application after the page reloads. The language-preference cookie remains for up to 12 months unless you change it or clear browser data.", "We do not state a fixed period for Web Analytics data, hosting logs, provider records, or contact emails because it has not been verified from current provider configuration and operating practice. Those services may keep analytics, security, or operational records under their own settings, agreements, and policies. Contact correspondence should not be kept longer than reasonably needed to respond or address the issue."] }],
         },
         {
           heading: "Your rights",

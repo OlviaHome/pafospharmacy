@@ -29,6 +29,7 @@ export interface ContentPageMessages {
   title: string;
   description: string;
   introduction: string;
+  lastUpdated?: string;
   sections: ContentSection[];
 }
 

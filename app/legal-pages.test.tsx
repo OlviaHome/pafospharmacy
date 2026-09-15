@@ -43,7 +43,7 @@ describe("localized legal and information pages", () => {
     }
   }
 
-  it("documents the strictly necessary language cookie without adding tracking", () => {
+  it("distinguishes the language cookie from Vercel Web Analytics", () => {
     render(
       <LocalizedContentPage locale="en" dictionary={en} page={en.pages.privacy} />,
     );
@@ -52,11 +52,45 @@ describe("localized legal and information pages", () => {
       "strictly necessary cookie named “paphos_locale”",
     );
     expect(screen.getByText(/Apart from the necessary language-preference cookie/)).toBeTruthy();
-    expect(screen.getByText(/does not run advertising or product analytics/)).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Vercel Web Analytics" }),
+    ).toBeTruthy();
+    expect(document.body.textContent).toContain(
+      "understand aggregate visits and page views",
+    );
+    expect(document.body.textContent).toContain(
+      "separate from the language-preference cookie",
+    );
+    expect(document.body.textContent).toContain(
+      "does not use analytics for advertising",
+    );
+    expect(document.body.textContent).not.toContain(
+      "does not run advertising or product analytics",
+    );
+    expect(screen.getByText("Last updated 14 September 2026")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Geoapify" }).getAttribute("href")).toBe(
       "https://www.geoapify.com/privacy-policy/",
     );
   });
+
+  for (const dictionary of dictionaries) {
+    it(`discloses analytics and preserves language-preference details in ${dictionary.locale}`, () => {
+      render(
+        <LocalizedContentPage
+          locale={dictionary.locale}
+          dictionary={dictionary}
+          page={dictionary.pages.privacy}
+        />,
+      );
+
+      expect(
+        screen.getByRole("heading", { level: 2, name: "Vercel Web Analytics" }),
+      ).toBeTruthy();
+      expect(document.body.textContent).toContain("paphos_locale");
+      expect(document.body.textContent).toContain("Vercel Web Analytics");
+      expect(dictionary.pages.privacy.lastUpdated).toBeTruthy();
+    });
+  }
 
   it("localizes the Google privacy-policy label while preserving its URL", () => {
     render(
