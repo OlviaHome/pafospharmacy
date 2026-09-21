@@ -54,6 +54,8 @@ export const en = {
     searchRateLimited: "Too many location searches. Please try again in 5 minutes.",
     distanceCoverage:
       "Distance is shown only for pharmacies with verified map coordinates; others remain listed without distance.",
+    distanceMethod:
+      "Distance is measured in a straight line. The actual walking or driving route may be longer.",
     locationOptional: "Location is optional and requested only when you tap the button.",
     locationDenied: "Couldn't access your location. Enter an area or address instead.",
     browseAllInstead: "Browse all pharmacies instead",

@@ -978,6 +978,12 @@ export function PharmacyFinder({
           </p>
 
           {searchOrigin && (
+            <p className="mt-1 text-xs leading-5 text-[var(--ink-muted)]">
+              {messages.distanceMethod}
+            </p>
+          )}
+
+          {searchOrigin && (
             <button
               type="button"
               onClick={clearSearchOrigin}

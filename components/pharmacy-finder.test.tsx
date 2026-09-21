@@ -249,6 +249,38 @@ describe("PharmacyFinder location controls", () => {
     ).toBe("true");
   });
 
+  it.each([
+    [
+      en,
+      "Distance is measured in a straight line. The actual walking or driving route may be longer.",
+    ],
+    [
+      el,
+      "Η απόσταση μετριέται σε ευθεία γραμμή. Η πραγματική διαδρομή με τα πόδια ή με το αυτοκίνητο μπορεί να είναι μεγαλύτερη.",
+    ],
+    [
+      ru,
+      "Расстояние указано по прямой. Фактический маршрут пешком или на машине может быть длиннее.",
+    ],
+    [
+      ar,
+      "تُقاس المسافة بخط مستقيم. قد يكون المسار الفعلي سيرًا على الأقدام أو بالسيارة أطول.",
+    ],
+  ] as const)(
+    "discloses straight-line distance in %s",
+    (dictionary, disclosure) => {
+      installGeolocation();
+      renderLocalizedFinder(dictionary, [pharmacy(`${dictionary.locale}-distance`)]);
+
+      fireEvent.click(
+        screen.getByRole("button", { name: dictionary.finder.useLocation }),
+      );
+
+      expect(screen.getByText(disclosure)).toBeTruthy();
+      expect(screen.getByText(/^≈ /)).toBeTruthy();
+    },
+  );
+
   it("keeps a manually selected origin and distance when switching to On Duty", async () => {
     const getCurrentPosition = installGeolocation();
     vi.stubGlobal(

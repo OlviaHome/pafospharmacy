@@ -71,6 +71,7 @@ export interface FinderMessages {
   searchUnavailable: string;
   searchRateLimited: string;
   distanceCoverage: string;
+  distanceMethod: string;
   locationOptional: string;
   locationDenied: string;
   browseAllInstead: string;
