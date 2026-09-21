@@ -564,4 +564,52 @@ describe("PharmacyFinder localization", () => {
     expect(await screen.findByText(ar.finder.searchUnavailable)).toBeTruthy();
     expect(screen.queryByText("Failed to fetch")).toBeNull();
   });
+
+  it.each([en, el, ru, ar])(
+    "uses the localized five-minute message for %s client throttling",
+    async (dictionary) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 429,
+          json: async () => ({ code: "client_rate_limited" }),
+        }),
+      );
+      renderLocalizedFinder(dictionary, [pharmacy(`${dictionary.locale}-limit`)]);
+
+      fireEvent.click(
+        screen.getByRole("button", { name: dictionary.finder.enterArea }),
+      );
+      fireEvent.change(screen.getByLabelText(dictionary.finder.locationInputLabel), {
+        target: { value: "Paphos harbour" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: dictionary.finder.search }));
+
+      expect(await screen.findByText(dictionary.finder.searchRateLimited)).toBeTruthy();
+    },
+  );
+
+  it("keeps global and provider throttling on the generic localized message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        json: async () => ({
+          error: "Location search is temporarily unavailable. Try again later.",
+        }),
+      }),
+    );
+    renderLocalizedFinder(en, [pharmacy("global-limit")]);
+
+    fireEvent.click(screen.getByRole("button", { name: en.finder.enterArea }));
+    fireEvent.change(screen.getByLabelText(en.finder.locationInputLabel), {
+      target: { value: "Paphos harbour" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: en.finder.search }));
+
+    expect(await screen.findByText(en.finder.searchUnavailable)).toBeTruthy();
+    expect(screen.queryByText(en.finder.searchRateLimited)).toBeNull();
+  });
 });

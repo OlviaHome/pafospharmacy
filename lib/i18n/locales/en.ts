@@ -51,7 +51,7 @@ export const en = {
     noLocationMatch:
       "No matching Paphos location was found. Try a nearby area or fuller address.",
     searchUnavailable: "Location search is temporarily unavailable.",
-    searchRateLimited: "Too many location searches. Try again shortly.",
+    searchRateLimited: "Too many location searches. Please try again in 5 minutes.",
     distanceCoverage:
       "Distance is shown only for pharmacies with verified map coordinates; others remain listed without distance.",
     locationOptional: "Location is optional and requested only when you tap the button.",

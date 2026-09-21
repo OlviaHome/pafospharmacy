@@ -674,11 +674,14 @@ export function PharmacyFinder({
           signal,
         });
         const body = (await response.json()) as {
+          code?: string;
           suggestions?: ManualLocationSuggestion[];
         };
         if (!response.ok) {
           throw new Error(
-            response.status === 429 ? messages.searchRateLimited : messages.searchUnavailable,
+            response.status === 429 && body.code === "client_rate_limited"
+              ? messages.searchRateLimited
+              : messages.searchUnavailable,
           );
         }
         return body.suggestions ?? [];

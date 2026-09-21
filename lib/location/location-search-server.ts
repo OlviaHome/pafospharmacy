@@ -23,8 +23,9 @@ export const LOCATION_SEARCH_MAX_BODY_BYTES = 1024;
 export const LOCATION_SEARCH_MAX_QUERY_CHARACTERS = 120;
 export const LOCATION_SEARCH_CACHE_SECONDS = 300;
 export const LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS = 300;
-export const LOCATION_SEARCH_RATE_LIMIT_MAX_CLIENT_MISSES = 3;
-export const LOCATION_SEARCH_RATE_LIMIT_MAX_PROVIDER_MISSES = 8;
+export const LOCATION_SEARCH_RATE_LIMIT_MAX_CLIENT_MISSES = 5;
+export const LOCATION_SEARCH_RATE_LIMIT_MAX_SHORT_TERM_PROVIDER_MISSES = 20;
+export const LOCATION_SEARCH_RATE_LIMIT_MAX_DAILY_PROVIDER_MISSES = 2_500;
 
 const LOCATION_SEARCH_RATE_LIMIT_KEY = "paphos-location-search";
 const LOCATION_SEARCH_CACHE_NAMESPACE = "paphos-location-search-v2";
@@ -48,7 +49,8 @@ export class LocationSearchProviderError extends Error {
 
 export type LocationSearchBudgetStatus =
   | "allowed"
-  | "rate_limited"
+  | "client_rate_limited"
+  | "provider_rate_limited"
   | "unavailable";
 
 function canonicalQuery(value: string): string {
@@ -223,19 +225,35 @@ export async function checkLocationSearchBudget(
     const clientResult = await client.limit(identifier);
     // Upstash can return success on timeout; that must not allow provider access.
     if (clientResult.reason === "timeout") return "unavailable";
-    if (!clientResult.success) return "rate_limited";
+    if (!clientResult.success) return "client_rate_limited";
 
-    const global = new Ratelimit({
+    const shortTermGlobal = new Ratelimit({
       ...options,
-      prefix: "paphos-location-search:provider:v1",
+      prefix: "paphos-location-search:provider-short:v1",
       limiter: Ratelimit.slidingWindow(
-        LOCATION_SEARCH_RATE_LIMIT_MAX_PROVIDER_MISSES,
-        "5 m",
+        LOCATION_SEARCH_RATE_LIMIT_MAX_SHORT_TERM_PROVIDER_MISSES,
+        "1 m",
       ),
     });
-    const globalResult = await global.limit(LOCATION_SEARCH_RATE_LIMIT_KEY);
-    if (globalResult.reason === "timeout") return "unavailable";
-    return globalResult.success ? "allowed" : "rate_limited";
+    const shortTermGlobalResult = await shortTermGlobal.limit(
+      LOCATION_SEARCH_RATE_LIMIT_KEY,
+    );
+    if (shortTermGlobalResult.reason === "timeout") return "unavailable";
+    if (!shortTermGlobalResult.success) return "provider_rate_limited";
+
+    const dailyGlobal = new Ratelimit({
+      ...options,
+      prefix: "paphos-location-search:provider-daily:v1",
+      limiter: Ratelimit.slidingWindow(
+        LOCATION_SEARCH_RATE_LIMIT_MAX_DAILY_PROVIDER_MISSES,
+        "24 h",
+      ),
+    });
+    const dailyGlobalResult = await dailyGlobal.limit(
+      LOCATION_SEARCH_RATE_LIMIT_KEY,
+    );
+    if (dailyGlobalResult.reason === "timeout") return "unavailable";
+    return dailyGlobalResult.success ? "allowed" : "provider_rate_limited";
   } catch {
     return "unavailable";
   }

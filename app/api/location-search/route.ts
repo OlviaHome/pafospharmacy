@@ -42,15 +42,24 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const budgetStatus = await checkLocationSearchBudget(request);
-  if (budgetStatus === "rate_limited") {
+  if (budgetStatus === "client_rate_limited") {
     return json(
-      { error: "Too many location searches. Try again shortly." },
+      {
+        error: "Too many location searches. Please try again in 5 minutes.",
+        code: "client_rate_limited",
+      },
       {
         status: 429,
         headers: {
           "Retry-After": String(LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS),
         },
       },
+    );
+  }
+  if (budgetStatus === "provider_rate_limited") {
+    return json(
+      { error: "Location search is temporarily unavailable. Try again later." },
+      { status: 429 },
     );
   }
   if (budgetStatus === "unavailable") {
@@ -67,13 +76,8 @@ export async function POST(request: Request): Promise<Response> {
   } catch (error) {
     if (error instanceof LocationSearchProviderError && error.status === 429) {
       return json(
-        { error: "Too many location searches. Try again shortly." },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS),
-          },
-        },
+        { error: "Location search is temporarily unavailable. Try again later." },
+        { status: 429 },
       );
     }
     if (error instanceof LocationSearchProviderError && error.status === 503) {
