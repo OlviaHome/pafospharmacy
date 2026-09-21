@@ -1,7 +1,10 @@
 import "server-only";
 
-import { checkRateLimit } from "@vercel/firewall";
-import { getCache } from "@vercel/functions";
+import { createHmac } from "node:crypto";
+import { isIP } from "node:net";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+import { getCache, ipAddress } from "@vercel/functions";
 
 import {
   buildGeoapifySearchUrl,
@@ -19,9 +22,9 @@ import {
 export const LOCATION_SEARCH_MAX_BODY_BYTES = 1024;
 export const LOCATION_SEARCH_MAX_QUERY_CHARACTERS = 120;
 export const LOCATION_SEARCH_CACHE_SECONDS = 300;
-export const LOCATION_SEARCH_RATE_LIMIT_ID = "location-search-provider-budget";
-export const LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS = 60;
-export const LOCATION_SEARCH_RATE_LIMIT_MAX_PROVIDER_MISSES = 2;
+export const LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS = 300;
+export const LOCATION_SEARCH_RATE_LIMIT_MAX_CLIENT_MISSES = 3;
+export const LOCATION_SEARCH_RATE_LIMIT_MAX_PROVIDER_MISSES = 8;
 
 const LOCATION_SEARCH_RATE_LIMIT_KEY = "paphos-location-search";
 const LOCATION_SEARCH_CACHE_NAMESPACE = "paphos-location-search-v2";
@@ -187,18 +190,76 @@ export async function parseLocationSearchRequest(request: Request): Promise<stri
 export async function checkLocationSearchBudget(
   request: Request,
 ): Promise<LocationSearchBudgetStatus> {
-  if (process.env.VERCEL !== "1") return "allowed";
-
   try {
-    const result = await checkRateLimit(LOCATION_SEARCH_RATE_LIMIT_ID, {
-      request,
-      rateLimitKey: LOCATION_SEARCH_RATE_LIMIT_KEY,
+    // ipAddress reads a platform header, not an authenticated identity outside
+    // Vercel's ingress. Never fall back to caller-supplied forwarding headers.
+    if (process.env.VERCEL !== "1") return "unavailable";
+    const ip = normalizedClientIp(ipAddress(request));
+    const secret = process.env.LOCATION_SEARCH_HMAC_SECRET?.trim();
+    const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+    if (!ip || !secret || Buffer.byteLength(secret) < 32 || !url || !token) {
+      return "unavailable";
+    }
+
+    const identifier = createHmac("sha256", secret)
+      .update(`paphos-location-search:client:${ip}`)
+      .digest("hex");
+    const redis = new Redis({ url, token });
+    const options = {
+      redis,
+      analytics: false,
+      ephemeralCache: false as const,
+      timeout: 1_000,
+    };
+    const client = new Ratelimit({
+      ...options,
+      prefix: "paphos-location-search:client:v1",
+      limiter: Ratelimit.slidingWindow(
+        LOCATION_SEARCH_RATE_LIMIT_MAX_CLIENT_MISSES,
+        "5 m",
+      ),
     });
-    if (result.rateLimited) return "rate_limited";
-    return result.error ? "unavailable" : "allowed";
+    const clientResult = await client.limit(identifier);
+    // Upstash can return success on timeout; that must not allow provider access.
+    if (clientResult.reason === "timeout") return "unavailable";
+    if (!clientResult.success) return "rate_limited";
+
+    const global = new Ratelimit({
+      ...options,
+      prefix: "paphos-location-search:provider:v1",
+      limiter: Ratelimit.slidingWindow(
+        LOCATION_SEARCH_RATE_LIMIT_MAX_PROVIDER_MISSES,
+        "5 m",
+      ),
+    });
+    const globalResult = await global.limit(LOCATION_SEARCH_RATE_LIMIT_KEY);
+    if (globalResult.reason === "timeout") return "unavailable";
+    return globalResult.success ? "allowed" : "rate_limited";
   } catch {
     return "unavailable";
   }
+}
+
+function normalizedClientIp(value: string | undefined): string | null {
+  if (!value || value.includes("%")) return null;
+  const ip = value.trim();
+  const family = isIP(ip);
+  if (family === 4) return ip;
+  if (family !== 6) return null;
+
+  // URL canonicalization collapses IPv6 case/zero spelling variants. Map IPv4
+  // mapped IPv6 to IPv4 so the same address cannot receive a second allowance.
+  const canonical = new URL(`http://[${ip}]/`).hostname.slice(1, -1);
+  const mapped = /^::ffff:([0-9a-f]+):([0-9a-f]+)$/.exec(canonical);
+  if (!mapped) return canonical;
+  return mapped
+    .slice(1)
+    .flatMap((part) => {
+      const word = Number.parseInt(part, 16);
+      return [word >>> 8, word & 255];
+    })
+    .join(".");
 }
 
 export function manualLocationProviderIsConfigured(): boolean {

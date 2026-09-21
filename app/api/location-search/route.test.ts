@@ -1,28 +1,50 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  ipAddressMock,
+  globalLimitMock,
+  ratelimitOptions,
   cacheStore,
-  checkRateLimitMock,
+  clientLimitMock,
   getCacheMock,
   runtimeCacheGetMock,
   runtimeCacheSetMock,
 } = vi.hoisted(() => ({
+  ipAddressMock: vi.fn(),
+  globalLimitMock: vi.fn(),
+  ratelimitOptions: [] as Array<Record<string, unknown>>,
   cacheStore: new Map<string, unknown>(),
-  checkRateLimitMock: vi.fn(),
+  clientLimitMock: vi.fn(),
   getCacheMock: vi.fn(),
   runtimeCacheGetMock: vi.fn(),
   runtimeCacheSetMock: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@vercel/firewall", () => ({ checkRateLimit: checkRateLimitMock }));
-vi.mock("@vercel/functions", () => ({ getCache: getCacheMock }));
+vi.mock("@upstash/redis", () => ({ Redis: class {} }));
+vi.mock("@upstash/ratelimit", () => ({
+  Ratelimit: class {
+    static slidingWindow(tokens: number, window: string) {
+      return { tokens, window };
+    }
+    limit: typeof clientLimitMock;
+    constructor(options: Record<string, unknown>) {
+      ratelimitOptions.push(options);
+      this.limit = String(options.prefix).includes(":client:")
+        ? clientLimitMock
+        : globalLimitMock;
+    }
+  },
+}));
+vi.mock("@vercel/functions", () => ({
+  getCache: getCacheMock,
+  ipAddress: ipAddressMock,
+}));
 
 import { MANUAL_SUGGESTION_LIMIT } from "@/lib/location/manual-search";
 import {
   LOCATION_SEARCH_MAX_BODY_BYTES,
   LOCATION_SEARCH_RATE_LIMIT_MAX_PROVIDER_MISSES,
-  LOCATION_SEARCH_RATE_LIMIT_ID,
   LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS,
 } from "@/lib/location/location-search-server";
 
@@ -65,7 +87,15 @@ function providerResults(count = 1) {
 
 beforeEach(() => {
   vi.stubEnv("GEOAPIFY_API_KEY", "test-server-key");
-  vi.stubEnv("VERCEL", "");
+  vi.stubEnv("VERCEL", "1");
+  vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://test.upstash.io");
+  vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "test-redis-token");
+  vi.stubEnv("LOCATION_SEARCH_HMAC_SECRET", "test-secret-with-at-least-32-bytes");
+  ipAddressMock.mockReset();
+  ipAddressMock.mockReturnValue("192.0.2.1");
+  ratelimitOptions.length = 0;
+  globalLimitMock.mockReset();
+  globalLimitMock.mockResolvedValue({ success: true });
   cacheStore.clear();
   getCacheMock.mockReset();
   runtimeCacheGetMock.mockReset();
@@ -80,8 +110,8 @@ beforeEach(() => {
     get: runtimeCacheGetMock,
     set: runtimeCacheSetMock,
   });
-  checkRateLimitMock.mockReset();
-  checkRateLimitMock.mockResolvedValue({ rateLimited: false });
+  clientLimitMock.mockReset();
+  clientLimitMock.mockResolvedValue({ success: true });
 });
 
 afterEach(() => {
@@ -240,51 +270,44 @@ describe("manual location route provider protections", () => {
     expect(await response.json()).toEqual({
       error: "Manual location search is temporarily unavailable.",
     });
-    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(clientLimitMock).not.toHaveBeenCalled();
     expect(providerFetch).not.toHaveBeenCalled();
   });
 
-  it("uses the one shared Vercel provider-budget bucket", async () => {
-    vi.stubEnv("VERCEL", "1");
-    checkRateLimitMock.mockResolvedValue({ rateLimited: true });
+  it("returns a generic 429 when the client's allowance is exhausted", async () => {
+    clientLimitMock.mockResolvedValue({ success: false });
     const providerFetch = vi.fn();
     vi.stubGlobal("fetch", providerFetch);
-
     const response = await POST(jsonRequest({ query: "Paphos" }));
-
     expect(response.status).toBe(429);
-    expect(response.headers.get("Retry-After")).toBe(
-      String(LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS),
-    );
-    expect(LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS).toBe(60);
-    expect(LOCATION_SEARCH_RATE_LIMIT_MAX_PROVIDER_MISSES).toBe(2);
-    expect(checkRateLimitMock).toHaveBeenCalledWith(
-      LOCATION_SEARCH_RATE_LIMIT_ID,
-      expect.objectContaining({
-        rateLimitKey: "paphos-location-search",
-        request: expect.any(Request),
-      }),
-    );
+    expect(response.headers.get("Retry-After")).toBe("300");
+    expect(LOCATION_SEARCH_RATE_LIMIT_WINDOW_SECONDS).toBe(300);
+    expect(globalLimitMock).not.toHaveBeenCalled();
     expect(providerFetch).not.toHaveBeenCalled();
   });
 
-  it("fails closed when the Vercel Firewall rule is not configured", async () => {
-    vi.stubEnv("VERCEL", "1");
-    checkRateLimitMock.mockResolvedValue({
-      rateLimited: false,
-      error: "not-found",
-    });
-    const providerFetch = vi.fn();
-    vi.stubGlobal("fetch", providerFetch);
-
-    const response = await POST(jsonRequest({ query: "Paphos" }));
-
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      error: "Manual location search is temporarily unavailable.",
-    });
-    expect(providerFetch).not.toHaveBeenCalled();
-  });
+  it.each(["client", "global"])(
+    "fails closed on %s Redis errors and fail-open timeouts",
+    async (stage) => {
+      const limiter = stage === "client" ? clientLimitMock : globalLimitMock;
+      const providerFetch = vi.fn();
+      vi.stubGlobal("fetch", providerFetch);
+      for (const timeout of [false, true]) {
+        if (timeout) {
+          limiter.mockResolvedValue({ success: true, reason: "timeout" });
+        } else {
+          limiter.mockRejectedValue(new Error("private Redis diagnostic"));
+        }
+        const response = await POST(jsonRequest({ query: "Paphos" }));
+        expect(response.status).toBe(503);
+        expect(await response.json()).toEqual({
+          error: "Manual location search is temporarily unavailable.",
+        });
+      }
+      expect(providerFetch).not.toHaveBeenCalled();
+      if (stage === "client") expect(globalLimitMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("maps provider quota exhaustion to a generic 429 without leaking details", async () => {
     const providerFetch = vi.fn().mockResolvedValue(
@@ -329,7 +352,8 @@ describe("manual location route provider protections", () => {
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(providerFetch).toHaveBeenCalledTimes(1);
-    expect(checkRateLimitMock).toHaveBeenCalledTimes(1);
+    expect(clientLimitMock).toHaveBeenCalledTimes(1);
+    expect(globalLimitMock).toHaveBeenCalledTimes(1);
     expect(runtimeCacheGetMock).toHaveBeenCalledTimes(2);
     expect(runtimeCacheSetMock).toHaveBeenCalledTimes(1);
     expect(runtimeCacheSetMock).toHaveBeenCalledWith(
@@ -338,9 +362,12 @@ describe("manual location route provider protections", () => {
       expect.objectContaining({ ttl: 300 }),
     );
     expect(runtimeCacheGetMock.mock.invocationCallOrder[0]).toBeLessThan(
-      checkRateLimitMock.mock.invocationCallOrder[0],
+      clientLimitMock.mock.invocationCallOrder[0],
     );
-    expect(checkRateLimitMock.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(clientLimitMock.mock.invocationCallOrder[0]).toBeLessThan(
+      globalLimitMock.mock.invocationCallOrder[0],
+    );
+    expect(globalLimitMock.mock.invocationCallOrder[0]).toBeLessThan(
       providerFetch.mock.invocationCallOrder[0],
     );
   });
@@ -348,6 +375,8 @@ describe("manual location route provider protections", () => {
   it("serves a shared cache hit before checking the provider budget", async () => {
     vi.stubEnv("VERCEL", "1");
     vi.stubEnv("GEOAPIFY_API_KEY", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+    ipAddressMock.mockReturnValue(undefined);
     const suggestions = [
       {
         resultIdentifier: "cached-place",
@@ -366,36 +395,158 @@ describe("manual location route provider protections", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ suggestions });
     expect(runtimeCacheGetMock).toHaveBeenCalledWith("paphos");
-    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(ipAddressMock).not.toHaveBeenCalled();
+    expect(globalLimitMock).not.toHaveBeenCalled();
+    expect(clientLimitMock).not.toHaveBeenCalled();
     expect(providerFetch).not.toHaveBeenCalled();
   });
 
-  it("permits two provider-bound misses in the mocked window and blocks the next", async () => {
-    vi.stubEnv("VERCEL", "1");
-    checkRateLimitMock
-      .mockResolvedValueOnce({ rateLimited: false })
-      .mockResolvedValueOnce({ rateLimited: false })
-      .mockResolvedValueOnce({ rateLimited: true });
+  it("limits one client to three misses while another client can still search", async () => {
+    const counts = new Map<string, number>();
+    clientLimitMock.mockImplementation(async (id: string) => {
+      const count = (counts.get(id) ?? 0) + 1;
+      counts.set(id, count);
+      return { success: count <= 3 };
+    });
     const providerFetch = vi
       .fn()
-      .mockImplementation(async () =>
-        Response.json({ results: providerResults() }),
-      );
+      .mockImplementation(async () => Response.json({ results: providerResults() }));
     vi.stubGlobal("fetch", providerFetch);
+    for (let i = 0; i < 3; i++) {
+      expect(
+        (await POST(jsonRequest({ query: `Paphos street ${i}` }))).status,
+      ).toBe(200);
+    }
+    expect(
+      (await POST(jsonRequest({ query: "Paphos fourth street" }))).status,
+    ).toBe(429);
+    expect(globalLimitMock).toHaveBeenCalledTimes(3);
+    expect((await POST(jsonRequest({ query: "PAPHOS STREET 0" }))).status).toBe(
+      200,
+    );
+    expect(clientLimitMock).toHaveBeenCalledTimes(4);
+    ipAddressMock.mockReturnValue("192.0.2.2");
+    expect(
+      (await POST(jsonRequest({ query: "Paphos other street" }))).status,
+    ).toBe(200);
+    expect(globalLimitMock).toHaveBeenCalledTimes(4);
+    expect(providerFetch).toHaveBeenCalledTimes(4);
+    expect(counts.size).toBe(2);
+    for (const id of counts.keys()) expect(id).toMatch(/^[a-f0-9]{64}$/);
+    expect(ratelimitOptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          prefix: "paphos-location-search:client:v1",
+          limiter: { tokens: 3, window: "5 m" },
+          analytics: false,
+          ephemeralCache: false,
+        }),
+        expect.objectContaining({
+          prefix: "paphos-location-search:provider:v1",
+          limiter: { tokens: 8, window: "5 m" },
+          analytics: false,
+          ephemeralCache: false,
+        }),
+      ]),
+    );
+  });
 
-    const firstMiss = await POST(jsonRequest({ query: "Paphos harbour" }));
-    const cacheHit = await POST(jsonRequest({ query: "PAPHOS   HARBOUR" }));
-    const secondMiss = await POST(jsonRequest({ query: "Paphos old town" }));
-    const blockedMiss = await POST(jsonRequest({ query: "Paphos airport" }));
-
-    expect([firstMiss.status, cacheHit.status, secondMiss.status]).toEqual([
-      200, 200, 200,
-    ]);
-    expect(blockedMiss.status).toBe(429);
-    expect(checkRateLimitMock).toHaveBeenCalledTimes(3);
+  it("enforces the eight-miss global budget across clients", async () => {
+    globalLimitMock.mockImplementation(async () => ({
+      success: globalLimitMock.mock.calls.length <= 8,
+    }));
+    const providerFetch = vi
+      .fn()
+      .mockImplementation(async () => Response.json({ results: providerResults() }));
+    vi.stubGlobal("fetch", providerFetch);
+    for (let i = 0; i < 9; i++) {
+      ipAddressMock.mockReturnValue(`192.0.2.${i + 1}`);
+      const response = await POST(jsonRequest({ query: `Paphos street ${i}` }));
+      expect(response.status).toBe(i < 8 ? 200 : 429);
+    }
     expect(providerFetch).toHaveBeenCalledTimes(
       LOCATION_SEARCH_RATE_LIMIT_MAX_PROVIDER_MISSES,
     );
+    expect(new Set(globalLimitMock.mock.calls.map(([key]) => key))).toEqual(
+      new Set(["paphos-location-search"]),
+    );
+  });
+
+  it.each([undefined, "", "invalid", "192.0.2.1, 192.0.2.2", "fe80::1%eth0"])(
+    "fails closed for unavailable or invalid platform IP %s despite forwarding headers",
+    async (ip) => {
+      ipAddressMock.mockReturnValue(ip);
+      const providerFetch = vi.fn();
+      vi.stubGlobal("fetch", providerFetch);
+      const response = await POST(
+        jsonRequest(
+          { query: "Paphos" },
+          {
+            "X-Forwarded-For": "192.0.2.55",
+            Forwarded: "for=192.0.2.55",
+            "X-Real-IP": "192.0.2.55",
+          },
+        ),
+      );
+      expect(response.status).toBe(503);
+      expect(clientLimitMock).not.toHaveBeenCalled();
+      expect(globalLimitMock).not.toHaveBeenCalled();
+      expect(providerFetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it("ignores spoofed forwarding headers and never returns the client identifier", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () =>
+        Response.json({ results: providerResults() }),
+      ),
+    );
+    for (let i = 0; i < 2; i++) {
+      const response = await POST(
+        jsonRequest(
+          { query: `Paphos street ${i}` },
+          { "X-Forwarded-For": `192.0.2.${i + 10}` },
+        ),
+      );
+      const text = await response.text();
+      expect(text).not.toContain("192.0.2.1");
+      expect(text).not.toContain(clientLimitMock.mock.calls[i][0]);
+    }
+    expect(clientLimitMock.mock.calls[0][0]).toBe(clientLimitMock.mock.calls[1][0]);
+  });
+
+  it.each([
+    ["2001:0DB8:0000:0000:0000:0000:0000:0001", "2001:db8::1"],
+    ["::ffff:192.0.2.1", "192.0.2.1"],
+  ])("normalizes equivalent IP spellings before HMAC: %s", async (first, second) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () =>
+        Response.json({ results: providerResults() }),
+      ),
+    );
+    ipAddressMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    await POST(jsonRequest({ query: "Paphos first street" }));
+    await POST(jsonRequest({ query: "Paphos second street" }));
+    expect(clientLimitMock).toHaveBeenCalledTimes(2);
+    expect(clientLimitMock.mock.calls[0][0]).toBe(
+      clientLimitMock.mock.calls[1][0],
+    );
+  });
+
+  it.each([
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "LOCATION_SEARCH_HMAC_SECRET",
+    "VERCEL",
+  ])("fails closed when %s is absent", async (name) => {
+    vi.stubEnv(name, "");
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+    expect((await POST(jsonRequest({ query: "Paphos" }))).status).toBe(503);
+    expect(clientLimitMock).not.toHaveBeenCalled();
+    expect(providerFetch).not.toHaveBeenCalled();
   });
 
   it("does not cache provider failures", async () => {
