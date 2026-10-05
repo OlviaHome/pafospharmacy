@@ -27,6 +27,14 @@ const DUTY_HEADERS = [
   "House Tel. No.",
 ];
 
+const DISTRICT_NAMES = new Map([
+  ["Λευκωσία", "Nicosia"],
+  ["Λεμεσός", "Limassol"],
+  ["Λάρνακα", "Larnaca"],
+  ["Πάφος", "Paphos"],
+  ["Αμμόχωστος", "Famagusta"],
+]);
+
 export interface ResourceText {
   resource: OfficialCsvResource;
   text: string;
@@ -101,6 +109,11 @@ function optionalText(value: string | undefined): string | null {
   return normalized === "" || normalized === "0" ? null : normalized;
 }
 
+export function normalizeDistrict(value: string): string {
+  const normalized = cleaned(value).normalize("NFC");
+  return DISTRICT_NAMES.get(normalized) ?? normalized;
+}
+
 export function normalizeRegistrationNumber(value: string): string | null {
   const normalized = cleaned(value);
   return /^\d+$/.test(normalized) ? normalized : null;
@@ -139,10 +152,10 @@ export function normalizeCyprusPhoneField(value: string): string | null {
 }
 
 export function parseOfficialDate(value: string): string | null {
-  const match = /^(\d{2})\/(\d{2})\/(\d{2})$/.exec(cleaned(value));
+  const match = /^(\d{2})\/(\d{2})\/(\d{2}|\d{4})$/.exec(cleaned(value));
   if (!match) return null;
   const [, dayText, monthText, yearText] = match;
-  const year = 2000 + Number(yearText);
+  const year = yearText.length === 2 ? 2000 + Number(yearText) : Number(yearText);
   const month = Number(monthText);
   const day = Number(dayText);
   const date = new Date(Date.UTC(year, month - 1, day));
@@ -265,12 +278,17 @@ export function normalizeOfficialResources(
       continue;
     }
 
-    recordsRead += parsed.records.length;
-    if (resource.kind === "pharmacy_directory") directoryRead += parsed.records.length;
-    else dutyRead += parsed.records.length;
+    const records = parsed.records.filter((record) =>
+      Object.values(record.values).some((value) => cleaned(value) !== ""),
+    );
+    recordsRead += records.length;
+    if (resource.kind === "pharmacy_directory") directoryRead += records.length;
+    else dutyRead += records.length;
 
-    for (const record of parsed.records) {
-      const district = resource.district ?? cleaned(record.values.District);
+    for (const record of records) {
+      const district = normalizeDistrict(
+        resource.district ?? record.values.District,
+      );
       if (district) districts.add(district);
       const registrationNumber = normalizeRegistrationNumber(record.values["Reg. No."]);
       const pharmacy = createPharmacy(record.values, district, resource, retrievedAt);

@@ -46,9 +46,11 @@ One row represents one pharmacy location. The internal identity remains `id`; `o
 
 Names and addresses are not identity keys. Coordinates, postal codes, and telephone numbers remain nullable rather than being invented or blocking ingestion.
 
+Official registry refreshes match on `official_registration_number`. Registrations present in the new release update only official/provenance fields and become active; newly issued registrations are inserted without coordinate enrichment; official rows absent from the release become inactive rather than being deleted. Internal IDs, relationships, coordinates, and geocoding provenance remain unchanged.
+
 Geocoding provenance is all-or-none: if `geocode_provider` is set, a complete coordinate pair, result identifier, query, quality, and timestamp are required. Rows with non-geocoded coordinates such as synthetic fixtures may leave all geocoding provenance null. Official directory imports omit every coordinate/provenance column during database upsert, preserving the separation between official address facts and later enrichment.
 
-The 2026 official directory contains four `House Tel. No.` fields with multiple distinct valid numbers, using spaces, hyphens, or a line break as separators. The importer preserves the exact decoded field in `house_phone_raw` and every distinct valid number in `house_phone_e164_values`. It leaves `house_phone_e164` null for those rows rather than choosing a preferred number without a source-backed rule. All three House Tel. columns are internal source/provenance fields: anonymous and authenticated Data API roles have no `SELECT` privilege on them, and the runtime repository does not place them in the public `Pharmacy` domain object or client serialization. The current UI Call action continues to use the separate singular pharmacy telephone and does not expose or prioritize these house-number alternatives.
+The 2026–2027 official directory contains four `House Tel. No.` fields with multiple distinct valid numbers, using spaces, hyphens, or a line break as separators. The importer preserves the exact decoded field in `house_phone_raw` and every distinct valid number in `house_phone_e164_values`. It leaves `house_phone_e164` null for those rows rather than choosing a preferred number without a source-backed rule. All three House Tel. columns are internal source/provenance fields: anonymous and authenticated Data API roles have no `SELECT` privilege on them, and the runtime repository does not place them in the public `Pharmacy` domain object or client serialization. The current UI Call action continues to use the separate singular pharmacy telephone and does not expose or prioritize these house-number alternatives.
 
 ## `pharmacy_google_places`
 
@@ -139,7 +141,7 @@ Today/Tomorrow duty filtering uses `duty_date` for date-only assignments and int
 
 ## Official data snapshot
 
-The current snapshot contains the 2026 private-pharmacy directory and May–September 2026 district duty resources published by Cyprus Pharmaceutical Services through the National Open Data Portal under CC BY 4.0. It preserves all five published districts while the UI selects Paphos.
+The current snapshot contains the 2026–2027 private-pharmacy directory plus the May–September 2026 and October 2026–April 2027 district duty resources published by Cyprus Pharmaceutical Services through the National Open Data Portal under CC BY 4.0. It preserves all five published districts while the UI selects Paphos. Duty refreshes match pharmacies by official registration number and replace only the covered source period; assignments before that period remain historical facts.
 
 The importer stores pharmacy identity/provenance and date-only duty assignments. It creates no ordinary-opening intervals, duty intervals, service modes, or coordinates from these files. The versioned 2026 regular-hours and duty-hours evaluators are pure runtime logic sourced from separate official rules and never persist generated intervals. The regular evaluator contains an explicit verified 2026 closure calendar; unsupported years are unknown. Seasonal status is not assigned without an official per-pharmacy registry. Synthetic intervals remain limited to automated tests and the development seed.
 

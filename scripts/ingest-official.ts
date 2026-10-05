@@ -60,6 +60,9 @@ async function main() {
     OFFICIAL_RESOURCES.map((resource) => loadResource(resource, options.inputDirectory)),
   );
   const normalized = normalizeOfficialResources(resources, retrievedAt);
+  const dutyResources = OFFICIAL_RESOURCES.filter(
+    (resource) => resource.kind === "duty_rota",
+  );
   const snapshot = {
     metadata: {
       generatedAt: retrievedAt,
@@ -67,8 +70,15 @@ async function main() {
       datasetPage: OFFICIAL_DATASET_PAGE,
       license: OFFICIAL_LICENSE,
       licenseUrl: OFFICIAL_LICENSE_URL,
-      dutyCoverageStart: "2026-05-01",
-      dutyCoverageEnd: "2026-09-30",
+      dutyCoverageStart: dutyResources
+        .map((resource) => resource.coverageStart)
+        .filter((value): value is string => value !== null)
+        .sort()[0],
+      dutyCoverageEnd: dutyResources
+        .map((resource) => resource.coverageEnd)
+        .filter((value): value is string => value !== null)
+        .sort()
+        .at(-1),
       resources: OFFICIAL_RESOURCES,
       report: normalized.report,
     },

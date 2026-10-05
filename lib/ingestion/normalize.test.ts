@@ -6,6 +6,7 @@ import {
   normalizeCyprusPhone,
   normalizeCyprusPhoneField,
   normalizeCyprusPhoneValues,
+  normalizeDistrict,
   normalizeOfficialResources,
   parseOfficialDate,
 } from "./normalize";
@@ -44,6 +45,7 @@ const dutyCsv = `Date,Day,Reg. No.,Surmame,Name,Address,Additional Address Info,
 describe("official normalization", () => {
   it("normalizes dates and Cyprus telephone numbers without fabricating missing values", () => {
     expect(parseOfficialDate("31/08/26")).toBe("2026-08-31");
+    expect(parseOfficialDate("04/10/2026")).toBe("2026-10-04");
     expect(parseOfficialDate("31/02/26")).toBeNull();
     expect(normalizeCyprusPhone("26 999999")).toBe("+35726999999");
     expect(normalizeCyprusPhone("0")).toBeNull();
@@ -61,6 +63,11 @@ describe("official normalization", () => {
       "+35722429210",
       "+35722429429",
     ]);
+    expect(normalizeDistrict("Λευκωσία")).toBe("Nicosia");
+    expect(normalizeDistrict("Λεμεσός")).toBe("Limassol");
+    expect(normalizeDistrict("Λάρνακα")).toBe("Larnaca");
+    expect(normalizeDistrict("Πάφος")).toBe("Paphos");
+    expect(normalizeDistrict("Αμμόχωστος")).toBe("Famagusta");
   });
 
   it("uses registration number as stable identity and produces date-only duty facts", () => {
@@ -160,5 +167,20 @@ describe("official normalization", () => {
 
     expect(normalized.report).toMatchObject({ recordsSkipped: 1, malformedRecords: 1 });
     expect(normalized.report.issues[0]).toMatchObject({ severity: "skipped", rowNumber: 2 });
+  });
+
+  it("ignores empty source rows without treating them as malformed assignments", () => {
+    const normalized = normalizeOfficialResources(
+      [{ resource: rota, text: `${dutyCsv}\n,,,,,,,,,\n` }],
+      "2026-10-05T12:00:00.000Z",
+    );
+
+    expect(normalized.report).toMatchObject({
+      recordsRead: 1,
+      dutyRecordsRead: 1,
+      dutyAssignmentsPrepared: 1,
+      recordsSkipped: 0,
+      malformedRecords: 0,
+    });
   });
 });
