@@ -21,22 +21,22 @@ import type {
 } from "../lib/ingestion/normalize";
 
 const EXPECTED = {
-  pharmacies: 90,
-  exact: 81,
+  pharmacies: 92,
+  exact: 86,
   probable: 3,
   ambiguous: 3,
-  noMatch: 3,
-  fallback: 28,
-  fallbackOverlap: 25,
+  noMatch: 0,
+  fallback: 27,
+  fallbackOverlap: 24,
   fallbackExtension: 3,
   disputedFallbacks: 7,
-  trustedFallbacks: 21,
-  trustedFallbackOverlap: 18,
-  trustedCoverage: 84,
-  withoutTrustedCoordinates: 6,
-  fallbackOnlyUnresolved: 69,
+  trustedFallbacks: 20,
+  trustedFallbackOverlap: 17,
+  trustedCoverage: 89,
+  withoutTrustedCoordinates: 3,
+  fallbackOnlyUnresolved: 72,
   materialDisagreements: 7,
-  manualReview: 16,
+  manualReview: 13,
 } as const;
 
 const DEFAULT_PATHS = {
@@ -254,20 +254,43 @@ export async function buildPaphosGeocodingSyncPlan(
     (pharmacy) => pharmacy.officialRegistrationNumber,
     "official Paphos registration",
   );
-  const linksByRegistration = uniqueMap(
+  const allLinksByRegistration = uniqueMap(
     artifacts.googleLinks.records,
     (record) => record.officialRegistrationNumber,
     "Google link registration",
   );
-  const cacheByRegistration = uniqueMap(
+  const allCacheByRegistration = uniqueMap(
     artifacts.googleCache.records,
     (record) => record.officialRegistrationNumber,
     "Google cache registration",
   );
+  const activeLinks = artifacts.googleLinks.records.filter((record) =>
+    officialByRegistration.has(record.officialRegistrationNumber),
+  );
+  const activeCache = artifacts.googleCache.records.filter((record) =>
+    officialByRegistration.has(record.officialRegistrationNumber),
+  );
+  const linksByRegistration = uniqueMap(
+    activeLinks,
+    (record) => record.officialRegistrationNumber,
+    "active Google link registration",
+  );
+  const cacheByRegistration = uniqueMap(
+    activeCache,
+    (record) => record.officialRegistrationNumber,
+    "active Google cache registration",
+  );
 
-  invariant(paphos.length === EXPECTED.pharmacies, `expected 90 Paphos pharmacies, found ${paphos.length}`);
+  invariant(paphos.length === EXPECTED.pharmacies, `expected ${EXPECTED.pharmacies} active Paphos pharmacies, found ${paphos.length}`);
   invariant(linksByRegistration.size === paphos.length, "Google links do not cover all Paphos pharmacies");
   invariant(cacheByRegistration.size === paphos.length, "Google cache does not cover all Paphos pharmacies");
+  invariant(allLinksByRegistration.size === allCacheByRegistration.size, "Google link/cache registration totals differ");
+  for (const [registration, link] of allLinksByRegistration) {
+    const cache = allCacheByRegistration.get(registration);
+    invariant(cache, `missing Google cache for historical registration ${registration}`);
+    invariant(link.placeId === cache.placeId, `historical Place ID mismatch for registration ${registration}`);
+    invariant(link.classification === cache.classification, `historical classification mismatch for registration ${registration}`);
+  }
   invariant(artifacts.googleLinks.metadata.district === "Paphos", "Google link artifact is not Paphos-only");
   invariant(artifacts.googleCache.metadata.district === "Paphos", "Google cache artifact is not Paphos-only");
 
@@ -305,12 +328,12 @@ export async function buildPaphosGeocodingSyncPlan(
     }
   }
 
-  const classifications = classificationCounts(artifacts.googleLinks.records);
-  invariant(classifications.exact === EXPECTED.exact, `expected 81 exact Google matches, found ${classifications.exact}`);
-  invariant(classifications.probable === EXPECTED.probable, `expected 3 probable Google matches, found ${classifications.probable}`);
-  invariant(classifications.ambiguous === EXPECTED.ambiguous, `expected 3 ambiguous Google matches, found ${classifications.ambiguous}`);
-  invariant(classifications.noMatch === EXPECTED.noMatch, `expected 3 Google no-matches, found ${classifications.noMatch}`);
-  const materialDisagreementRegistrations = artifacts.googleLinks.records
+  const classifications = classificationCounts(activeLinks);
+  invariant(classifications.exact === EXPECTED.exact, `expected ${EXPECTED.exact} active exact Google matches, found ${classifications.exact}`);
+  invariant(classifications.probable === EXPECTED.probable, `expected ${EXPECTED.probable} probable Google matches, found ${classifications.probable}`);
+  invariant(classifications.ambiguous === EXPECTED.ambiguous, `expected ${EXPECTED.ambiguous} ambiguous Google matches, found ${classifications.ambiguous}`);
+  invariant(classifications.noMatch === EXPECTED.noMatch, `expected ${EXPECTED.noMatch} Google no-matches, found ${classifications.noMatch}`);
+  const materialDisagreementRegistrations = activeLinks
     .filter(
       (record) =>
         record.classification === "exact_identity_match" &&
@@ -326,23 +349,21 @@ export async function buildPaphosGeocodingSyncPlan(
     `material-disagreement registrations changed: ${materialDisagreementRegistrations.join(", ")}`,
   );
 
-  const fallbacks = acceptedFallbacks([artifacts.nominatim, artifacts.geoapify]);
+  const fallbacks = acceptedFallbacks([artifacts.nominatim, artifacts.geoapify])
+    .filter((record) => officialByRegistration.has(record.officialRegistrationNumber));
   const fallbackByRegistration = uniqueMap(
     fallbacks,
     (record) => record.officialRegistrationNumber,
     "accepted fallback registration",
   );
-  invariant(fallbacks.length === EXPECTED.fallback, `expected 28 trusted fallback coordinates, found ${fallbacks.length}`);
-  for (const fallback of fallbacks) {
-    invariant(officialByRegistration.has(fallback.officialRegistrationNumber), `fallback registration ${fallback.officialRegistrationNumber} is outside official Paphos data`);
-  }
+  invariant(fallbacks.length === EXPECTED.fallback, `expected ${EXPECTED.fallback} active fallback coordinates, found ${fallbacks.length}`);
   const disputedFallbacks = fallbacks.filter((record) =>
     isPaphosFallbackDisputed(record.officialRegistrationNumber),
   );
   const disputedRegistrations = disputedFallbacks
     .map((record) => record.officialRegistrationNumber)
     .sort((left, right) => Number(left) - Number(right));
-  invariant(disputedFallbacks.length === EXPECTED.disputedFallbacks, `expected 7 disputed fallback coordinates, found ${disputedFallbacks.length}`);
+  invariant(disputedFallbacks.length === EXPECTED.disputedFallbacks, `expected ${EXPECTED.disputedFallbacks} disputed fallback coordinates, found ${disputedFallbacks.length}`);
   invariant(
     sameStrings(
       disputedRegistrations,
@@ -353,10 +374,10 @@ export async function buildPaphosGeocodingSyncPlan(
   const trustedFallbacks = fallbacks.filter(
     (record) => !isPaphosFallbackDisputed(record.officialRegistrationNumber),
   );
-  invariant(trustedFallbacks.length === EXPECTED.trustedFallbacks, `expected 21 trusted fallback coordinates, found ${trustedFallbacks.length}`);
+  invariant(trustedFallbacks.length === EXPECTED.trustedFallbacks, `expected ${EXPECTED.trustedFallbacks} trusted fallback coordinates, found ${trustedFallbacks.length}`);
 
   const exactRegistrations = new Set(
-    artifacts.googleLinks.records
+    activeLinks
       .filter((record) => record.classification === "exact_identity_match")
       .map((record) => record.officialRegistrationNumber),
   );
@@ -370,14 +391,14 @@ export async function buildPaphosGeocodingSyncPlan(
     ...exactRegistrations,
     ...trustedFallbacks.map((record) => record.officialRegistrationNumber),
   ]);
-  invariant(overlap === EXPECTED.fallbackOverlap, `expected 25 fallback/Google overlaps, found ${overlap}`);
-  invariant(extension === EXPECTED.fallbackExtension, `expected 3 fallback coverage extensions, found ${extension}`);
-  invariant(trustedFallbackOverlap === EXPECTED.trustedFallbackOverlap, `expected 18 trusted fallback/Google overlaps, found ${trustedFallbackOverlap}`);
-  invariant(trustedFallbackExtension === EXPECTED.fallbackExtension, `expected 3 trusted fallback coverage extensions, found ${trustedFallbackExtension}`);
-  invariant(artifactTrustedRegistrations.size === EXPECTED.trustedCoverage, `expected 84 artifact-backed trusted destinations, found ${artifactTrustedRegistrations.size}`);
-  invariant(paphos.length - artifactTrustedRegistrations.size === EXPECTED.withoutTrustedCoordinates, `expected 6 artifact-level unresolved pharmacies, found ${paphos.length - artifactTrustedRegistrations.size}`);
+  invariant(overlap === EXPECTED.fallbackOverlap, `expected ${EXPECTED.fallbackOverlap} fallback/Google overlaps, found ${overlap}`);
+  invariant(extension === EXPECTED.fallbackExtension, `expected ${EXPECTED.fallbackExtension} fallback coverage extensions, found ${extension}`);
+  invariant(trustedFallbackOverlap === EXPECTED.trustedFallbackOverlap, `expected ${EXPECTED.trustedFallbackOverlap} trusted fallback/Google overlaps, found ${trustedFallbackOverlap}`);
+  invariant(trustedFallbackExtension === EXPECTED.fallbackExtension, `expected ${EXPECTED.fallbackExtension} trusted fallback coverage extensions, found ${trustedFallbackExtension}`);
+  invariant(artifactTrustedRegistrations.size === EXPECTED.trustedCoverage, `expected ${EXPECTED.trustedCoverage} artifact-backed trusted destinations, found ${artifactTrustedRegistrations.size}`);
+  invariant(paphos.length - artifactTrustedRegistrations.size === EXPECTED.withoutTrustedCoordinates, `expected ${EXPECTED.withoutTrustedCoordinates} artifact-level unresolved pharmacies, found ${paphos.length - artifactTrustedRegistrations.size}`);
 
-  const googleRows = artifacts.googleCache.records.map((record) =>
+  const googleRows = activeCache.map((record) =>
     googleDatabaseRow(record, linksByRegistration.get(record.officialRegistrationNumber)!, now),
   );
   const freshGoogleRegistrations = new Set(
@@ -390,7 +411,7 @@ export async function buildPaphosGeocodingSyncPlan(
     ...trustedFallbacks.map((record) => record.officialRegistrationNumber),
   ]);
 
-  const manualReview = artifacts.googleLinks.records
+  const manualReview = activeLinks
     .filter(
       (link) =>
         link.classification !== "exact_identity_match" ||
@@ -445,8 +466,8 @@ export async function buildPaphosGeocodingSyncPlan(
   const materialDisagreements = manualReview.filter((record) =>
     record.reviewReasons.includes("material_coordinate_disagreement"),
   ).length;
-  invariant(materialDisagreements === EXPECTED.materialDisagreements, `expected 7 material disagreements, found ${materialDisagreements}`);
-  invariant(manualReview.length === EXPECTED.manualReview, `expected 16 manual-review records, found ${manualReview.length}`);
+  invariant(materialDisagreements === EXPECTED.materialDisagreements, `expected ${EXPECTED.materialDisagreements} material disagreements, found ${materialDisagreements}`);
+  invariant(manualReview.length === EXPECTED.manualReview, `expected ${EXPECTED.manualReview} manual-review records, found ${manualReview.length}`);
 
   const registration607 = manualReview.find((record) => record.registrationNumber === "607");
   invariant(registration607?.googleClassification === "exact_identity_match", "registration 607 is not an exact Google match");
@@ -505,12 +526,13 @@ async function writePlanToSupabase(plan: PaphosGeocodingSyncPlan): Promise<{
   const { data: officialRows, error: officialError } = await client
     .from("pharmacies")
     .select("official_registration_number")
-    .eq("district", "Paphos");
+    .eq("district", "Paphos")
+    .eq("is_active", true);
   if (officialError) throw new Error(`Unable to verify Paphos pharmacies: ${officialError.message}`);
   const remoteRegistrations = new Set(
     (officialRows ?? []).map((row) => row.official_registration_number),
   );
-  invariant(remoteRegistrations.size === EXPECTED.pharmacies, `expected 90 remote Paphos pharmacies, found ${remoteRegistrations.size}`);
+  invariant(remoteRegistrations.size === EXPECTED.pharmacies, `expected ${EXPECTED.pharmacies} remote active Paphos pharmacies, found ${remoteRegistrations.size}`);
   for (const row of plan.googleRows) {
     invariant(remoteRegistrations.has(row.official_registration_number), `Google row ${row.official_registration_number} is not a remote Paphos pharmacy`);
   }

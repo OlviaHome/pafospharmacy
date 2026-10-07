@@ -1,22 +1,22 @@
 {
   "metadata": {
     "schemaVersion": 1,
-    "generatedAt": "2026-09-03T12:35:18.225Z",
+    "generatedAt": "2026-10-07T09:59:26.912Z",
     "district": "Paphos",
     "sourceSnapshot": "data/official/cyprus-pharmacies-2026.json",
-    "sourceSnapshotGeneratedAt": "2026-08-31T12:28:58.074Z",
+    "sourceSnapshotGeneratedAt": "2026-10-05T16:16:20.473Z",
     "provider": "google_places",
     "policyUrl": "https://developers.google.com/maps/documentation/places/web-service/policies",
     "note": "Place IDs may be retained. Google response content and coordinates are stored only in the expiring cache, not this artifact."
   },
   "report": {
-    "total": 90,
-    "exact": 81,
+    "total": 95,
+    "exact": 88,
     "probable": 3,
     "ambiguous": 3,
-    "noMatch": 3,
-    "trustedGoogleCoordinates": 81,
-    "trustedGoogleCoordinatePercentage": 90,
+    "noMatch": 1,
+    "trustedGoogleCoordinates": 88,
+    "trustedGoogleCoordinatePercentage": 92.6,
     "materialDisagreementThresholdMeters": 250,
     "disagreementsOver250Meters": [
       {
@@ -62,7 +62,13 @@
         "comparedQuality": "high"
       }
     ],
-    "manualReviewCount": 16
+    "manualReviewCount": 14,
+    "activeTotal": 92,
+    "activeExact": 86,
+    "activeProbable": 3,
+    "activeAmbiguous": 3,
+    "activeNoMatch": 0,
+    "historicalCount": 3
   },
   "records": [
     {
@@ -77,9 +83,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:18.852Z",
+      "retrievedAt": "2026-10-07T09:59:04.244Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -94,9 +101,10 @@
         "coordinates_in_paphos",
         "paphos_address",
         "locality_compatible",
-        "street_tokens:1"
+        "street_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:04.503Z",
       "coordinateDifferenceMeters": 13,
       "comparedProvider": "openstreetmap_nominatim",
       "comparedQuality": "medium",
@@ -112,9 +120,10 @@
         "paphos_address",
         "postcode_exact",
         "house_number_compatible",
-        "street_tokens:2"
+        "street_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:19.306Z",
+      "retrievedAt": "2026-10-07T09:59:04.738Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -132,9 +141,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:20.338Z",
+      "retrievedAt": "2026-10-07T09:59:04.991Z",
       "coordinateDifferenceMeters": 17,
       "comparedProvider": "openstreetmap_nominatim",
       "comparedQuality": "high",
@@ -151,9 +161,10 @@
         "postcode_exact",
         "locality_compatible",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:05.222Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -169,9 +180,11 @@
         "paphos_address",
         "postcode_exact",
         "house_number_compatible",
-        "name_tokens:1"
+        "street_tokens:1",
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:05.455Z",
       "coordinateDifferenceMeters": 388,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -188,10 +201,11 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "street_tokens:1",
-        "name_tokens:3"
+        "street_tokens:2",
+        "name_tokens:3",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:20.747Z",
+      "retrievedAt": "2026-10-07T09:59:05.674Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -207,9 +221,10 @@
         "paphos_address",
         "locality_compatible",
         "street_tokens:2",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Unique candidate had strong address and business-name evidence without an exact official phone match."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:05.886Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -225,9 +240,10 @@
         "paphos_address",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:06.121Z",
       "coordinateDifferenceMeters": 20,
       "comparedProvider": "geoapify",
       "comparedQuality": "medium",
@@ -245,9 +261,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:21.667Z",
+      "retrievedAt": "2026-10-07T09:59:06.360Z",
       "coordinateDifferenceMeters": 6,
       "comparedProvider": "openstreetmap_nominatim",
       "comparedQuality": "high",
@@ -265,9 +282,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:22.597Z",
+      "retrievedAt": "2026-10-07T09:59:06.597Z",
       "coordinateDifferenceMeters": 805,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -284,9 +302,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:1"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:23.493Z",
+      "retrievedAt": "2026-10-07T09:59:06.826Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -301,9 +320,10 @@
         "coordinates_in_paphos",
         "paphos_address",
         "locality_compatible",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:23.922Z",
+      "retrievedAt": "2026-10-07T09:59:07.070Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -319,9 +339,11 @@
         "paphos_address",
         "postcode_exact",
         "house_number_compatible",
-        "name_tokens:1"
+        "street_tokens:1",
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:24.858Z",
+      "retrievedAt": "2026-10-07T09:59:07.280Z",
       "coordinateDifferenceMeters": 25,
       "comparedProvider": "openstreetmap_nominatim",
       "comparedQuality": "high",
@@ -337,9 +359,10 @@
         "paphos_address",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:25.855Z",
+      "retrievedAt": "2026-10-07T09:59:07.506Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -356,9 +379,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "street_tokens:1"
+        "street_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:26.764Z",
+      "retrievedAt": "2026-10-07T09:59:07.727Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -371,9 +395,10 @@
       "matchingEvidence": [
         "phone_exact",
         "coordinates_in_paphos",
-        "paphos_address"
+        "paphos_address",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:07.942Z",
       "coordinateDifferenceMeters": 1093,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -390,9 +415,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:08.159Z",
       "coordinateDifferenceMeters": 45,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -409,9 +435,10 @@
         "postcode_exact",
         "locality_compatible",
         "street_tokens:2",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:27.699Z",
+      "retrievedAt": "2026-10-07T09:59:08.371Z",
       "coordinateDifferenceMeters": 75,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -429,9 +456,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:28.580Z",
+      "retrievedAt": "2026-10-07T09:59:08.596Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -449,9 +477,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:29.472Z",
+      "retrievedAt": "2026-10-07T09:59:08.809Z",
       "coordinateDifferenceMeters": 39,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -468,9 +497,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:29.856Z",
+      "retrievedAt": "2026-10-07T09:59:09.152Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -484,9 +514,10 @@
         "phone_exact",
         "coordinates_in_paphos",
         "paphos_address",
-        "name_tokens:3"
+        "name_tokens:3",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:30.806Z",
+      "retrievedAt": "2026-10-07T09:59:09.374Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -501,9 +532,11 @@
         "coordinates_in_paphos",
         "paphos_address",
         "locality_compatible",
-        "house_number_compatible"
+        "house_number_compatible",
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:31.720Z",
+      "retrievedAt": "2026-10-07T09:59:09.588Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -519,9 +552,12 @@
         "paphos_address",
         "postcode_exact",
         "locality_compatible",
-        "house_number_compatible"
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:32.666Z",
+      "retrievedAt": "2026-10-07T09:59:09.805Z",
       "coordinateDifferenceMeters": 303,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -538,9 +574,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:1"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:33.087Z",
+      "retrievedAt": "2026-10-07T09:59:10.038Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -557,9 +594,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Unique candidate had strong address and business-name evidence without an exact official phone match."
       ],
-      "retrievedAt": "2026-09-03T12:34:33.988Z",
+      "retrievedAt": "2026-10-07T09:59:10.255Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -574,9 +612,10 @@
         "coordinates_in_paphos",
         "paphos_address",
         "house_number_compatible",
-        "street_tokens:1"
+        "street_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:34.866Z",
+      "retrievedAt": "2026-10-07T09:59:10.489Z",
       "coordinateDifferenceMeters": 21,
       "comparedProvider": "geoapify",
       "comparedQuality": "medium",
@@ -591,9 +630,10 @@
         "coordinates_in_paphos",
         "paphos_address",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:35.808Z",
+      "retrievedAt": "2026-10-07T09:59:10.705Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -619,9 +659,11 @@
       "matchingEvidence": [
         "coordinates_in_paphos",
         "paphos_address",
-        "postcode_exact"
+        "postcode_exact",
+        "street_tokens:1",
+        "One or more candidates were plausible, but identity evidence was incomplete or conflicting."
       ],
-      "retrievedAt": "2026-09-03T12:34:37.547Z",
+      "retrievedAt": "2026-10-07T09:59:10.913Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -638,9 +680,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:38.396Z",
+      "retrievedAt": "2026-10-07T09:59:11.138Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -653,9 +696,10 @@
       "matchingEvidence": [
         "coordinates_in_paphos",
         "paphos_address",
-        "name_tokens:2"
+        "name_tokens:2",
+        "One or more candidates were plausible, but identity evidence was incomplete or conflicting."
       ],
-      "retrievedAt": "2026-09-03T12:34:39.296Z",
+      "retrievedAt": "2026-10-07T09:59:11.354Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -673,9 +717,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:40.192Z",
+      "retrievedAt": "2026-10-07T09:59:11.563Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -692,9 +737,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "street_tokens:1"
+        "street_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:41.055Z",
+      "retrievedAt": "2026-10-07T09:59:11.778Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -712,9 +758,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:41.927Z",
+      "retrievedAt": "2026-10-07T09:59:11.997Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -730,9 +777,10 @@
         "paphos_address",
         "postcode_exact",
         "locality_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:42.866Z",
+      "retrievedAt": "2026-10-07T09:59:12.217Z",
       "coordinateDifferenceMeters": 310,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -750,9 +798,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:43.771Z",
+      "retrievedAt": "2026-10-07T09:59:12.429Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -769,9 +818,10 @@
         "postcode_exact",
         "locality_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:44.606Z",
+      "retrievedAt": "2026-10-07T09:59:12.685Z",
       "coordinateDifferenceMeters": 681,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -789,9 +839,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:45.515Z",
+      "retrievedAt": "2026-10-07T09:59:12.914Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -807,9 +858,10 @@
         "postcode_exact",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:46.496Z",
+      "retrievedAt": "2026-10-07T09:59:13.138Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -827,9 +879,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:46.888Z",
+      "retrievedAt": "2026-10-07T09:59:13.348Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -846,9 +899,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:47.825Z",
+      "retrievedAt": "2026-10-07T09:59:13.569Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -862,9 +916,10 @@
         "phone_exact",
         "coordinates_in_paphos",
         "house_number_compatible",
-        "street_tokens:2"
+        "street_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:48.710Z",
+      "retrievedAt": "2026-10-07T09:59:13.803Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -880,9 +935,11 @@
         "paphos_address",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:2"
+        "street_tokens:1",
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:14.067Z",
       "coordinateDifferenceMeters": 15,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -900,9 +957,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:49.576Z",
+      "retrievedAt": "2026-10-07T09:59:14.273Z",
       "coordinateDifferenceMeters": 20,
       "comparedProvider": "openstreetmap_nominatim",
       "comparedQuality": "high",
@@ -919,9 +977,10 @@
         "postcode_exact",
         "locality_compatible",
         "street_tokens:2",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:50.487Z",
+      "retrievedAt": "2026-10-07T09:59:14.477Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -936,9 +995,10 @@
         "coordinates_in_paphos",
         "paphos_address",
         "postcode_exact",
-        "locality_compatible"
+        "locality_compatible",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:51.358Z",
+      "retrievedAt": "2026-10-07T09:59:14.688Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -954,9 +1014,10 @@
         "paphos_address",
         "postcode_exact",
         "locality_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:51.847Z",
+      "retrievedAt": "2026-10-07T09:59:14.893Z",
       "coordinateDifferenceMeters": 40,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -973,9 +1034,10 @@
         "postcode_exact",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:52.225Z",
+      "retrievedAt": "2026-10-07T09:59:15.103Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -992,9 +1054,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:3"
+        "name_tokens:3",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:53.290Z",
+      "retrievedAt": "2026-10-07T09:59:15.310Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1011,9 +1074,10 @@
         "postcode_exact",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:15.521Z",
       "coordinateDifferenceMeters": 62,
       "comparedProvider": "geoapify",
       "comparedQuality": "medium",
@@ -1031,9 +1095,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:54.145Z",
+      "retrievedAt": "2026-10-07T09:59:15.736Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1051,9 +1116,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:55.095Z",
+      "retrievedAt": "2026-10-07T09:59:15.946Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1071,9 +1137,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:55.978Z",
+      "retrievedAt": "2026-10-07T09:59:16.157Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1089,9 +1156,10 @@
         "paphos_address",
         "postcode_exact",
         "locality_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:56.875Z",
+      "retrievedAt": "2026-10-07T09:59:16.370Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1109,9 +1177,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:57.719Z",
+      "retrievedAt": "2026-10-07T09:59:16.588Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1127,9 +1196,10 @@
         "paphos_address",
         "postcode_exact",
         "house_number_compatible",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:16.806Z",
       "coordinateDifferenceMeters": 104,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -1146,9 +1216,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "street_tokens:1"
+        "street_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:58.106Z",
+      "retrievedAt": "2026-10-07T09:59:17.012Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1165,9 +1236,10 @@
         "postcode_exact",
         "locality_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:17.221Z",
       "coordinateDifferenceMeters": 102,
       "comparedProvider": "geoapify",
       "comparedQuality": "medium",
@@ -1185,9 +1257,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:59.040Z",
+      "retrievedAt": "2026-10-07T09:59:17.436Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1205,9 +1278,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:59.495Z",
+      "retrievedAt": "2026-10-07T09:59:17.643Z",
       "coordinateDifferenceMeters": 15,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -1224,9 +1298,10 @@
         "postcode_exact",
         "locality_compatible",
         "street_tokens:1",
-        "name_tokens:3"
+        "name_tokens:3",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:34:59.895Z",
+      "retrievedAt": "2026-10-07T09:59:17.853Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1244,9 +1319,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:00.865Z",
+      "retrievedAt": "2026-10-07T09:59:18.060Z",
       "coordinateDifferenceMeters": 8,
       "comparedProvider": "openstreetmap_nominatim",
       "comparedQuality": "high",
@@ -1254,16 +1330,21 @@
     },
     {
       "officialRegistrationNumber": "1170",
-      "placeId": null,
-      "classification": "no_match",
+      "placeId": "ChIJH7dUdgAd5xQRUJ7tEoyVG04",
+      "classification": "exact_identity_match",
       "matchingEvidence": [
-        "no_accepted_candidate"
+        "phone_exact",
+        "coordinates_in_paphos",
+        "postcode_exact",
+        "street_tokens:1",
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:18.061Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
-      "requiresManualReview": true
+      "requiresManualReview": false
     },
     {
       "officialRegistrationNumber": "1177",
@@ -1277,9 +1358,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:3",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:01.245Z",
+      "retrievedAt": "2026-10-07T09:59:19.001Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1293,9 +1375,10 @@
         "phone_exact",
         "coordinates_in_paphos",
         "paphos_address",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:19.210Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1311,9 +1394,10 @@
         "paphos_address",
         "postcode_exact",
         "locality_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:02.291Z",
+      "retrievedAt": "2026-10-07T09:59:19.426Z",
       "coordinateDifferenceMeters": 924,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -1331,9 +1415,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:03.185Z",
+      "retrievedAt": "2026-10-07T09:59:19.644Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1349,9 +1434,10 @@
         "paphos_address",
         "postcode_exact",
         "house_number_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:04.055Z",
+      "retrievedAt": "2026-10-07T09:59:19.854Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1370,9 +1456,11 @@
         "house_number_compatible",
         "street_tokens:1",
         "name_tokens:1",
-        "multiple_exact_phone_candidates"
+        "multiple_exact_phone_candidates",
+        "Current Place Details still supports this candidate, but the prior multiple-candidate ambiguity remains unresolved.",
+        "Place Details verified the candidate but cannot by itself resolve the previous multiple-candidate ambiguity."
       ],
-      "retrievedAt": "2026-09-03T12:35:04.947Z",
+      "retrievedAt": "2026-10-07T09:59:20.068Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": "openstreetmap_nominatim",
       "comparedQuality": "medium",
@@ -1389,9 +1477,11 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "street_tokens:2"
+        "street_tokens:2",
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:05.825Z",
+      "retrievedAt": "2026-10-07T09:59:20.275Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1409,9 +1499,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:06.755Z",
+      "retrievedAt": "2026-10-07T09:59:20.485Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1428,9 +1519,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:07.165Z",
+      "retrievedAt": "2026-10-07T09:59:20.696Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1448,9 +1540,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:08.004Z",
+      "retrievedAt": "2026-10-07T09:59:20.904Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1467,9 +1560,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:09.078Z",
+      "retrievedAt": "2026-10-07T09:59:21.111Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1505,9 +1599,10 @@
         "postcode_exact",
         "locality_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:21.320Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1524,9 +1619,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:10.304Z",
+      "retrievedAt": "2026-10-07T09:59:21.530Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1559,9 +1655,10 @@
         "postcode_exact",
         "house_number_compatible",
         "street_tokens:2",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Unique candidate had strong address and business-name evidence without an exact official phone match."
       ],
-      "retrievedAt": "2026-09-03T12:35:12.218Z",
+      "retrievedAt": "2026-10-07T09:59:21.746Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": "geoapify",
       "comparedQuality": "high",
@@ -1576,9 +1673,10 @@
         "coordinates_in_paphos",
         "postcode_exact",
         "house_number_compatible",
-        "street_tokens:1"
+        "street_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:12.616Z",
+      "retrievedAt": "2026-10-07T09:59:21.969Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1595,9 +1693,10 @@
         "postcode_exact",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:13.474Z",
+      "retrievedAt": "2026-10-07T09:59:22.221Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1615,9 +1714,10 @@
         "locality_compatible",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:14.513Z",
+      "retrievedAt": "2026-10-07T09:59:22.445Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1625,16 +1725,22 @@
     },
     {
       "officialRegistrationNumber": "1372",
-      "placeId": null,
-      "classification": "no_match",
+      "placeId": "ChIJC9KAShwF5xQRHqUrl_t3sJw",
+      "classification": "exact_identity_match",
       "matchingEvidence": [
-        "no_accepted_candidate"
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "street_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:15.424Z",
+      "retrievedAt": "2026-10-07T09:59:22.450Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
-      "requiresManualReview": true
+      "requiresManualReview": false
     },
     {
       "officialRegistrationNumber": "1374",
@@ -1646,9 +1752,10 @@
         "paphos_address",
         "postcode_exact",
         "street_tokens:2",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:16.286Z",
+      "retrievedAt": "2026-10-07T09:59:23.404Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1664,9 +1771,10 @@
         "paphos_address",
         "postcode_exact",
         "street_tokens:1",
-        "name_tokens:1"
+        "name_tokens:1",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:17.204Z",
+      "retrievedAt": "2026-10-07T09:59:23.621Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1682,9 +1790,10 @@
         "postcode_exact",
         "house_number_compatible",
         "street_tokens:1",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:17.797Z",
+      "retrievedAt": "2026-10-07T09:59:23.860Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1698,9 +1807,10 @@
         "phone_exact",
         "coordinates_in_paphos",
         "house_number_compatible",
-        "street_tokens:2"
+        "street_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T11:44:12.941Z",
+      "retrievedAt": "2026-10-07T09:59:24.071Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,
@@ -1716,9 +1826,111 @@
         "paphos_address",
         "locality_compatible",
         "house_number_compatible",
-        "name_tokens:2"
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
       ],
-      "retrievedAt": "2026-09-03T12:35:18.225Z",
+      "retrievedAt": "2026-10-07T09:59:24.280Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1430",
+      "placeId": "ChIJmQggJdAH5xQRL2KIf4Ll3mE",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "Existing Place ID from prior registration 1280; verified the same official phone and physical address for replacement registration 1430.",
+        "Exact normalized official phone and compatible Paphos location evidence."
+      ],
+      "retrievedAt": "2026-10-07T09:59:24.475Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1433",
+      "placeId": "ChIJMdB2JIUH5xQRQdnQwh2YJfs",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:1",
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
+      ],
+      "retrievedAt": "2026-10-07T09:59:24.484Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1434",
+      "placeId": "ChIJnzeIffkN5xQReAOjcDwyxuU",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "street_tokens:1",
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
+      ],
+      "retrievedAt": "2026-10-07T09:59:25.252Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1438",
+      "placeId": "ChIJC4ypq0AH5xQRlyn7nwWuUz0",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "postcode_exact",
+        "locality_compatible",
+        "house_number_compatible",
+        "street_tokens:2",
+        "name_tokens:2",
+        "Exact normalized official phone and compatible Paphos location evidence."
+      ],
+      "retrievedAt": "2026-10-07T09:59:26.009Z",
+      "coordinateDifferenceMeters": null,
+      "comparedProvider": null,
+      "comparedQuality": null,
+      "requiresManualReview": false
+    },
+    {
+      "officialRegistrationNumber": "1439",
+      "placeId": "ChIJGcWVHYUH5xQRG3s6wPkBEsk",
+      "classification": "exact_identity_match",
+      "matchingEvidence": [
+        "phone_exact",
+        "coordinates_in_paphos",
+        "paphos_address",
+        "house_number_compatible",
+        "street_tokens:1",
+        "Existing Place ID from prior registration 1332; verified the same official phone and physical address for replacement registration 1439.",
+        "Exact normalized official phone and compatible Paphos location evidence."
+      ],
+      "retrievedAt": "2026-10-07T09:59:26.912Z",
       "coordinateDifferenceMeters": null,
       "comparedProvider": null,
       "comparedQuality": null,

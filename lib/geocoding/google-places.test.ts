@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   GOOGLE_COORDINATE_CACHE_DAYS,
+  GOOGLE_PLACE_DETAILS_FIELD_MASK,
   GOOGLE_PLACES_FIELD_MASK,
   buildGooglePhoneQuery,
   googleCacheRecord,
@@ -42,6 +43,14 @@ describe("Google Places pharmacy reconciliation", () => {
       "places.location",
       "places.nationalPhoneNumber",
       "places.internationalPhoneNumber",
+    ]);
+    expect(GOOGLE_PLACE_DETAILS_FIELD_MASK.split(",")).toEqual([
+      "id",
+      "displayName",
+      "formattedAddress",
+      "location",
+      "nationalPhoneNumber",
+      "internationalPhoneNumber",
     ]);
   });
 
@@ -166,6 +175,7 @@ describe("Google Places pharmacy reconciliation", () => {
       "2026-09-03T10:00:00.000Z",
     );
     expect(isGoogleCoordinateCacheUsable(record, new Date("2026-09-04T10:00:00Z"))).toBe(false);
+    expect(record.matchingEvidence).toContain("probable");
   });
 
   it("uses fresh exact coordinates without storing Google descriptive content", () => {

@@ -8,6 +8,8 @@ import nominatimSnapshotJson from "../data/geocoding/paphos-nominatim-2026.json"
 import officialSnapshotJson from "../data/official/cyprus-pharmacies-2026.json";
 import {
   GOOGLE_COORDINATE_REFRESH_AFTER_DAYS,
+  GOOGLE_PLACE_DETAILS_ENDPOINT,
+  GOOGLE_PLACE_DETAILS_FIELD_MASK,
   GOOGLE_PLACES_ENDPOINT,
   GOOGLE_PLACES_FIELD_MASK,
   GOOGLE_PLACES_PROVIDER,
@@ -21,6 +23,7 @@ import {
   reconcileGooglePlacesResults,
   rejectDuplicateTrustedGooglePlaceIds,
   type GooglePlaceLinkRecord,
+  type GooglePlaceLinkSnapshot,
   type GooglePlaceResult,
   type GooglePlacesCacheRecord,
   type GooglePlacesCacheSnapshot,
@@ -37,6 +40,22 @@ const REQUEST_INTERVAL_MILLISECONDS = 100;
 const DEFAULT_CACHE_PATH = "data/geocoding/cache/paphos-google-places.json";
 const DEFAULT_LINKS_PATH = "data/geocoding/paphos-google-place-links-2026.json";
 const MATERIAL_DISAGREEMENT_METERS = 250;
+const REPLACEMENT_PLACE_CANDIDATES = new Map([
+  [
+    "1430",
+    {
+      previousRegistration: "1280",
+      placeId: "ChIJmQggJdAH5xQRL2KIf4Ll3mE",
+    },
+  ],
+  [
+    "1439",
+    {
+      previousRegistration: "1332",
+      placeId: "ChIJGcWVHYUH5xQRG3s6wPkBEsk",
+    },
+  ],
+]);
 
 const officialSnapshot =
   officialSnapshotJson as unknown as NormalizedOfficialImport & {
@@ -146,6 +165,28 @@ async function fetchGooglePlaces(
   return ((await response.json()) as GooglePlacesResponse).places ?? [];
 }
 
+async function fetchGooglePlaceDetails(
+  placeId: string,
+  apiKey: string,
+): Promise<GooglePlaceResult | null> {
+  const response = await fetch(
+    `${GOOGLE_PLACE_DETAILS_ENDPOINT}/${encodeURIComponent(placeId)}`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": GOOGLE_PLACE_DETAILS_FIELD_MASK,
+      },
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`Google Place Details request failed with HTTP ${response.status}.`);
+  }
+  return (await response.json()) as GooglePlaceResult;
+}
+
 function createCacheSnapshot(
   records: GooglePlacesCacheRecord[],
 ): GooglePlacesCacheSnapshot {
@@ -153,7 +194,15 @@ function createCacheSnapshot(
     (latest, record) => (record.retrievedAt > latest ? record.retrievedAt : latest),
     officialSnapshot.metadata.generatedAt,
   );
-  const contentExpiresAt = records.reduce(
+  const recordsWithCachedContent = records.filter(
+    (record) =>
+      record.displayName !== null ||
+      record.formattedAddress !== null ||
+      record.latitude !== null ||
+      record.longitude !== null ||
+      record.googlePhoneE164 !== null,
+  );
+  const contentExpiresAt = recordsWithCachedContent.reduce(
     (earliest, record) =>
       earliest === "" || record.expiresAt < earliest ? record.expiresAt : earliest,
     "",
@@ -239,9 +288,25 @@ function currentCoordinates(): Map<string, ExistingCoordinate> {
   return coordinates;
 }
 
-function buildLongLivedLinks(records: GooglePlacesCacheRecord[]) {
+function buildLongLivedLinks(
+  records: GooglePlacesCacheRecord[],
+  activeRegistrations: Set<string>,
+  previousLinks: GooglePlaceLinkSnapshot | null,
+) {
   const existingCoordinates = currentCoordinates();
+  const previousLinksByRegistration = new Map(
+    (previousLinks?.records ?? []).map((record) => [
+      record.officialRegistrationNumber,
+      record,
+    ]),
+  );
   const linkRecords: GooglePlaceLinkRecord[] = records.map((record) => {
+    if (!activeRegistrations.has(record.officialRegistrationNumber)) {
+      const historicalLink = previousLinksByRegistration.get(
+        record.officialRegistrationNumber,
+      );
+      if (historicalLink) return historicalLink;
+    }
     const existing = existingCoordinates.get(record.officialRegistrationNumber);
     const coordinateDifferenceMeters =
       record.classification === "exact_identity_match" &&
@@ -281,6 +346,9 @@ function buildLongLivedLinks(records: GooglePlacesCacheRecord[]) {
   const noMatch = linkRecords.filter(
     (record) => record.classification === "no_match",
   ).length;
+  const activeRecords = linkRecords.filter((record) =>
+    activeRegistrations.has(record.officialRegistrationNumber),
+  );
   const disagreementsOver250Meters = linkRecords
     .filter((record) => (record.coordinateDifferenceMeters ?? 0) > MATERIAL_DISAGREEMENT_METERS)
     .map((record) => ({
@@ -316,6 +384,20 @@ function buildLongLivedLinks(records: GooglePlacesCacheRecord[]) {
       materialDisagreementThresholdMeters: MATERIAL_DISAGREEMENT_METERS,
       disagreementsOver250Meters,
       manualReviewCount: linkRecords.filter((record) => record.requiresManualReview).length,
+      activeTotal: activeRecords.length,
+      activeExact: activeRecords.filter(
+        (record) => record.classification === "exact_identity_match",
+      ).length,
+      activeProbable: activeRecords.filter(
+        (record) => record.classification === "probable_match",
+      ).length,
+      activeAmbiguous: activeRecords.filter(
+        (record) => record.classification === "ambiguous",
+      ).length,
+      activeNoMatch: activeRecords.filter(
+        (record) => record.classification === "no_match",
+      ).length,
+      historicalCount: linkRecords.length - activeRecords.length,
     },
     records: linkRecords,
   };
@@ -324,8 +406,14 @@ function buildLongLivedLinks(records: GooglePlacesCacheRecord[]) {
 async function saveLinks(
   linksPath: string,
   records: GooglePlacesCacheRecord[],
+  activeRegistrations: Set<string>,
+  previousLinks: GooglePlaceLinkSnapshot | null,
 ): Promise<ReturnType<typeof buildLongLivedLinks>> {
-  const links = buildLongLivedLinks(records);
+  const links = buildLongLivedLinks(
+    records,
+    activeRegistrations,
+    previousLinks,
+  );
   await mkdir(path.dirname(linksPath), { recursive: true });
   await writeFile(linksPath, `${JSON.stringify(links, null, 2)}\n`, "utf8");
   return links;
@@ -432,10 +520,16 @@ async function main() {
   const selected = officialSnapshot.pharmacies.filter(
     (pharmacy) => pharmacy.district === "Paphos",
   );
-  if (selected.length !== 90) {
-    throw new Error(`Expected exactly 90 official Paphos pharmacies, found ${selected.length}.`);
+  if (selected.length !== 92) {
+    throw new Error(`Expected exactly 92 active Paphos pharmacies, found ${selected.length}.`);
   }
+  const activeRegistrations = new Set(
+    selected.map((pharmacy) => pharmacy.officialRegistrationNumber),
+  );
   const previous = await readJsonIfPresent<GooglePlacesCacheSnapshot>(options.cachePath);
+  const previousLinks = await readJsonIfPresent<GooglePlaceLinkSnapshot>(
+    options.linksPath,
+  );
   const previousByRegistration = new Map(
     (previous?.records ?? []).map((record) => [record.officialRegistrationNumber, record]),
   );
@@ -444,20 +538,65 @@ async function main() {
     (benchmark?.records ?? []).map((record) => [record.registration, record]),
   );
   const records: GooglePlacesCacheRecord[] = [];
-  let apiRequests = 0;
+  let detailsRequests = 0;
+  let textSearchRequests = 0;
   let reusedCache = 0;
   let reusedBenchmark = 0;
   let lastRequestAt = 0;
+  const invalidPlaceIds: Array<{
+    officialRegistrationNumber: string;
+    placeId: string;
+  }> = [];
+  const changedPlaceIds: Array<{
+    officialRegistrationNumber: string;
+    previousPlaceId: string;
+    currentPlaceId: string | null;
+  }> = [];
 
   async function providerSearch(query: string): Promise<GooglePlaceResult[]> {
     const waitFor = REQUEST_INTERVAL_MILLISECONDS - (Date.now() - lastRequestAt);
     if (waitFor > 0) await delay(waitFor);
     try {
-      apiRequests += 1;
+      textSearchRequests += 1;
       return await fetchGooglePlaces(query, placesApiKey);
     } finally {
       lastRequestAt = Date.now();
     }
+  }
+
+  async function providerDetails(
+    officialRegistrationNumber: string,
+    placeId: string,
+  ): Promise<GooglePlaceResult | null> {
+    const waitFor = REQUEST_INTERVAL_MILLISECONDS - (Date.now() - lastRequestAt);
+    if (waitFor > 0) await delay(waitFor);
+    try {
+      detailsRequests += 1;
+      const result = await fetchGooglePlaceDetails(placeId, placesApiKey);
+      if (!result) {
+        invalidPlaceIds.push({ officialRegistrationNumber, placeId });
+      }
+      return result;
+    } finally {
+      lastRequestAt = Date.now();
+    }
+  }
+
+  async function searchForPharmacy(
+    pharmacy: (typeof selected)[number],
+  ): Promise<GooglePlaceResult[]> {
+    if (!pharmacy.phoneE164) {
+      return providerSearch(buildGoogleFallbackQuery(pharmacy));
+    }
+    const phoneResults = await providerSearch(
+      buildGooglePhoneQuery(pharmacy.phoneE164),
+    );
+    const reconciliation = reconcileGooglePlacesResults(pharmacy, phoneResults);
+    if (reconciliation.classification === "exact_identity_match") {
+      return phoneResults;
+    }
+    const fallbackResults = await providerSearch(buildGoogleFallbackQuery(pharmacy));
+    return [...phoneResults, ...fallbackResults];
   }
 
   for (const [index, pharmacy] of selected.entries()) {
@@ -509,35 +648,80 @@ async function main() {
       const benchmarkRecord = !options.refresh
         ? benchmarkByRegistration.get(pharmacy.officialRegistrationNumber)
         : null;
-      let results: GooglePlaceResult[];
       let retrievedAt: string;
+      let reconciliation;
       if (benchmarkRecord && benchmark) {
-        results = benchmarkRecord.candidates.map(benchmarkPlaces);
+        const results = benchmarkRecord.candidates.map(benchmarkPlaces);
+        reconciliation = reconcileGooglePlacesResults(pharmacy, results);
         retrievedAt = benchmark.generatedAt;
         reusedBenchmark += 1;
-      } else if (!pharmacy.phoneE164) {
-        results = await providerSearch(buildGoogleFallbackQuery(pharmacy));
-        retrievedAt = new Date().toISOString();
       } else {
-        const phoneResults = await providerSearch(
-          buildGooglePhoneQuery(pharmacy.phoneE164),
+        const replacementCandidate = REPLACEMENT_PLACE_CANDIDATES.get(
+          pharmacy.officialRegistrationNumber,
         );
-        const reconciliation = reconcileGooglePlacesResults(pharmacy, phoneResults);
-        results = phoneResults;
-        if (reconciliation.classification !== "exact_identity_match") {
-          const fallbackResults = await providerSearch(
-            buildGoogleFallbackQuery(pharmacy),
-          );
-          results = [...phoneResults, ...fallbackResults];
-        }
+        const candidatePlaceId =
+          previousRecord?.placeId ?? replacementCandidate?.placeId ?? null;
+        const details = candidatePlaceId
+          ? await providerDetails(
+              pharmacy.officialRegistrationNumber,
+              candidatePlaceId,
+            )
+          : null;
         retrievedAt = new Date().toISOString();
+        if (details) {
+          reconciliation = reconcileGooglePlacesResults(pharmacy, [details]);
+          if (
+            previousRecord?.classification === "ambiguous" &&
+            reconciliation.classification === "exact_identity_match"
+          ) {
+            reconciliation = {
+              ...reconciliation,
+              classification: "ambiguous" as const,
+              matchingEvidence: [
+                ...previousRecord.matchingEvidence,
+                "Current Place Details still supports this candidate, but the prior multiple-candidate ambiguity remains unresolved.",
+              ],
+              reason:
+                "Place Details verified the candidate but cannot by itself resolve the previous multiple-candidate ambiguity.",
+            };
+          }
+          if (replacementCandidate) {
+            const replacementEvidence =
+              reconciliation.classification === "exact_identity_match"
+                ? `Existing Place ID from prior registration ${replacementCandidate.previousRegistration}; verified the same official phone and physical address for replacement registration ${pharmacy.officialRegistrationNumber}.`
+                : `Existing Place ID from prior registration ${replacementCandidate.previousRegistration} was checked for replacement registration ${pharmacy.officialRegistrationNumber}, but exact identity was not established.`;
+            reconciliation = {
+              ...reconciliation,
+              matchingEvidence: [
+                ...reconciliation.matchingEvidence,
+                replacementEvidence,
+              ],
+            };
+          }
+          if (reconciliation.classification === "no_match") {
+            const results = await searchForPharmacy(pharmacy);
+            reconciliation = reconcileGooglePlacesResults(pharmacy, results);
+          }
+        } else {
+          const results = await searchForPharmacy(pharmacy);
+          reconciliation = reconcileGooglePlacesResults(pharmacy, results);
+        }
       }
-      const reconciliation = reconcileGooglePlacesResults(pharmacy, results);
       record = googleCacheRecord(
         pharmacy.officialRegistrationNumber,
         reconciliation,
         retrievedAt,
       );
+      if (
+        previousRecord?.placeId &&
+        previousRecord.placeId !== record.placeId
+      ) {
+        changedPlaceIds.push({
+          officialRegistrationNumber: pharmacy.officialRegistrationNumber,
+          previousPlaceId: previousRecord.placeId,
+          currentPlaceId: record.placeId,
+        });
+      }
     }
     records.push(record);
     await saveCache(options.cachePath, records);
@@ -547,8 +731,25 @@ async function main() {
   }
 
   const reconciledRecords = rejectDuplicateTrustedGooglePlaceIds(records);
-  const cache = await saveCache(options.cachePath, reconciledRecords);
-  const links = await saveLinks(options.linksPath, reconciledRecords);
+  const historicalRecords = (previous?.records ?? [])
+    .filter(
+      (record) => !activeRegistrations.has(record.officialRegistrationNumber),
+    )
+    .map((record) => purgeExpiredGoogleContent(record, now));
+  const allRecords = [...historicalRecords, ...reconciledRecords].sort((left, right) =>
+    left.officialRegistrationNumber.localeCompare(
+      right.officialRegistrationNumber,
+      "en",
+      { numeric: true },
+    ),
+  );
+  const cache = await saveCache(options.cachePath, allRecords);
+  const links = await saveLinks(
+    options.linksPath,
+    allRecords,
+    activeRegistrations,
+    previousLinks,
+  );
   const databaseRowsUpdated = options.writeSupabase
     ? await writeCacheToSupabase(reconciledRecords, now)
     : null;
@@ -559,9 +760,14 @@ async function main() {
         linksPath: options.linksPath,
         refreshDueAfterDays: GOOGLE_COORDINATE_REFRESH_AFTER_DAYS,
         cacheExpiresAt: cache.metadata.contentExpiresAt,
-        apiRequests,
+        apiRequests: detailsRequests + textSearchRequests,
+        detailsRequests,
+        textSearchRequests,
         reusedCache,
         reusedBenchmark,
+        historicalRecordsPreserved: historicalRecords.length,
+        invalidPlaceIds,
+        changedPlaceIds,
         ...links.report,
         databaseRowsUpdated,
       },

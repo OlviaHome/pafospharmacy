@@ -13,6 +13,8 @@ import { PAPHOS_DISTRICT_BOUNDS } from "./geoapify";
 export const GOOGLE_PLACES_PROVIDER = "google_places";
 export const GOOGLE_PLACES_ENDPOINT =
   "https://places.googleapis.com/v1/places:searchText";
+export const GOOGLE_PLACE_DETAILS_ENDPOINT =
+  "https://places.googleapis.com/v1/places";
 export const GOOGLE_PLACES_FIELD_MASK = [
   "places.id",
   "places.displayName",
@@ -21,6 +23,9 @@ export const GOOGLE_PLACES_FIELD_MASK = [
   "places.nationalPhoneNumber",
   "places.internationalPhoneNumber",
 ].join(",");
+export const GOOGLE_PLACE_DETAILS_FIELD_MASK = GOOGLE_PLACES_FIELD_MASK.split(",")
+  .map((field) => field.replace(/^places\./, ""))
+  .join(",");
 export const GOOGLE_COORDINATE_CACHE_DAYS = 30;
 export const GOOGLE_COORDINATE_REFRESH_AFTER_DAYS = 25;
 export const PAPHOS_DISPUTED_FALLBACK_REGISTRATION_NUMBERS = [
@@ -470,7 +475,12 @@ export function googleCacheRecord(
       normalizeGooglePhone(selected?.internationalPhoneNumber) ??
       normalizeGooglePhone(selected?.nationalPhoneNumber),
     classification: reconciliation.classification,
-    matchingEvidence: reconciliation.matchingEvidence,
+    matchingEvidence: [
+      ...reconciliation.matchingEvidence,
+      ...(reconciliation.matchingEvidence.includes(reconciliation.reason)
+        ? []
+        : [reconciliation.reason]),
+    ],
     retrievedAt,
     expiresAt: googleCacheExpiresAt(retrievedAt),
   };
