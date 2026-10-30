@@ -189,6 +189,22 @@ describe("deriveAvailability", () => {
     ).toMatchObject({ openNow: false, onDuty: true, onCall: true });
   });
 
+  it("does not treat winter telephone duty as physically open", () => {
+    const winterDuty = {
+      ...dateOnlyDuty,
+      id: "winter-duty",
+      dutyDate: "2026-10-01",
+    };
+
+    expect(
+      deriveAvailability([], new Date("2026-10-01T19:00:00.000Z"), {
+        dutyAssignments: [winterDuty],
+        ordinaryOpeningCoverageKnown: false,
+        applyOfficialRegularSchedule: true,
+      }),
+    ).toMatchObject({ openNow: false, onDuty: true, onCall: true });
+  });
+
   it("uses duty opening as the holiday exception to regular closure", () => {
     const holidayDuty = {
       ...dateOnlyDuty,

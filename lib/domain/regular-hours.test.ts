@@ -154,7 +154,7 @@ describe("deriveOfficialRegularStatus", () => {
     });
   });
 
-  it("constructs Europe/Nicosia instants correctly across the DST transition", () => {
+  it("constructs Asia/Nicosia instants correctly across the DST transition", () => {
     expect(officialRegularScheduleForDate("2026-03-27")?.openPeriods[0]?.startsAt).toBe(
       "2026-03-27T06:00:00.000Z",
     );

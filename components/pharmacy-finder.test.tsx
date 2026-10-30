@@ -376,8 +376,8 @@ describe("PharmacyFinder official duty hours", () => {
     renderFinder([pharmacy("open")], "2026-09-01T11:00:00.000Z");
 
     expect(screen.getByText("OPEN NOW")).toBeTruthy();
-    expect(screen.getByText("ON DUTY TODAY")).toBeTruthy();
-    expectPageText("Duty pharmacy — open until 16:00");
+    expectPageText("ON DUTY TODAY · UNTIL 23:00");
+    expectPageText("After 23:00, urgent prescriptions are handled by phone until 08:00.");
     expect(screen.getByText("13:30–16:00")).toBeTruthy();
     expect(screen.getByText("19:30–23:00")).toBeTruthy();
     expect(
@@ -390,7 +390,7 @@ describe("PharmacyFinder official duty hours", () => {
   it("keeps a scheduled gap on duty without labelling it open", () => {
     renderFinder([pharmacy("gap")], "2026-09-01T04:00:00.000Z");
 
-    expect(screen.getByText("ON DUTY TODAY")).toBeTruthy();
+    expectPageText("ON DUTY TODAY · UNTIL 23:00");
     expectPageText("Mandatory duty opening starts at 13:30.");
     expect(screen.queryByText("OPEN NOW")).toBeNull();
 
@@ -401,8 +401,8 @@ describe("PharmacyFinder official duty hours", () => {
   it("carries the previous assignment overnight into the current On Duty view", () => {
     renderFinder([pharmacy("overnight")], "2026-09-01T21:30:00.000Z");
 
-    expect(screen.getAllByText("ON DUTY — CALL PHARMACIST").length).toBeGreaterThan(0);
-    expectPageText("23:00–08:00: pharmacist available by phone for prescriptions");
+    expect(screen.getAllByText("NIGHT DUTY · CALL FIRST").length).toBeGreaterThan(0);
+    expectPageText("23:00–08:00 — urgent prescriptions only. Call before visiting.");
     expect(screen.queryByText("OPEN NOW")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "On Duty" }));
@@ -414,6 +414,71 @@ describe("PharmacyFinder official duty hours", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "On Duty" }));
     expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
+  });
+
+  it("switches the winter duty UI from daytime duty to night telephone duty at 22:00", () => {
+    const winterDuty = pharmacy("winter", {
+      dutyAssignments: [
+        {
+          ...pharmacy("source").dutyAssignments[0],
+          id: "winter-duty",
+          pharmacyId: "winter",
+          dutyDate: "2026-10-01",
+        },
+      ],
+    });
+
+    const before = renderFinder([winterDuty], "2026-10-01T18:59:00.000Z");
+    expectPageText("ON DUTY TODAY · UNTIL 22:00");
+    expectPageText("After 22:00, urgent prescriptions are handled by phone until 08:00.");
+    expect(screen.queryByText("NIGHT DUTY · CALL FIRST")).toBeNull();
+    before.unmount();
+
+    renderFinder([winterDuty], "2026-10-01T19:00:00.000Z");
+    expect(screen.getAllByText("NIGHT DUTY · CALL FIRST").length).toBeGreaterThan(0);
+    expectPageText("22:00–08:00 — urgent prescriptions only. Call before visiting.");
+    expect(screen.queryByText("OPEN NOW")).toBeNull();
+  });
+
+  it("does not show duty labels without an official assignment", () => {
+    renderFinder(
+      [pharmacy("unassigned", { dutyAssignments: [] })],
+      "2026-10-01T19:00:00.000Z",
+    );
+
+    expect(screen.queryByText(/ON DUTY TODAY/)).toBeNull();
+    expect(screen.queryByText("NIGHT DUTY · CALL FIRST")).toBeNull();
+  });
+
+  it.each([
+    [en, "ON DUTY TODAY · UNTIL 22:00", "NIGHT DUTY · CALL FIRST"],
+    [el, "ΕΦΗΜΕΡΕΥΕΙ ΣΗΜΕΡΑ · ΕΩΣ ΤΙΣ 22:00", "ΝΥΧΤΕΡΙΝΗ ΕΦΗΜΕΡΙΑ · ΚΑΛΕΣΤΕ ΠΡΩΤΑ"],
+    [ru, "ДЕЖУРИТ СЕГОДНЯ · ДО 22:00", "НОЧНОЕ ДЕЖУРСТВО · ПО ЗВОНКУ"],
+    [ar, "صيدلية مناوبة اليوم · حتى 22:00", "مناوبة ليلية · اتصل أولاً"],
+  ])("renders localized winter duty states", (dictionary, daytimeLabel, nightLabel) => {
+    const localizedDuty = pharmacy(`winter-${dictionary.locale}`, {
+      dutyAssignments: [
+        {
+          ...pharmacy("source").dutyAssignments[0],
+          id: `winter-duty-${dictionary.locale}`,
+          pharmacyId: `winter-${dictionary.locale}`,
+          dutyDate: "2026-10-01",
+        },
+      ],
+    });
+    const daytime = renderLocalizedFinder(
+      dictionary,
+      [localizedDuty],
+      "2026-10-01T18:59:00.000Z",
+    );
+    expectPageText(daytimeLabel);
+    if (dictionary.locale === "ar") {
+      expect(daytime.container.firstElementChild?.getAttribute("dir")).toBe("rtl");
+    }
+    daytime.unmount();
+
+    renderLocalizedFinder(dictionary, [localizedDuty], "2026-10-01T19:00:00.000Z");
+    expect(screen.getAllByText(nightLabel).length).toBeGreaterThan(0);
   });
 });
 
@@ -472,7 +537,7 @@ describe("PharmacyFinder official regular hours", () => {
     expect(screen.getAllByText("CLOSED")).toHaveLength(1);
     expect(screen.getByText("Closed by regular schedule")).toBeTruthy();
     expect(screen.getAllByText("OPEN NOW")).toHaveLength(1);
-    expectPageText("Duty pharmacy — open until 23:00");
+    expectPageText("After 23:00, urgent prescriptions are handled by phone until 08:00.");
 
     fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
     expect(screen.getByRole("heading", { name: "Pharmacy sunday-duty" })).toBeTruthy();

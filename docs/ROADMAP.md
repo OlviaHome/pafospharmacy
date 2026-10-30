@@ -6,8 +6,8 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 
 - Mobile-first Next.js/PWA-ready pharmacy finder with Today/Tomorrow, call, directions, optional location, and truthful status language.
 - Reproducible Supabase migrations for `pharmacies`, timed `availability_intervals`, and date-only `duty_assignments`, with constraints, indexes, grants, and RLS.
-- `Europe/Nicosia` day windows, half-open interval logic, separate open/duty/on-call derivation, and focused automated tests.
-- Cyprus Pharmaceutical Services ingestion pipeline for the current 2026 private-pharmacy directory and May–September 2026 rota resources.
+- `Asia/Nicosia` day windows, half-open interval logic, separate open/duty/on-call derivation, and focused automated tests.
+- Cyprus Pharmaceutical Services ingestion pipeline for the current private-pharmacy directory and duty rota resources through April 2027.
 - Registration-number identity, pragmatic provenance, idempotent upsert keys, validation/reporting, and a checked-in normalized snapshot.
 - All published districts retained in data; the UI remains Paphos-only and displays 90 real pharmacy identities with applicable official date-only assignments.
 - Nullable coordinates, address-based Directions, and no persisted generated schedule modes.
@@ -18,14 +18,14 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - Full 90-record Paphos Google Places API (New) reconciliation using official-phone-first identity evidence: 81 exact matches, 3 probable, 3 ambiguous, and 3 no match.
 - A 30-day expiring Google content/coordinate cache with day-25 manual refresh, durable Place IDs, exact-only runtime trust, and unchanged Geoapify/Nominatim fallback data.
 - View-independent GPS/manual origins retained across All, On Duty, Today, and Tomorrow, with nearest-first duty results and no repeated permission request on filter changes.
-- A source-bounded `Europe/Nicosia` evaluator for the official May–September 2026 duty notice, including scheduled gaps and previous-day overnight phone coverage through 08:00, without generated database intervals.
-- A separate versioned `Europe/Nicosia` evaluator for the official 2026 regular summer/winter pharmacy schedule and verified closure holidays; **Open Now** is the union of regular-open and duty-open periods.
+- Source-bounded `Asia/Nicosia` evaluators for the official May–September 2026 and October 2026–April 2027 duty notices, including scheduled gaps and previous-day overnight phone coverage through 08:00, without generated database intervals.
+- A separate versioned `Asia/Nicosia` evaluator for the official 2026 regular summer/winter pharmacy schedule and verified closure holidays; **Open Now** is the union of regular-open and duty-open periods.
 - Original English master copy with independent-service branding, concise homepage disclosure, and About, Privacy, Terms, and Data Sources pages.
 - Full EN/EL/RU/AR localization with locale-prefixed routes, browser-language detection, a saved manual language choice, localized finder/legal content, and Arabic right-to-left support.
 
 ## NOW — validate the official-data experience
 
-- Verify the source refresh cadence and define behavior before the published duty coverage ends on 2026-09-30.
+- Verify the source refresh cadence and define behavior before the published duty coverage ends on 2027-04-30.
 - User-test the distinct mandatory duty-open, scheduled-gap, and overnight-call wording with residents, expats, and tourists.
 - Confirm how corrections and disappeared/renumbered pharmacy records should be reconciled before automating imports.
 - Keep source, coverage, and retrieval information visible enough for users to understand the data limit.

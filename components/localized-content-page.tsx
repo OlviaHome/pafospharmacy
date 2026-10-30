@@ -42,11 +42,11 @@ function RichText({
 }) {
   return text
     .split(
-      /(\{\{\w+\}\}|[0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Europe\/Nicosia|paphos_locale|Paphos Pharmacy|Vercel Web Analytics|Google Maps|OpenStreetMap Nominatim|Geoapify|Vercel|Supabase|IP)/g,
+      /(\{\{\w+\}\}|[0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Asia\/Nicosia|paphos_locale|Paphos Pharmacy|Vercel Web Analytics|Google Maps|OpenStreetMap Nominatim|Geoapify|Vercel|Supabase|IP)/g,
     )
     .map((part, index) => {
     if (
-      /^(?:[0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Europe\/Nicosia|paphos_locale|Paphos Pharmacy|Vercel Web Analytics|Google Maps|OpenStreetMap Nominatim|Geoapify|Vercel|Supabase|IP)$/.test(
+      /^(?:[0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Asia\/Nicosia|paphos_locale|Paphos Pharmacy|Vercel Web Analytics|Google Maps|OpenStreetMap Nominatim|Geoapify|Vercel|Supabase|IP)$/.test(
         part,
       )
     ) {

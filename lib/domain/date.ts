@@ -1,6 +1,6 @@
 import type { DayWindow } from "./types";
 
-export const CYPRUS_TIME_ZONE = "Europe/Nicosia";
+export const CYPRUS_TIME_ZONE = "Asia/Nicosia";
 
 interface LocalDateParts {
   year: number;

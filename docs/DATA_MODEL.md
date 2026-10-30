@@ -7,7 +7,7 @@
 - `availability_intervals` contains only trustworthy timed facts. `duty_assignments` contains official date-only rota facts.
 - Google Places identity reconciliation is keyed by official registration number and kept separate from official fields and existing geocoding enrichment.
 - Ordinary opening, timed duty service, and date-only duty assignment are related but independent dimensions.
-- Store instants as `timestamptz`, use half-open intervals, and interpret calendar dates with `Europe/Nicosia`.
+- Store instants as `timestamptz`, use half-open intervals, and interpret calendar dates with `Asia/Nicosia`.
 - Use lowercase `snake_case`, identity primary keys, explicit constraints, indexed foreign keys, least-privilege grants, and RLS on exposed tables.
 
 ## `pharmacies`
@@ -107,7 +107,7 @@ One row records the official fact that a pharmacy is assigned to the rota on one
 |---|---|---:|---|
 | `id` | `bigint` identity | yes | Primary key. |
 | `pharmacy_id` | `bigint` | yes | Foreign key to `pharmacies.id`; deletion is restricted. |
-| `duty_date` | `date` | yes | Published rota date, interpreted in `Europe/Nicosia`. |
+| `duty_date` | `date` | yes | Published rota date, interpreted in `Asia/Nicosia`. |
 | `source` | `text` | yes | `cyprus_open_data`, `pharmacy_confirmed`, or `third_party`. |
 | `source_dataset` | `text` | yes | Dataset name. |
 | `source_record_identifier` | `text` | yes | Stable source-scoped idempotency key. Unique with `source`. |
@@ -125,7 +125,7 @@ At instant `t` and its Cyprus local date:
 
 - **Open Now** is true if the supported versioned official regular schedule is open, an active interval has `service_mode = open`, or a supported official duty assignment is currently inside the cited notice's mandatory open period. Regular closure, a duty gap, overnight phone coverage, and unsupported rule dates do not prove opening.
 - **On Duty** is true if an active timed duty interval exists, a `duty_assignments` row exists for the local date, or the previous date's supported assignment is still in its overnight phone period.
-- **On Call** is true from an active `duty/on_call` interval or the supported official notice's 23:00–08:00 period for the preceding assignment date. The date-only row by itself still establishes no service mode.
+- **On Call** is true from an active `duty/on_call` interval or the applicable supported notice's overnight phone period for the preceding assignment date. The date-only row by itself still establishes no service mode.
 - An overlapping `ordinary/open` interval independently proves physical opening even when duty information has no service mode.
 
 Today/Tomorrow duty filtering uses `duty_date` for date-only assignments and interval overlap (`starts_at < day_end AND ends_at > day_start`) for timed facts. The current Today view also retains the previous assignment through its supported 08:00 overnight boundary. “Open Now” is never redefined for Tomorrow.

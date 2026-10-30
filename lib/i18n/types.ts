@@ -104,7 +104,7 @@ export interface FinderMessages {
   recordedDutyUnknown: string;
   conflictTitle: string;
   conflictBody: string;
-  dutyOpenUntil: string;
+  dutyDayPhoneNotice: string;
   regularOpenUntil: string;
   afternoonBreak: string;
   regularOpensAt: string;
@@ -119,7 +119,7 @@ export interface FinderMessages {
   tomorrowHours: string;
   regularPharmacyHours: string;
   dutyPharmacyHours: string;
-  afterTwentyThree: string;
+  afterDutyHours: string;
   nextDay: string;
   hoursUnavailable: string;
   hoursUnavailableForDay: string;

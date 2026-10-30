@@ -64,7 +64,7 @@ Next.js is the application-facing read boundary. Data access lives in server-onl
 
 - determining whether an interval contains an instant;
 - determining whether an interval overlaps Today or Tomorrow;
-- evaluating the versioned official regular and duty profiles in `Europe/Nicosia`;
+- evaluating the versioned official regular and duty profiles in `Asia/Nicosia`;
 - deriving open, on-duty, and on-call meaning across independent regular, ordinary-interval, and duty facts;
 - filtering and sorting results;
 - calculating approximate straight-line distance.
@@ -111,12 +111,12 @@ The authoritative release is [Cyprus Pharmaceutical Services dataset 817](https:
 
 ## Request and calculation flow
 
-1. The server determines Today/Tomorrow using the `Europe/Nicosia` IANA time zone.
+1. The server determines Today/Tomorrow using the `Asia/Nicosia` IANA time zone.
 2. The data layer fetches active Paphos pharmacies, timed intervals overlapping the window, date-only duty assignments from the previous local date through Tomorrow (the previous date is needed only for overnight coverage), and any fresh exact Google cache rows. Only in local development and tests, when both Supabase settings are absent, it maps the checked-in official snapshot, durable Google Place links, the ignored fresh local Google cache when present, and existing accepted Paphos geocoding artifacts through the same domain shape. Production has no snapshot fallback.
 3. At a given instant, the domain layer derives status across timed, date-only, and versioned official-rule facts:
    - **Open Now** is true if the supported official regular schedule is open, any active interval has `service_mode = open`, or a supported official assignment is inside the notice's mandatory duty-open period;
    - **On Duty** is true if an active timed duty interval exists or an official assignment exists for the local date;
-   - **On Call** is true if the active duty interval has `service_mode = on_call` or the supported previous/current assignment is inside the notice's 23:00–08:00 phone period;
+   - **On Call** is true if the active duty interval has `service_mode = on_call` or the supported previous/current assignment is inside its versioned notice's overnight phone period;
    - a duty interval with `service_mode = unknown` proves duty assignment but does not establish open or on-call mode;
    - a date-only assignment has no service mode; only its combination with the separately sourced, date-bounded official notice can derive the transient duty mode;
    - an active `ordinary/open` interval independently proves Open Now, even when an overlapping duty interval is `on_call` or `unknown`.
@@ -130,12 +130,13 @@ The authoritative release is [Cyprus Pharmaceutical Services dataset 817](https:
 
 - Persist schedule boundaries as `timestamptz` instants.
 - Use UTC in transport, logs, and tests.
-- Interpret and display calendar days in `Europe/Nicosia`.
+- Interpret and display calendar days in `Asia/Nicosia`.
 - Model overnight periods as one interval where `ends_at > starts_at`; do not split them at midnight unless a source requires it.
 - Use half-open interval semantics, `[starts_at, ends_at)`, so adjacent periods do not overlap at their boundary.
 - Keep intervals for the same pharmacy and `schedule_kind` non-overlapping. Ordinary and duty intervals may overlap each other; a mode change within the duty timeline uses adjacent duty intervals.
 - Use an injected clock in domain tests so daylight-saving and boundary cases are deterministic.
-- The supported official duty profile is `cyprus-duty-2026-may-september`: Mon/Tue/Thu/Fri 13:30–16:00 and 19:30–23:00; Wed/Sat 13:30–23:00; Sunday and the notice holidays (1 May, 1 June, 15 August) 08:00–23:00; then phone availability for prescriptions until 08:00. It applies only to assignment dates from 1 May through 30 September 2026, with the final overnight period allowed to finish on 1 October.
+- The summer official duty profile is `cyprus-duty-2026-may-september`: Mon/Tue/Thu/Fri 13:30–16:00 and 19:30–23:00; Wed/Sat 13:30–23:00; Sunday and the notice holidays (1 May, 1 June, 15 August) 08:00–23:00; then phone availability for prescriptions until 08:00. It applies to assignment dates from 1 May through 30 September 2026.
+- The winter official duty profile is `cyprus-duty-2026-october-2027-april`: Mon/Tue/Thu/Fri 13:30–15:00 and 18:30–22:00; Wed/Sat 13:30–22:00; Sunday and the named notice holidays 08:00–22:00; then telephone availability for urgent prescriptions until 08:00. It applies to assignment dates from 1 October 2026 through 30 April 2027. Each profile's final overnight period may finish the following morning.
 - The supported official regular profile is `cyprus-regular-pharmacy-hours-2026`: 1 May–30 September Mon/Tue/Thu/Fri 08:00–13:30 and 16:00–19:30, Wed/Sat 08:00–13:30; 1 October–30 April uses 15:00–18:30 for the second weekday period; Sunday and the explicitly versioned 2026 pharmacy-closure holidays are closed. Unsupported years return unknown rather than extrapolating movable Orthodox holidays.
 - The 2026 closure calendar is explicit: 1 January, 6 January, Clean Monday (23 February), 25 March, 1 April, Holy Saturday (11 April), Easter Monday (13 April), Easter Tuesday (14 April), 1 May, Holy Spirit Monday (1 June), 15 August, 1 October, 28 October, 25 December, and 26 December. Movable dates are data for this supported year, not a guessed annual recurrence.
 - The regular profile means “should be open according to the official schedule”; it cannot detect exceptional individual closures. No seasonal profile is inferred because the product has no official per-pharmacy seasonal registry.

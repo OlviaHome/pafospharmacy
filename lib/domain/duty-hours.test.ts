@@ -64,7 +64,38 @@ describe("officialDutyScheduleForDate", () => {
 
   it("does not apply the rule outside its assignment-date coverage", () => {
     expect(officialDutyScheduleForDate("2026-04-30")).toBeNull();
-    expect(officialDutyScheduleForDate("2026-10-01")).toBeNull();
+    expect(officialDutyScheduleForDate("2027-05-01")).toBeNull();
+  });
+
+  it("uses the official winter split and continuous duty periods", () => {
+    expect(officialDutyScheduleForDate("2026-10-02")?.openPeriods).toEqual([
+      {
+        serviceMode: "open",
+        startsAt: "2026-10-02T10:30:00.000Z",
+        endsAt: "2026-10-02T12:00:00.000Z",
+      },
+      {
+        serviceMode: "open",
+        startsAt: "2026-10-02T15:30:00.000Z",
+        endsAt: "2026-10-02T19:00:00.000Z",
+      },
+    ]);
+    expect(officialDutyScheduleForDate("2026-10-07")?.openPeriods).toEqual([
+      {
+        serviceMode: "open",
+        startsAt: "2026-10-07T10:30:00.000Z",
+        endsAt: "2026-10-07T19:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("uses 08:00–22:00 on winter Sundays and named holidays", () => {
+    for (const dutyDate of ["2026-10-04", "2026-10-28", "2027-04-01"]) {
+      const schedule = officialDutyScheduleForDate(dutyDate);
+      expect(schedule?.openPeriods).toHaveLength(1);
+      expect(schedule?.openPeriods[0]).toMatchObject({ serviceMode: "open" });
+      expect(schedule?.onCallPeriod.serviceMode).toBe("on_call");
+    }
   });
 });
 
@@ -108,7 +139,7 @@ describe("deriveOfficialDutyStatus", () => {
     ).toBe("inactive");
   });
 
-  it("lets a 30 September assignment carry into 1 October without extending the rule", () => {
+  it("lets a 30 September assignment carry into 1 October before the winter profile begins", () => {
     const assignments = [assignment("2026-09-30")];
 
     expect(
@@ -117,16 +148,31 @@ describe("deriveOfficialDutyStatus", () => {
     expect(officialDutyRuleAppliesAtInstant(new Date("2026-09-30T21:30:00.000Z"))).toBe(
       true,
     );
-    expect(officialDutyRuleAppliesAtInstant(new Date("2026-10-01T05:00:00.000Z"))).toBe(
-      false,
-    );
+    expect(officialDutyRuleAppliesAtInstant(new Date("2026-10-01T05:00:00.000Z"))).toBe(true);
+  });
+
+  it("uses Cyprus-local winter boundaries and carries the previous assignment past midnight", () => {
+    const assignments = [assignment("2026-10-01")];
+
+    expect(deriveOfficialDutyStatus(assignments, new Date("2026-10-01T18:59:00.000Z")))
+      .toMatchObject({ mode: "open", onDutyToday: true });
+    expect(deriveOfficialDutyStatus(assignments, new Date("2026-10-01T19:00:00.000Z")))
+      .toMatchObject({ mode: "on_call", onDutyToday: true });
+    expect(deriveOfficialDutyStatus(assignments, new Date("2026-10-01T20:59:00.000Z")).mode)
+      .toBe("on_call");
+    expect(deriveOfficialDutyStatus(assignments, new Date("2026-10-01T21:00:00.000Z")))
+      .toMatchObject({ mode: "on_call", onDutyToday: false, assignment: assignments[0] });
+    expect(deriveOfficialDutyStatus(assignments, new Date("2026-10-02T04:59:00.000Z")).mode)
+      .toBe("on_call");
+    expect(deriveOfficialDutyStatus(assignments, new Date("2026-10-02T05:00:00.000Z")).mode)
+      .toBe("inactive");
   });
 
   it("keeps an unsupported date-only assignment unknown", () => {
     expect(
       deriveOfficialDutyStatus(
-        [assignment("2026-10-01")],
-        new Date("2026-10-01T12:00:00.000Z"),
+        [assignment("2027-05-01")],
+        new Date("2027-05-01T12:00:00.000Z"),
       ),
     ).toMatchObject({ mode: "unknown", onDutyToday: true, ruleId: null });
   });

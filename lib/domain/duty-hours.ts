@@ -2,16 +2,35 @@ import { getCyprusDayWindow, localDateTimeToInstant } from "./date";
 import type { DutyAssignment } from "./types";
 
 export const CYPRUS_DUTY_RULE_ID = "cyprus-duty-2026-may-september";
+export const CYPRUS_WINTER_DUTY_RULE_ID =
+  "cyprus-duty-2026-october-2027-april";
 export const CYPRUS_DUTY_RULE_SOURCE_URL =
   "https://www.moh.gov.cy/MOH/phs/phs.nsf/All/091BC51661367EE1C225857B002F972D";
 export const CYPRUS_DUTY_RULE_START_DATE = "2026-05-01";
 export const CYPRUS_DUTY_RULE_END_DATE = "2026-09-30";
+export const CYPRUS_WINTER_DUTY_RULE_START_DATE = "2026-10-01";
+export const CYPRUS_WINTER_DUTY_RULE_END_DATE = "2027-04-30";
 
-const NOTICE_HOLIDAYS = new Set([
+const SUMMER_NOTICE_HOLIDAYS = new Set([
   "2026-05-01",
   "2026-06-01",
   "2026-08-15",
 ]);
+const WINTER_NOTICE_HOLIDAYS = new Set([
+  "2026-10-01",
+  "2026-10-28",
+  "2026-12-25",
+  "2026-12-26",
+  "2027-01-01",
+  "2027-01-06",
+  "2027-03-15",
+  "2027-03-25",
+  "2027-04-01",
+]);
+
+export type OfficialDutyRuleId =
+  | typeof CYPRUS_DUTY_RULE_ID
+  | typeof CYPRUS_WINTER_DUTY_RULE_ID;
 
 export type OfficialDutyServiceMode =
   | "open"
@@ -28,7 +47,7 @@ export interface OfficialDutyPeriod {
 
 export interface OfficialDutySchedule {
   assignmentDate: string;
-  ruleId: typeof CYPRUS_DUTY_RULE_ID;
+  ruleId: OfficialDutyRuleId;
   sourceUrl: typeof CYPRUS_DUTY_RULE_SOURCE_URL;
   openPeriods: OfficialDutyPeriod[];
   onCallPeriod: OfficialDutyPeriod;
@@ -40,7 +59,7 @@ export interface OfficialDutyStatus {
   assignment: DutyAssignment | null;
   activePeriod: OfficialDutyPeriod | null;
   nextOpenAt: string | null;
-  ruleId: typeof CYPRUS_DUTY_RULE_ID | null;
+  ruleId: OfficialDutyRuleId | null;
 }
 
 interface ClockTime {
@@ -103,8 +122,10 @@ export function officialDutyRuleSupportsAssignmentDate(
   assignmentDate: string,
 ): boolean {
   return (
-    assignmentDate >= CYPRUS_DUTY_RULE_START_DATE &&
-    assignmentDate <= CYPRUS_DUTY_RULE_END_DATE
+    (assignmentDate >= CYPRUS_DUTY_RULE_START_DATE &&
+      assignmentDate <= CYPRUS_DUTY_RULE_END_DATE) ||
+    (assignmentDate >= CYPRUS_WINTER_DUTY_RULE_START_DATE &&
+      assignmentDate <= CYPRUS_WINTER_DUTY_RULE_END_DATE)
   );
 }
 
@@ -114,17 +135,24 @@ export function officialDutyScheduleForDate(
   if (!officialDutyRuleSupportsAssignmentDate(assignmentDate)) return null;
 
   const weekday = weekdayFor(assignmentDate);
+  const isWinter = assignmentDate >= CYPRUS_WINTER_DUTY_RULE_START_DATE;
   const isSundayOrNoticeHoliday =
-    weekday === 0 || NOTICE_HOLIDAYS.has(assignmentDate);
+    weekday === 0 ||
+    (isWinter
+      ? WINTER_NOTICE_HOLIDAYS.has(assignmentDate)
+      : SUMMER_NOTICE_HOLIDAYS.has(assignmentDate));
+  const closingTime = isWinter
+    ? { hour: 22, minute: 0 }
+    : { hour: 23, minute: 0 };
   const openPeriods = isSundayOrNoticeHoliday
-    ? [period(assignmentDate, "open", { hour: 8, minute: 0 }, { hour: 23, minute: 0 })]
+    ? [period(assignmentDate, "open", { hour: 8, minute: 0 }, closingTime)]
     : weekday === 3 || weekday === 6
       ? [
           period(
             assignmentDate,
             "open",
             { hour: 13, minute: 30 },
-            { hour: 23, minute: 0 },
+            closingTime,
           ),
         ]
       : [
@@ -132,25 +160,29 @@ export function officialDutyScheduleForDate(
             assignmentDate,
             "open",
             { hour: 13, minute: 30 },
-            { hour: 16, minute: 0 },
+            isWinter
+              ? { hour: 15, minute: 0 }
+              : { hour: 16, minute: 0 },
           ),
           period(
             assignmentDate,
             "open",
-            { hour: 19, minute: 30 },
-            { hour: 23, minute: 0 },
+            isWinter
+              ? { hour: 18, minute: 30 }
+              : { hour: 19, minute: 30 },
+            closingTime,
           ),
         ];
 
   return {
     assignmentDate,
-    ruleId: CYPRUS_DUTY_RULE_ID,
+    ruleId: isWinter ? CYPRUS_WINTER_DUTY_RULE_ID : CYPRUS_DUTY_RULE_ID,
     sourceUrl: CYPRUS_DUTY_RULE_SOURCE_URL,
     openPeriods,
     onCallPeriod: period(
       assignmentDate,
       "on_call",
-      { hour: 23, minute: 0 },
+      closingTime,
       { hour: 8, minute: 0 },
       1,
     ),
@@ -190,14 +222,14 @@ export function deriveOfficialDutyStatus(
   const activeOpenPeriod = todaySchedule?.openPeriods.find((item) =>
     isActive(item, instant),
   );
-  if (activeOpenPeriod && todayAssignment) {
+  if (activeOpenPeriod && todayAssignment && todaySchedule) {
     return {
       mode: "open",
       onDutyToday: true,
       assignment: todayAssignment,
       activePeriod: activeOpenPeriod,
       nextOpenAt: null,
-      ruleId: CYPRUS_DUTY_RULE_ID,
+      ruleId: todaySchedule.ruleId,
     };
   }
 
@@ -212,7 +244,7 @@ export function deriveOfficialDutyStatus(
       assignment: todayAssignment,
       activePeriod: todaySchedule.onCallPeriod,
       nextOpenAt: null,
-      ruleId: CYPRUS_DUTY_RULE_ID,
+      ruleId: todaySchedule.ruleId,
     };
   }
 
@@ -230,7 +262,7 @@ export function deriveOfficialDutyStatus(
         todaySchedule?.openPeriods.find(
           (item) => new Date(item.startsAt).getTime() > instant.getTime(),
         )?.startsAt ?? null,
-      ruleId: CYPRUS_DUTY_RULE_ID,
+      ruleId: previousSchedule.ruleId,
     };
   }
 
@@ -244,7 +276,7 @@ export function deriveOfficialDutyStatus(
         todaySchedule.openPeriods.find(
           (item) => new Date(item.startsAt).getTime() > instant.getTime(),
         )?.startsAt ?? null,
-      ruleId: CYPRUS_DUTY_RULE_ID,
+      ruleId: todaySchedule.ruleId,
     };
   }
 

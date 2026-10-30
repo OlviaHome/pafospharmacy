@@ -126,10 +126,10 @@ function TimeMessage({ template, time }: { template: string; time: string }) {
 function BidiStableText({ text }: { text: string }) {
   return text
     .split(
-      /([0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Europe\/Nicosia)/g,
+      /([0-9٠-٩]{2}:[0-9٠-٩]{2}(?:[–-][0-9٠-٩]{2}:[0-9٠-٩]{2})?|Asia\/Nicosia)/g,
     )
     .map((part, index) =>
-      /^(?:[0-9٠-٩]{2}:[0-9٠-٩]{2}|Europe\/Nicosia)/.test(part) ? (
+      /^(?:[0-9٠-٩]{2}:[0-9٠-٩]{2}|Asia\/Nicosia)/.test(part) ? (
         <bdi key={`${part}-${index}`} dir="ltr">
           {part}
         </bdi>
@@ -169,11 +169,13 @@ function StatusBadges({
   pharmacy,
   now,
   ordinaryOpeningDataAvailable,
+  intlLocale,
   messages,
 }: {
   pharmacy: Pharmacy;
   now: Date;
   ordinaryOpeningDataAvailable: boolean;
+  intlLocale: string;
   messages: FinderMessages;
 }) {
   const availability = deriveAvailability(pharmacy.intervals, now, {
@@ -183,6 +185,9 @@ function StatusBadges({
   });
   const officialDuty = deriveOfficialDutyStatus(pharmacy.dutyAssignments, now);
   const officialRegular = deriveOfficialRegularStatus(now);
+  const todayDutySchedule = officialDuty.onDutyToday && officialDuty.assignment
+    ? officialDutyScheduleForDate(officialDuty.assignment.dutyDate)
+    : null;
 
   if (
     availability.openNow === "unknown" &&
@@ -210,9 +215,15 @@ function StatusBadges({
           {messages.closedBadge}
         </span>
       )}
-      {officialDuty.onDutyToday && (
+      {officialDuty.onDutyToday &&
+        officialDuty.mode !== "on_call" &&
+        todayDutySchedule && (
         <span className="rounded-full bg-[#e8eef9] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[#304f83]">
-          {messages.onDutyTodayBadge}
+          <BidiStableText
+            text={message(messages.onDutyTodayBadge, {
+              time: formatCyprusTime(todayDutySchedule.onCallPeriod.startsAt, intlLocale),
+            })}
+          />
         </span>
       )}
       {availability.onDuty &&
@@ -272,6 +283,9 @@ function PharmacyCard({
     applyOfficialRegularSchedule: true,
   });
   const officialDuty = deriveOfficialDutyStatus(pharmacy.dutyAssignments, now);
+  const currentDutySchedule = officialDuty.assignment
+    ? officialDutyScheduleForDate(officialDuty.assignment.dutyDate)
+    : null;
   const officialRegular = deriveOfficialRegularStatus(now);
   const regularClosed = regularClosedMessage(officialRegular, messages, intlLocale);
   const address = `${pharmacy.addressLine}${pharmacy.addressAdditional ? `, ${pharmacy.addressAdditional}` : ""}, ${pharmacy.locality}${pharmacy.postalCode ? ` ${pharmacy.postalCode}` : ""}`;
@@ -289,6 +303,7 @@ function PharmacyCard({
             pharmacy={pharmacy}
             now={now}
             ordinaryOpeningDataAvailable={ordinaryOpeningDataAvailable}
+            intlLocale={intlLocale}
             messages={messages}
           />
         </div>
@@ -320,14 +335,17 @@ function PharmacyCard({
         </div>
       )}
 
-      {selectedDay === "today" && officialDuty.mode === "open" && officialDuty.activePeriod && (
-        <div className="mt-4 rounded-2xl border border-[#b9dfcf] bg-[var(--brand-soft)] p-3 text-sm leading-5 text-[var(--brand-strong)]">
-          <strong>
-            <TimeMessage
-              template={messages.dutyOpenUntil}
-              time={formatCyprusTime(officialDuty.activePeriod.endsAt, intlLocale)}
-            />
-          </strong>
+      {selectedDay === "today" &&
+        officialDuty.onDutyToday &&
+        officialDuty.mode !== "on_call" &&
+        currentDutySchedule && (
+        <div className="mt-4 rounded-2xl border border-[#cbd8ed] bg-[#f0f5fc] p-3 text-sm leading-5 text-[#304f83]">
+          <BidiStableText
+            text={message(messages.dutyDayPhoneNotice, {
+              start: formatCyprusTime(currentDutySchedule.onCallPeriod.startsAt, intlLocale),
+              end: formatCyprusTime(currentDutySchedule.onCallPeriod.endsAt, intlLocale),
+            })}
+          />
         </div>
       )}
 
@@ -378,7 +396,18 @@ function PharmacyCard({
       {selectedDay === "today" && officialDuty.mode === "on_call" && (
         <div className="mt-4 rounded-2xl border border-[#edc983] bg-[var(--amber-soft)] p-3 text-sm leading-5 text-[#68420b]">
           <strong>{messages.onCallBadge}</strong>
-          <p><BidiStableText text={messages.overnightPhone} /></p>
+          <p>
+            <BidiStableText
+              text={message(messages.overnightPhone, {
+                start: officialDuty.activePeriod
+                  ? formatCyprusTime(officialDuty.activePeriod.startsAt, intlLocale)
+                  : "",
+                end: officialDuty.activePeriod
+                  ? formatCyprusTime(officialDuty.activePeriod.endsAt, intlLocale)
+                  : "",
+              })}
+            />
+          </p>
         </div>
       )}
 
@@ -445,10 +474,19 @@ function PharmacyCard({
                       className="flex items-start justify-between gap-3 text-sm leading-5"
                     >
                       <span className="font-semibold text-[var(--ink)]">
-                        <BidiStableText text={messages.afterTwentyThree} />
+                        <BidiStableText
+                          text={message(messages.afterDutyHours, {
+                            time: formatCyprusTime(schedule.onCallPeriod.startsAt, intlLocale),
+                          })}
+                        />
                       </span>
                       <span className="text-end text-[var(--ink-muted)]">
-                        <BidiStableText text={messages.nextDay} />
+                        <BidiStableText
+                          text={message(messages.nextDay, {
+                            start: formatCyprusTime(schedule.onCallPeriod.startsAt, intlLocale),
+                            end: formatCyprusTime(schedule.onCallPeriod.endsAt, intlLocale),
+                          })}
+                        />
                       </span>
                     </li>,
                   ]
