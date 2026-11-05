@@ -41,13 +41,26 @@ export async function generateMetadata({
     description: dictionary.metadataDescription,
     applicationName: "Cyprus Pharmacy",
     manifest: "/manifest.webmanifest",
-    icons: { icon: "/icon.svg", apple: "/icon.svg" },
+    icons: {
+      icon: "/icon.svg",
+      apple: {
+        url: "/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    },
     openGraph: {
       title: dictionary.siteTitle,
       description: dictionary.metadataDescription,
       type: "website",
       locale,
-      images: [{ url: "/og.png", width: 1734, height: 907, alt: "Cyprus Pharmacy" }],
+      images: [{ url: "/og.png", width: 512, height: 512, alt: "Cyprus Pharmacy" }],
+    },
+    twitter: {
+      card: "summary",
+      title: dictionary.siteTitle,
+      description: dictionary.metadataDescription,
+      images: [{ url: "/og.png", alt: "Cyprus Pharmacy" }],
     },
   };
 }
