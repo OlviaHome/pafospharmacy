@@ -141,7 +141,7 @@ Today/Tomorrow duty filtering uses `duty_date` for date-only assignments and int
 
 ## Official data snapshot
 
-The current snapshot contains the 2026–2027 private-pharmacy directory plus the May–September 2026 and October 2026–April 2027 district duty resources published by Cyprus Pharmaceutical Services through the National Open Data Portal under CC BY 4.0. It preserves all five published districts while the UI selects Paphos. Duty refreshes match pharmacies by official registration number and replace only the covered source period; assignments before that period remain historical facts.
+The current snapshot contains the 2026–2027 private-pharmacy directory plus the May–September 2026 and October 2026–April 2027 district duty resources published by Cyprus Pharmaceutical Services through the National Open Data Portal under CC BY 4.0. It preserves all five published districts, and the UI lets the user select Nicosia, Limassol, Larnaca, Famagusta, or Paphos. That transient selection scopes pharmacy lists, summary and duty counts, text-filter results, and manual-location search consistently; district-bound manual search state is cleared when the selection changes. Duty refreshes match pharmacies by official registration number and replace only the covered source period; assignments before that period remain historical facts.
 
 The importer stores pharmacy identity/provenance and date-only duty assignments. It creates no ordinary-opening intervals, duty intervals, service modes, or coordinates from these files. The versioned 2026 regular-hours and duty-hours evaluators are pure runtime logic sourced from separate official rules and never persist generated intervals. The regular evaluator contains an explicit verified 2026 closure calendar; unsupported years are unknown. Seasonal status is not assigned without an official per-pharmacy registry. Synthetic intervals remain limited to automated tests and the development seed.
 
@@ -157,11 +157,11 @@ The importer stores pharmacy identity/provenance and date-only duty assignments.
 
 Only `accepted` records not subsequently quarantined by cross-provider reconciliation are merged into application data or written to coordinate columns. An accepted result must remain in Cyprus and Paphos and match a precise building/house or pharmacy POI using source-backed locality/postcode/street evidence. Street-only and locality-only coordinates are intentionally `ambiguous`, even when useful as search hints, because they are unsafe as Directions destinations. `failed` means the provider returned no result; it does not mean the official pharmacy or address is invalid.
 
-`searchOrigin` is transient application state, not a database entity. GPS and selected manual-location coordinates are deliberately absent from the schema and are never stored as pharmacy coordinates.
+`searchOrigin` and the selected district are transient application state, not database entities. GPS and selected manual-location coordinates are deliberately absent from the schema and are never stored as pharmacy coordinates. A GPS origin may remain useful across district changes, but a manual origin and its suggestions/errors are district-bound and are cleared when the selected district changes.
 
 ## Deferred concepts
 
 - An official per-pharmacy seasonal profile or trustworthy exceptional opening-hours intervals.
 - Persisted timed duty/open or duty/on-call facts from a pharmacy-specific timed source; the current notice-derived schedule remains transient.
 - Import-run history and field-level provenance if reconciliation needs justify them.
-- Translations, pharmacy accounts, services, profiles, PostGIS, and national UI selection.
+- Pharmacy accounts, services, profiles, PostGIS, and national coordinate enrichment beyond the current separately sourced Paphos artifacts.

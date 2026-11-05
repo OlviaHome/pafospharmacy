@@ -3,15 +3,17 @@ import type { TranslationDictionary } from "../types";
 export const en = {
   locale: "en",
   languageSelectorLabel: "Language",
-  siteTitle: "Paphos Pharmacy",
+  siteTitle: "Cyprus Pharmacy",
   metadataDescription:
-    "Find open and on-duty pharmacies in Paphos using official Cyprus pharmacy and duty data.",
+    "Find open and on-duty pharmacies across Cyprus using official pharmacy and duty data.",
   backToFinder: "Back to pharmacy finder",
   lastUpdated: "Last updated 12 September 2026",
   googlePrivacyPolicyLabel: "Google Privacy Policy",
   finder: {
-    heroDescription:
-      "Find open and on-duty pharmacies in Paphos using official Cyprus pharmacy and duty data.",
+    brandName: "Cyprus Pharmacy",
+    about: "About",
+    heroTitle: "Find an open pharmacy now",
+    heroSchedulePeriod: "Official duty schedule across Cyprus · 1 Oct 2026 — 30 Apr 2027",
     loading: "Loading pharmacy information…",
     developmentTitle: "Development data only.",
     developmentBody:
@@ -20,8 +22,14 @@ export const en = {
     attributionSourcesSuffix: "sources",
     attributionWarning:
       "Published schedules may not reflect exceptional same-day closures. Call the pharmacy when confirmation matters.",
-    dataSources: "Data Sources & Disclaimer",
+    dataSources: "Info",
     searchControls: "Search controls",
+    districtSelector: "Select district",
+    districtNicosia: "Nicosia",
+    districtLarnaca: "Larnaca",
+    districtLimassol: "Limassol",
+    districtPaphos: "Paphos",
+    districtFamagusta: "Famagusta",
     today: "Today",
     tomorrow: "Tomorrow",
     all: "All",
@@ -41,15 +49,20 @@ export const en = {
     locationUnavailable: "Location unavailable",
     updateLocation: "Update my location",
     useLocation: "Use my location",
+    locationIntroTitle: "Find pharmacies near you?",
+    locationIntroBody:
+      "Allow location access to see nearby pharmacies and their distance.",
+    locationIntroYes: "Yes",
+    locationIntroLater: "Maybe later",
     enterArea: "Enter area or address",
-    locationInputLabel: "Hotel, area, landmark, or address in Paphos",
-    locationPlaceholder: "Hotel / area / address",
+    locationInputLabel: "District, address, or pharmacy name",
+    locationPlaceholder: "District, address, or pharmacy name…",
     searching: "Searching…",
     search: "Search",
     chooseLocation: "Choose a matching location",
     minimumSearch: "Enter at least 3 characters for an area or address.",
     noLocationMatch:
-      "No matching Paphos location was found. Try a nearby area or fuller address.",
+      "No matching location was found in the selected district. Try a nearby area or fuller address.",
     searchUnavailable: "Location search is temporarily unavailable.",
     searchRateLimited: "Too many location searches. Please try again in 5 minutes.",
     distanceCoverage:
@@ -66,6 +79,14 @@ export const en = {
     resultFew: "{count} results",
     resultMany: "{count} results",
     resultOther: "{count} results",
+    pharmacyCountOne: "{count} pharmacy",
+    pharmacyCountFew: "{count} pharmacies",
+    pharmacyCountMany: "{count} pharmacies",
+    pharmacyCountOther: "{count} pharmacies",
+    dutyCountOne: "{count} on duty",
+    dutyCountFew: "{count} on duty",
+    dutyCountMany: "{count} on duty",
+    dutyCountOther: "{count} on duty",
     showingResults: "Showing {visible} of {total}",
     showAllPharmacies: "Show all {count} pharmacies",
     noMatches: "No pharmacies match this filter",
@@ -80,6 +101,7 @@ export const en = {
     openNowBadge: "OPEN NOW",
     closedBadge: "CLOSED",
     onDutyTodayBadge: "ON DUTY TODAY · UNTIL {time}",
+    onDutyTomorrowBadge: "ON DUTY · {date} · UNTIL {time}",
     onDutyBadge: "ON DUTY",
     onCallBadge: "NIGHT DUTY · CALL FIRST",
     dutyHoursUnavailableBadge: "DUTY HOURS UNAVAILABLE — CALL FIRST",
@@ -105,6 +127,7 @@ export const en = {
     tomorrowHours: "Tomorrow's hours",
     regularPharmacyHours: "Regular pharmacy hours",
     dutyPharmacyHours: "Duty pharmacy hours",
+    effectiveOpenToday: "Open: {hours}",
     afterDutyHours: "After {time} · call for urgent prescriptions",
     nextDay: "{start}–{end} next day",
     hoursUnavailable: "Hours unavailable",
@@ -119,24 +142,24 @@ export const en = {
     about: "About",
     privacy: "Privacy",
     terms: "Terms",
-    dataSources: "Data Sources & Disclaimer",
+    dataSources: "Info",
     independent: "Independent service using official Cyprus pharmacy data.",
     corrections: "Questions or corrections:",
     emergencyBefore:
-      "Paphos Pharmacy is not an emergency service. In a serious or life-threatening emergency in Cyprus, call",
+      "Cyprus Pharmacy is not an emergency service. In a serious or life-threatening emergency in Cyprus, call",
     emergencyAfter:
       "This website does not replace a doctor, pharmacist, or emergency medical service.",
   },
   pages: {
     about: {
       title: "About",
-      description: "Why Paphos Pharmacy exists and how the independent service works.",
+      description: "Why Cyprus Pharmacy exists and how the independent service works.",
       introduction:
-        "Paphos Pharmacy is a simple way to find a pharmacy in Paphos that should be open now or is listed on the official duty rota.",
+        "Cyprus Pharmacy is a simple way to find a pharmacy across Cyprus that should be open now or is listed on the official duty rota.",
       sections: [
         {
           heading: "Why this service exists",
-          blocks: [{ type: "paragraphs", items: ["Finding a pharmacy can be harder when ordinary business hours have ended, a pharmacy is closed for an afternoon break, or duty cover continues by telephone overnight. The information exists, but the useful answer is often spread across addresses, schedules, and rota records. Paphos Pharmacy brings those facts into one clear Paphos-focused view."] }],
+          blocks: [{ type: "paragraphs", items: ["Finding a pharmacy can be harder when ordinary business hours have ended, a pharmacy is closed for an afternoon break, or duty cover continues by telephone overnight. The information exists, but the useful answer is often spread across addresses, schedules, and rota records. Cyprus Pharmacy brings those facts into one clear district-based view."] }],
         },
         {
           heading: "What it does",
@@ -145,13 +168,13 @@ export const en = {
         {
           heading: "How to use it",
           blocks: [
-            { type: "steps", items: ["Browse every Paphos pharmacy or filter by Open Now or On Duty.", "Use your device location, or select a Paphos area or address, to see approximate distance where verified coordinates are available.", "Use Call to contact the pharmacy or Directions to open Google Maps."] },
+            { type: "steps", items: ["Choose a district, then browse its pharmacies or filter by Open Now or On Duty.", "Search by pharmacy name or address, or use your device location to see approximate distance where verified coordinates are available.", "Use Call to contact the pharmacy or Directions to open Google Maps."] },
             { type: "paragraphs", items: ["No account is required."] },
           ],
         },
         {
           heading: "Web-first and multilingual",
-          blocks: [{ type: "paragraphs", items: ["Paphos Pharmacy is a mobile-first website that also works on desktop. The interface is available in English, Greek, Russian, and Arabic, and you can change language at any time."] }],
+          blocks: [{ type: "paragraphs", items: ["Cyprus Pharmacy is a mobile-first website that also works on desktop. The interface is available in English, Greek, Russian, and Arabic, and you can change language at any time."] }],
         },
         {
           heading: "Independent and informational",
@@ -184,7 +207,7 @@ export const en = {
         },
         {
           heading: "Manual area or address search",
-          blocks: [{ type: "paragraphs", items: ["If you enter an area, landmark, hotel, street, or address, the search text is sent to the Paphos Pharmacy server. The server checks a short shared cache and, when a lookup is needed, sends the text to Geoapify to find possible Paphos locations. Successful normalized searches and their short result lists may be cached in Vercel's shared runtime cache for up to five minutes. The selected result is then kept only in the current browser tab.", "Geoapify and Vercel may process request and network information under their own policies. Do not enter medical details or other sensitive personal information in the location box."] }],
+          blocks: [{ type: "paragraphs", items: ["If you enter an area, landmark, hotel, street, or address, the search text and selected district are sent to the Cyprus Pharmacy server. The server checks a short shared cache and, when a lookup is needed, sends them to Geoapify to find possible locations in that district. Successful normalized searches and their short result lists may be cached in Vercel's shared runtime cache for up to five minutes. The selected result is then kept only in the current browser tab.", "Geoapify and Vercel may process request and network information under their own policies. Do not enter medical details or other sensitive personal information in the location box."] }],
         },
         {
           heading: "Language preference",
@@ -199,7 +222,7 @@ export const en = {
           blocks: [
             { type: "paragraphs", items: ["Vercel hosts and serves the website and provides Vercel Web Analytics. Supabase stores the public pharmacy, duty, and trusted location records used by the application. Supabase does not receive your GPS origin or manual search origin through the current application flow. Geoapify receives manual search text only when a provider lookup is needed."] },
             { type: "bullets", items: ["{{vercelPrivacy}} hosts and serves the application and processes Web Analytics data.", "{{supabasePrivacy}} hosts the public pharmacy-data backend.", "{{geoapifyPrivacy}} receives manual location searches when a provider lookup is needed."] },
-            { type: "paragraphs", items: ["Apart from the necessary language-preference cookie, the current application code does not use other cookies, local storage, session storage, advertising identifiers, or tracking storage. Vercel Web Analytics is described separately above and does not add another application cookie in the current setup. Search origins and filters are held in memory and reset when the page reloads."] },
+            { type: "paragraphs", items: ["The site stores one local browser marker for up to six months so the optional location-information prompt is not shown on every visit. The marker records only when that prompt was shown; it contains no coordinates or location-permission status. Apart from this marker and the necessary language-preference cookie, the current application code does not use other cookies, local storage, session storage, advertising identifiers, or tracking storage. Vercel Web Analytics is described separately above and does not add another application cookie in the current setup. Search origins and filters are held in memory and reset when the page reloads."] },
           ],
         },
         {

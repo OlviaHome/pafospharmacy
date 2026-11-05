@@ -16,7 +16,9 @@ import {
 import {
   MANUAL_SUGGESTION_LIMIT,
   MINIMUM_MANUAL_QUERY_CHARACTERS,
+  isLocationSearchDistrict,
   normalizeManualLocationQuery,
+  type LocationSearchDistrict,
 } from "@/lib/location/manual-search";
 
 export const LOCATION_SEARCH_MAX_BODY_BYTES = 1024;
@@ -52,6 +54,11 @@ export type LocationSearchBudgetStatus =
   | "client_rate_limited"
   | "provider_rate_limited"
   | "unavailable";
+
+export interface LocationSearchRequest {
+  query: string;
+  district: LocationSearchDistrict;
+}
 
 function canonicalQuery(value: string): string {
   return value.normalize("NFKC").trim().replace(/\s+/gu, " ");
@@ -151,7 +158,9 @@ async function readBoundedBody(request: Request): Promise<string> {
   }
 }
 
-export async function parseLocationSearchRequest(request: Request): Promise<string> {
+export async function parseLocationSearchRequest(
+  request: Request,
+): Promise<LocationSearchRequest> {
   validateBrowserRequest(request);
   validateContentType(request);
 
@@ -167,9 +176,11 @@ export async function parseLocationSearchRequest(request: Request): Promise<stri
     typeof body !== "object" ||
     body === null ||
     Array.isArray(body) ||
-    Object.keys(body).length !== 1 ||
+    Object.keys(body).length !== 2 ||
     !("query" in body) ||
-    typeof body.query !== "string"
+    typeof body.query !== "string" ||
+    !("district" in body) ||
+    !isLocationSearchDistrict(body.district)
   ) {
     throw new LocationSearchRequestError(400, "Enter a valid location search.");
   }
@@ -186,7 +197,7 @@ export async function parseLocationSearchRequest(request: Request): Promise<stri
     );
   }
 
-  return normalizedQuery;
+  return { query: normalizedQuery, district: body.district };
 }
 
 export async function checkLocationSearchBudget(
@@ -325,9 +336,12 @@ function locationSearchCache() {
 
 export async function readCachedManualLocationSuggestions(
   normalizedQuery: string,
+  district: LocationSearchDistrict,
 ): Promise<ManualLocationSuggestion[] | null> {
   try {
-    return cachedSuggestions(await locationSearchCache().get(normalizedQuery));
+    return cachedSuggestions(
+      await locationSearchCache().get(locationSearchCacheKey(normalizedQuery, district)),
+    );
   } catch {
     return null;
   }
@@ -335,13 +349,18 @@ export async function readCachedManualLocationSuggestions(
 
 export async function writeCachedManualLocationSuggestions(
   normalizedQuery: string,
+  district: LocationSearchDistrict,
   suggestions: ManualLocationSuggestion[],
 ): Promise<void> {
   try {
-    await locationSearchCache().set(normalizedQuery, suggestions, {
+    await locationSearchCache().set(
+      locationSearchCacheKey(normalizedQuery, district),
+      suggestions,
+      {
       name: "manual-location-suggestions",
       ttl: LOCATION_SEARCH_CACHE_SECONDS,
-    });
+      },
+    );
   } catch {
     // Cache failure never bypasses the distributed provider budget on a later miss.
   }
@@ -349,15 +368,17 @@ export async function writeCachedManualLocationSuggestions(
 
 export async function fetchManualLocationSuggestions(
   normalizedQuery: string,
+  district: LocationSearchDistrict,
   requestSignal?: AbortSignal,
 ) {
   const apiKey = process.env.GEOAPIFY_API_KEY?.trim();
   if (!apiKey) throw new LocationSearchProviderError(503);
 
   const response = await fetch(
-    buildGeoapifySearchUrl(buildManualLocationQuery(normalizedQuery), apiKey, {
+    buildGeoapifySearchUrl(buildManualLocationQuery(normalizedQuery, district), apiKey, {
       limit: MANUAL_SUGGESTION_LIMIT,
       language: "en",
+      district,
     }),
     {
       cache: "no-store",
@@ -381,6 +402,7 @@ export async function fetchManualLocationSuggestions(
   try {
     return manualLocationSuggestions(
       Array.isArray(providerResponse.results) ? providerResponse.results : [],
+      district,
     )
       .filter(
         (suggestion) =>
@@ -395,4 +417,11 @@ export async function fetchManualLocationSuggestions(
   } catch {
     throw new LocationSearchProviderError(502);
   }
+}
+
+function locationSearchCacheKey(
+  normalizedQuery: string,
+  district: LocationSearchDistrict,
+): string {
+  return `${district.toLocaleLowerCase("en")}:${normalizedQuery}`;
 }

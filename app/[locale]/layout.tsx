@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Instrument_Sans } from "next/font/google";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/next";
@@ -13,6 +14,14 @@ import {
 import { metadataBase } from "@/lib/i18n/metadata";
 
 import "../globals.css";
+
+const instrumentSans = Instrument_Sans({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600"],
+  style: "normal",
+  display: "swap",
+  variable: "--font-instrument-sans",
+});
 
 export function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
@@ -30,7 +39,7 @@ export async function generateMetadata({
     metadataBase,
     title: dictionary.siteTitle,
     description: dictionary.metadataDescription,
-    applicationName: "Paphos Pharmacy",
+    applicationName: "Cyprus Pharmacy",
     manifest: "/manifest.webmanifest",
     icons: { icon: "/icon.svg", apple: "/icon.svg" },
     openGraph: {
@@ -38,7 +47,7 @@ export async function generateMetadata({
       description: dictionary.metadataDescription,
       type: "website",
       locale,
-      images: [{ url: "/og.png", width: 1734, height: 907, alt: "Paphos Pharmacy" }],
+      images: [{ url: "/og.png", width: 1734, height: 907, alt: "Cyprus Pharmacy" }],
     },
   };
 }
@@ -46,7 +55,7 @@ export async function generateMetadata({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#08785f",
+  themeColor: "#0f3d3e",
 };
 
 export default async function LocaleLayout({
@@ -58,7 +67,11 @@ export default async function LocaleLayout({
   const dictionary = getDictionary(locale);
 
   return (
-    <html lang={locale} dir={localeDirection(locale)}>
+    <html
+      lang={locale}
+      dir={localeDirection(locale)}
+      className={instrumentSans.variable}
+    >
       <body>
         {children}
         <SiteFooter locale={locale} messages={dictionary.footer} />

@@ -34,7 +34,10 @@ export interface ContentPageMessages {
 }
 
 export interface FinderMessages {
-  heroDescription: string;
+  brandName: string;
+  about: string;
+  heroTitle: string;
+  heroSchedulePeriod: string;
   loading: string;
   developmentTitle: string;
   developmentBody: string;
@@ -43,6 +46,12 @@ export interface FinderMessages {
   attributionWarning: string;
   dataSources: string;
   searchControls: string;
+  districtSelector: string;
+  districtNicosia: string;
+  districtLarnaca: string;
+  districtLimassol: string;
+  districtPaphos: string;
+  districtFamagusta: string;
   today: string;
   tomorrow: string;
   all: string;
@@ -60,6 +69,10 @@ export interface FinderMessages {
   locationUnavailable: string;
   updateLocation: string;
   useLocation: string;
+  locationIntroTitle: string;
+  locationIntroBody: string;
+  locationIntroYes: string;
+  locationIntroLater: string;
   enterArea: string;
   locationInputLabel: string;
   locationPlaceholder: string;
@@ -82,6 +95,14 @@ export interface FinderMessages {
   resultFew: string;
   resultMany: string;
   resultOther: string;
+  pharmacyCountOne: string;
+  pharmacyCountFew: string;
+  pharmacyCountMany: string;
+  pharmacyCountOther: string;
+  dutyCountOne: string;
+  dutyCountFew: string;
+  dutyCountMany: string;
+  dutyCountOther: string;
   showingResults: string;
   showAllPharmacies: string;
   noMatches: string;
@@ -95,6 +116,7 @@ export interface FinderMessages {
   openNowBadge: string;
   closedBadge: string;
   onDutyTodayBadge: string;
+  onDutyTomorrowBadge: string;
   onDutyBadge: string;
   onCallBadge: string;
   dutyHoursUnavailableBadge: string;
@@ -119,6 +141,7 @@ export interface FinderMessages {
   tomorrowHours: string;
   regularPharmacyHours: string;
   dutyPharmacyHours: string;
+  effectiveOpenToday: string;
   afterDutyHours: string;
   nextDay: string;
   hoursUnavailable: string;

@@ -35,7 +35,7 @@ export function InformationPage({
       </div>
       <header className="mt-6 border-b border-[var(--line)] pb-6">
         <p className="text-xs font-extrabold uppercase tracking-[0.15em] text-[var(--brand)]">
-          Paphos Pharmacy
+          Cyprus Pharmacy
         </p>
         <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.035em] text-[var(--ink)]">
           {title}

@@ -67,6 +67,28 @@ describe("pharmacy result ordering and presentation", () => {
     ]);
   });
 
+  it("keeps every unknown-distance record and preserves its source order", () => {
+    const input = [
+      { pharmacy: pharmacy("unknown-first"), distanceKm: null },
+      { pharmacy: pharmacy("near"), distanceKm: 1.2 },
+      { pharmacy: pharmacy("unknown-second"), distanceKm: null },
+      { pharmacy: pharmacy("far"), distanceKm: 8.4 },
+    ];
+
+    expect(sortPharmacyResults(input).map((result) => result.pharmacy.id)).toEqual([
+      "near",
+      "far",
+      "unknown-first",
+      "unknown-second",
+    ]);
+    expect(input.map((result) => result.pharmacy.id)).toEqual([
+      "unknown-first",
+      "near",
+      "unknown-second",
+      "far",
+    ]);
+  });
+
   it("formats sub-kilometre distances in metres and longer distances to one decimal", () => {
     expect(formatDistance(0.742)).toBe("742 m");
     expect(formatDistance(1.24)).toBe("1.2 km");

@@ -2,20 +2,19 @@
 
 import {
   AlertTriangle,
+  ArrowUp,
   ChevronDown,
   Clock3,
   LocateFixed,
   MapPin,
   Navigation,
   Phone,
-  Plus,
   Search,
   X,
 } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { LanguageSelector } from "@/components/language-selector";
+import { FinderHeader } from "@/components/finder-header";
 
 import {
   deriveAvailability,
@@ -24,6 +23,7 @@ import {
   type AvailabilityFilter,
 } from "@/lib/domain/availability";
 import {
+  CYPRUS_TIME_ZONE,
   formatCyprusDate,
   formatCyprusTime,
   getCyprusDayWindow,
@@ -37,7 +37,6 @@ import {
   deriveOfficialRegularStatus,
   officialRegularRuleSupportsDate,
   officialRegularScheduleForDate,
-  type OfficialRegularStatus,
 } from "@/lib/domain/regular-hours";
 import { haversineDistanceKm } from "@/lib/domain/distance";
 import {
@@ -55,8 +54,13 @@ import type {
   PharmacyDataSource,
 } from "@/lib/domain/types";
 import type { ManualLocationSuggestion } from "@/lib/geocoding/geoapify";
-import { LOCALE_FORMAT_IDS, localePath } from "@/lib/i18n/config";
-import { formatLocalizedNumber, formatResultCount, message } from "@/lib/i18n/messages";
+import { LOCALE_FORMAT_IDS } from "@/lib/i18n/config";
+import {
+  canonicalPharmacyAddress,
+  localizedPharmacyAddress,
+  localizedPharmacyName,
+} from "@/lib/i18n/address";
+import { formatLocalizedNumber, message } from "@/lib/i18n/messages";
 import type { FinderMessages, Locale } from "@/lib/i18n/types";
 import {
   gpsSearchOrigin,
@@ -69,10 +73,55 @@ import {
   SessionManualLocationLookup,
   isManualSearchCancellation,
   normalizeManualLocationQuery,
+  type LocationSearchDistrict,
 } from "@/lib/location/manual-search";
 
 type SelectedDay = "today" | "tomorrow";
 type ManualSearchStatus = "idle" | "searching" | "error";
+type PharmacyDistrict = LocationSearchDistrict;
+
+const districts: PharmacyDistrict[] = [
+  "Nicosia",
+  "Larnaca",
+  "Limassol",
+  "Paphos",
+  "Famagusta",
+];
+
+const backToFinderLabels: Record<Locale, string> = {
+  en: "Back to finder controls",
+  el: "Επιστροφή στα φίλτρα αναζήτησης",
+  ru: "Вернуться к фильтрам поиска",
+  ar: "العودة إلى أدوات البحث",
+};
+
+const LOCATION_INTRO_STORAGE_KEY = "pharmacy_location_intro_v1";
+const LOCATION_INTRO_MARKER_VERSION = 1;
+
+function hasFreshLocationIntroMarker(rawMarker: string | null, now: Date): boolean {
+  if (!rawMarker) return false;
+
+  try {
+    const marker = JSON.parse(rawMarker) as {
+      version?: unknown;
+      shownAt?: unknown;
+    };
+    if (
+      marker.version !== LOCATION_INTRO_MARKER_VERSION ||
+      typeof marker.shownAt !== "string"
+    ) {
+      return false;
+    }
+
+    const shownAt = new Date(marker.shownAt);
+    if (!Number.isFinite(shownAt.getTime()) || shownAt > now) return false;
+    const expiresAt = new Date(shownAt);
+    expiresAt.setUTCMonth(expiresAt.getUTCMonth() + 6);
+    return now < expiresAt;
+  } catch {
+    return false;
+  }
+}
 
 interface PharmacyFinderProps {
   pharmacies: Pharmacy[];
@@ -112,17 +161,6 @@ function intervalTime(interval: AvailabilityInterval, intlLocale: string): strin
   return `${startsOn} · ${formatCyprusTime(interval.startsAt, intlLocale)}–${end}`;
 }
 
-function TimeMessage({ template, time }: { template: string; time: string }) {
-  const [before, ...after] = template.split("{time}");
-  return (
-    <>
-      {before}
-      <bdi dir="ltr">{time}</bdi>
-      {after.join("{time}")}
-    </>
-  );
-}
-
 function BidiStableText({ text }: { text: string }) {
   return text
     .split(
@@ -139,30 +177,65 @@ function BidiStableText({ text }: { text: string }) {
     );
 }
 
-function regularClosedMessage(
-  status: OfficialRegularStatus,
-  messages: FinderMessages,
-  intlLocale: string,
-): { template: string; time?: string } {
-  if (status.closureReason === "afternoon_break" && status.nextOpenAt) {
-    return {
-      template: messages.afternoonBreak,
-      time: formatCyprusTime(status.nextOpenAt, intlLocale),
-    };
-  }
-  if (status.closureReason === "before_open" && status.nextOpenAt) {
-    return {
-      template: messages.regularOpensAt,
-      time: formatCyprusTime(status.nextOpenAt, intlLocale),
-    };
-  }
-  if (status.closureReason === "public_holiday") {
-    return { template: messages.closedPublicHoliday };
-  }
-  if (status.closureReason === "sunday") {
-    return { template: messages.closedRegularSchedule };
-  }
-  return { template: messages.regularHoursEnded };
+interface DisplayPeriod {
+  startsAt: string;
+  endsAt: string;
+}
+
+function mergeDisplayPeriods(periods: DisplayPeriod[]): DisplayPeriod[] {
+  return [...periods]
+    .sort((left, right) => left.startsAt.localeCompare(right.startsAt))
+    .reduce<DisplayPeriod[]>((merged, periodValue) => {
+      const previous = merged.at(-1);
+      if (!previous || new Date(periodValue.startsAt) > new Date(previous.endsAt)) {
+        merged.push({ ...periodValue });
+        return merged;
+      }
+      if (new Date(periodValue.endsAt) > new Date(previous.endsAt)) {
+        previous.endsAt = periodValue.endsAt;
+      }
+      return merged;
+    }, []);
+}
+
+function formatPeriod(periodValue: DisplayPeriod, intlLocale: string): string {
+  return `${formatCyprusTime(periodValue.startsAt, intlLocale)}–${formatCyprusTime(periodValue.endsAt, intlLocale)}`;
+}
+
+function formatPhoneDisplay(phoneE164: string): string {
+  const cyprusNumber = /^\+357(\d{2})(\d{6})$/.exec(phoneE164);
+  return cyprusNumber ? `${cyprusNumber[1]} ${cyprusNumber[2]}` : phoneE164;
+}
+
+function formatDutyBadgeDate(instant: string, intlLocale: string): string {
+  return new Intl.DateTimeFormat(intlLocale, {
+    timeZone: CYPRUS_TIME_ZONE,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+    .formatToParts(new Date(instant))
+    .filter((part) => part.type === "weekday" || part.type === "day" || part.type === "month")
+    .map((part) => part.value)
+    .join(" ")
+    .toLocaleUpperCase(intlLocale);
+}
+
+function formatPluralCount(
+  value: number,
+  locale: Locale,
+  templates: Pick<FinderMessages, "resultOne" | "resultFew" | "resultMany" | "resultOther">,
+): string {
+  const category = new Intl.PluralRules(LOCALE_FORMAT_IDS[locale]).select(value);
+  const template =
+    category === "one"
+      ? templates.resultOne
+      : category === "few"
+        ? templates.resultFew
+        : category === "many"
+          ? templates.resultMany
+          : templates.resultOther;
+  return message(template, { count: formatLocalizedNumber(value, locale) });
 }
 
 function StatusBadges({
@@ -206,7 +279,7 @@ function StatusBadges({
   return (
     <>
       {availability.openNow === true && (
-        <span className="rounded-full bg-[var(--brand-soft)] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[var(--brand-strong)]">
+        <span className="rounded-full bg-[rgb(190,255,80)] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[#17210b]">
           {messages.openNowBadge}
         </span>
       )}
@@ -218,7 +291,7 @@ function StatusBadges({
       {officialDuty.onDutyToday &&
         officialDuty.mode !== "on_call" &&
         todayDutySchedule && (
-        <span className="rounded-full bg-[#e8eef9] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[#304f83]">
+        <span className="rounded-full bg-[#FF956A] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[#3d170b]">
           <BidiStableText
             text={message(messages.onDutyTodayBadge, {
               time: formatCyprusTime(todayDutySchedule.onCallPeriod.startsAt, intlLocale),
@@ -272,10 +345,9 @@ function PharmacyCard({
   const relevantDutyAssignments = pharmacy.dutyAssignments.filter(
     (assignment) => assignment.dutyDate === dayWindow.localDate,
   );
-  const relevantOfficialDutySchedules = relevantDutyAssignments.map((assignment) => ({
-    assignment,
-    schedule: officialDutyScheduleForDate(assignment.dutyDate),
-  }));
+  const relevantOfficialDutySchedules = relevantDutyAssignments
+    .map((assignment) => officialDutyScheduleForDate(assignment.dutyDate))
+    .filter((schedule) => schedule !== null);
   const officialRegularSchedule = officialRegularScheduleForDate(dayWindow.localDate);
   const availability = deriveAvailability(pharmacy.intervals, now, {
     dutyAssignments: pharmacy.dutyAssignments,
@@ -283,257 +355,222 @@ function PharmacyCard({
     applyOfficialRegularSchedule: true,
   });
   const officialDuty = deriveOfficialDutyStatus(pharmacy.dutyAssignments, now);
-  const currentDutySchedule = officialDuty.assignment
-    ? officialDutyScheduleForDate(officialDuty.assignment.dutyDate)
-    : null;
-  const officialRegular = deriveOfficialRegularStatus(now);
-  const regularClosed = regularClosedMessage(officialRegular, messages, intlLocale);
-  const address = `${pharmacy.addressLine}${pharmacy.addressAdditional ? `, ${pharmacy.addressAdditional}` : ""}, ${pharmacy.locality}${pharmacy.postalCode ? ` ${pharmacy.postalCode}` : ""}`;
+  const effectiveOpenPeriods = mergeDisplayPeriods([
+    ...(officialRegularSchedule?.openPeriods ?? []),
+    ...relevantOfficialDutySchedules.flatMap((schedule) => schedule.openPeriods),
+  ]);
+  const onCallPeriod = relevantOfficialDutySchedules[0]?.onCallPeriod ?? null;
+  const tomorrowDutySchedule =
+    selectedDay === "tomorrow" ? relevantOfficialDutySchedules[0] ?? null : null;
+  const canonicalAddress = canonicalPharmacyAddress(pharmacy);
+  const displayName = localizedPharmacyName(pharmacy, locale);
+  const displayAddress = localizedPharmacyAddress(pharmacy, locale);
   const directionsQuery =
     pharmacy.latitude !== null && pharmacy.longitude !== null
       ? `${pharmacy.latitude},${pharmacy.longitude}`
-      : address;
+      : canonicalAddress;
   const directions = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directionsQuery)}`;
+  const showConflictGuidance =
+    availability.hasConflict && selectedDay === "today";
+  const showOvernightGuidance =
+    selectedDay === "today" && officialDuty.mode === "on_call";
+  const showDaytimeDutyGuidance =
+    selectedDay === "today" &&
+    officialDuty.onDutyToday &&
+    officialDuty.mode !== "on_call" &&
+    onCallPeriod !== null;
+  const hasDutyGuidance =
+    showConflictGuidance || showOvernightGuidance || showDaytimeDutyGuidance;
 
   return (
-    <article className="rounded-[1.5rem] border border-[var(--line)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
-      {selectedDay === "today" && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          <StatusBadges
-            pharmacy={pharmacy}
-            now={now}
-            ordinaryOpeningDataAvailable={ordinaryOpeningDataAvailable}
-            intlLocale={intlLocale}
-            messages={messages}
-          />
-        </div>
-      )}
+    <article
+      data-pharmacy-card
+      className="pharmacy-card flex h-full flex-col rounded-[1.25rem] bg-[var(--surface)] p-5 shadow-[var(--shadow)] sm:p-6"
+    >
+      <div className="pharmacy-card__surface" aria-hidden="true" />
 
-      <div className="flex items-start justify-between gap-4">
+      <div
+        data-card-region="identity"
+        className="pharmacy-card__identity min-w-0"
+      >
+        {(selectedDay === "today" || tomorrowDutySchedule) && (
+          <div className="mb-4 flex min-h-6 flex-wrap gap-2">
+            {selectedDay === "today" ? (
+              <StatusBadges
+                pharmacy={pharmacy}
+                now={now}
+                ordinaryOpeningDataAvailable={ordinaryOpeningDataAvailable}
+                intlLocale={intlLocale}
+                messages={messages}
+              />
+            ) : tomorrowDutySchedule ? (
+              <span className="rounded-full bg-[#e8eef9] px-3 py-1.5 text-[0.68rem] font-extrabold tracking-[0.08em] text-[#304f83]">
+                <BidiStableText
+                  text={message(messages.onDutyTomorrowBadge, {
+                    date: formatDutyBadgeDate(dayWindow.start, intlLocale),
+                    time: formatCyprusTime(
+                      tomorrowDutySchedule.onCallPeriod.startsAt,
+                      intlLocale,
+                    ),
+                  })}
+                />
+              </span>
+            ) : null}
+          </div>
+        )}
+
         <div className="min-w-0">
-          <h3 className="text-lg font-extrabold tracking-[-0.02em] text-[var(--ink)]">
-            <bdi dir="auto">{pharmacy.name}</bdi>
+          <h3 className="text-xl font-extrabold tracking-[-0.025em] text-[var(--ink)]">
+            <bdi dir="auto">{displayName.text}</bdi>
           </h3>
-          <p className="mt-1.5 flex items-start gap-2 text-sm leading-5 text-[var(--ink-muted)]">
-            <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <bdi dir="auto" className="break-words">{address}</bdi>
+          <p className="mt-2 flex items-start gap-2 text-sm leading-5 text-[var(--ink-muted)]">
+            <MapPin className="mt-0.5 size-4 shrink-0 text-[var(--brand)]" aria-hidden="true" />
+            <bdi dir="auto" className="break-words">{displayAddress.text}</bdi>
           </p>
         </div>
-        {distanceKm !== null && (
-          <span dir="ltr" className="shrink-0 rounded-xl bg-[var(--surface-muted)] px-2.5 py-1.5 text-sm font-bold text-[var(--brand-strong)]">
-            ≈ {formatDistance(distanceKm, intlLocale)}
-          </span>
+      </div>
+
+      <div data-card-region="duty" className="pharmacy-card__duty-slot">
+        {hasDutyGuidance && (
+          <div data-card-panel="duty" className="mt-4 space-y-4">
+            {showConflictGuidance && (
+              <div className="flex gap-2 rounded-xl bg-[var(--amber-soft)] p-3 text-sm leading-5 text-[#68420b]">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <p>
+                  <strong>{messages.conflictTitle}</strong> {messages.conflictBody}
+                </p>
+              </div>
+            )}
+
+            {showOvernightGuidance && (
+              <div className="rounded-xl bg-[var(--amber-soft)] px-4 py-3 text-sm leading-5 text-[#68420b]">
+                <strong>{messages.onCallBadge}</strong>
+                <p>
+                  <BidiStableText
+                    text={message(messages.overnightPhone, {
+                      start: officialDuty.activePeriod
+                        ? formatCyprusTime(officialDuty.activePeriod.startsAt, intlLocale)
+                        : "",
+                      end: officialDuty.activePeriod
+                        ? formatCyprusTime(officialDuty.activePeriod.endsAt, intlLocale)
+                        : "",
+                    })}
+                  />
+                </p>
+              </div>
+            )}
+
+            {showDaytimeDutyGuidance && onCallPeriod && (
+              <div className="rounded-xl bg-[var(--stone-soft)] px-4 py-3 text-sm leading-5 text-[var(--ink-muted)]">
+                <BidiStableText
+                  text={message(messages.dutyDayPhoneNotice, {
+                    start: formatCyprusTime(onCallPeriod.startsAt, intlLocale),
+                    end: formatCyprusTime(onCallPeriod.endsAt, intlLocale),
+                  })}
+                />
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {availability.hasConflict && selectedDay === "today" && (
-        <div className="mt-4 flex gap-2 rounded-2xl border border-[#edc983] bg-[var(--amber-soft)] p-3 text-sm leading-5 text-[#68420b]">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <p>
-            <strong>{messages.conflictTitle}</strong> {messages.conflictBody}
-          </p>
-        </div>
-      )}
-
-      {selectedDay === "today" &&
-        officialDuty.onDutyToday &&
-        officialDuty.mode !== "on_call" &&
-        currentDutySchedule && (
-        <div className="mt-4 rounded-2xl border border-[#cbd8ed] bg-[#f0f5fc] p-3 text-sm leading-5 text-[#304f83]">
-          <BidiStableText
-            text={message(messages.dutyDayPhoneNotice, {
-              start: formatCyprusTime(currentDutySchedule.onCallPeriod.startsAt, intlLocale),
-              end: formatCyprusTime(currentDutySchedule.onCallPeriod.endsAt, intlLocale),
-            })}
-          />
-        </div>
-      )}
-
-      {selectedDay === "today" &&
-        officialDuty.mode !== "open" &&
-        officialDuty.mode !== "on_call" &&
-        officialRegular.mode === "open" &&
-        officialRegular.activePeriod && (
-          <div className="mt-4 rounded-2xl border border-[#b9dfcf] bg-[var(--brand-soft)] p-3 text-sm leading-5 text-[var(--brand-strong)]">
-            <strong>
-              <TimeMessage
-                template={messages.regularOpenUntil}
-                time={formatCyprusTime(officialRegular.activePeriod.endsAt, intlLocale)}
-              />
-            </strong>
-          </div>
-        )}
-
-      {selectedDay === "today" &&
-        availability.openNow === false &&
-        officialDuty.mode !== "on_call" &&
-        officialRegular.mode === "closed" && (
-          <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--surface-muted)] p-3 text-sm leading-5 text-[var(--ink-muted)]">
-            <strong>
-              {regularClosed.time ? (
-                <TimeMessage template={regularClosed.template} time={regularClosed.time} />
-              ) : (
-                regularClosed.template
-              )}
-            </strong>
-          </div>
-        )}
-
-      {selectedDay === "today" &&
-        officialDuty.mode === "scheduled_gap" &&
-        officialRegular.mode !== "open" && (
-          <div className="mt-4 rounded-2xl border border-[#cbd8ed] bg-[#f0f5fc] p-3 text-sm leading-5 text-[#304f83]">
-            <strong>{messages.scheduledGapTitle}</strong>{" "}
-            {officialDuty.nextOpenAt
-              ? <TimeMessage
-                  template={messages.dutyStartsAt}
-                  time={formatCyprusTime(officialDuty.nextOpenAt, intlLocale)}
-                />
-              : messages.dutyNotOpenNow}
-          </div>
-        )}
-
-      {selectedDay === "today" && officialDuty.mode === "on_call" && (
-        <div className="mt-4 rounded-2xl border border-[#edc983] bg-[var(--amber-soft)] p-3 text-sm leading-5 text-[#68420b]">
-          <strong>{messages.onCallBadge}</strong>
-          <p>
-            <BidiStableText
-              text={message(messages.overnightPhone, {
-                start: officialDuty.activePeriod
-                  ? formatCyprusTime(officialDuty.activePeriod.startsAt, intlLocale)
-                  : "",
-                end: officialDuty.activePeriod
-                  ? formatCyprusTime(officialDuty.activePeriod.endsAt, intlLocale)
-                  : "",
-              })}
-            />
-          </p>
-        </div>
-      )}
-
-      <div className="mt-4 border-t border-[var(--line)] pt-4">
-        <div className="mb-2 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-          <Clock3 className="size-4" aria-hidden="true" />
+      <div
+        data-card-region="hours"
+        data-card-panel="hours"
+        className="pharmacy-card__hours mt-4 rounded-xl bg-[var(--surface-muted)] p-4"
+      >
+        <div className="mb-3 flex items-center gap-2 text-sm font-extrabold text-[var(--ink)]">
+          <Clock3 className="size-5 text-[var(--brand)]" aria-hidden="true" />
           {selectedDay === "today" ? messages.todayHours : messages.tomorrowHours}
         </div>
-        {officialRegularSchedule !== null ||
-        relevantIntervals.length > 0 ||
-        relevantDutyAssignments.length > 0 ? (
-          <ul className="space-y-2">
-            {officialRegularSchedule?.openPeriods.map((regularPeriod, index) => (
+        {effectiveOpenPeriods.length > 0 || relevantIntervals.length > 0 ? (
+          <ul className="space-y-2 text-sm leading-5">
+            {effectiveOpenPeriods.map((periodValue, index) => (
               <li
-                key={`official-regular-${dayWindow.localDate}-${index}`}
-                className="flex items-start justify-between gap-3 text-sm leading-5"
+                key={`effective-${dayWindow.localDate}-${index}`}
+                className="font-semibold text-[var(--ink)]"
               >
-                <span className="font-semibold text-[var(--ink)]">
-                  {messages.regularPharmacyHours}
-                </span>
-                <span dir="ltr" className="text-end text-[var(--ink-muted)]">
-                  {formatCyprusTime(regularPeriod.startsAt, intlLocale)}–
-                  {formatCyprusTime(regularPeriod.endsAt, intlLocale)}
-                </span>
+                <BidiStableText
+                  text={message(messages.effectiveOpenToday, {
+                    hours: formatPeriod(periodValue, intlLocale),
+                  })}
+                />
               </li>
             ))}
-            {officialRegularSchedule?.closedAllDayReason && (
-              <li className="flex items-start justify-between gap-3 text-sm leading-5">
-                <span className="font-semibold text-[var(--ink)]">
-                  {messages.regularPharmacyHours}
-                </span>
-                <span className="text-end text-[var(--ink-muted)]">
-                  {officialRegularSchedule.closedAllDayReason === "public_holiday"
-                    ? messages.closedPublicHoliday
-                    : messages.sunday}
-                </span>
-              </li>
-            )}
             {relevantIntervals.map((interval) => (
-              <li key={interval.id} className="flex items-start justify-between gap-3 text-sm leading-5">
+              <li key={interval.id} className="flex items-start justify-between gap-3">
                 <span className="font-semibold text-[var(--ink)]">{intervalLabel(interval, messages)}</span>
                 <span dir="ltr" className="text-end text-[var(--ink-muted)]">{intervalTime(interval, intlLocale)}</span>
               </li>
             ))}
-            {relevantOfficialDutySchedules.flatMap(({ assignment, schedule }) =>
-              schedule
-                ? [
-                    ...schedule.openPeriods.map((dutyPeriod, index) => (
-                      <li
-                        key={`${assignment.id}-open-${index}`}
-                        className="flex items-start justify-between gap-3 text-sm leading-5"
-                      >
-                        <span className="font-semibold text-[var(--ink)]">
-                          {messages.dutyPharmacyHours}
-                        </span>
-                        <span dir="ltr" className="text-end text-[var(--ink-muted)]">
-                          {formatCyprusTime(dutyPeriod.startsAt, intlLocale)}–
-                          {formatCyprusTime(dutyPeriod.endsAt, intlLocale)}
-                        </span>
-                      </li>
-                    )),
-                    <li
-                      key={`${assignment.id}-on-call`}
-                      className="flex items-start justify-between gap-3 text-sm leading-5"
-                    >
-                      <span className="font-semibold text-[var(--ink)]">
-                        <BidiStableText
-                          text={message(messages.afterDutyHours, {
-                            time: formatCyprusTime(schedule.onCallPeriod.startsAt, intlLocale),
-                          })}
-                        />
-                      </span>
-                      <span className="text-end text-[var(--ink-muted)]">
-                        <BidiStableText
-                          text={message(messages.nextDay, {
-                            start: formatCyprusTime(schedule.onCallPeriod.startsAt, intlLocale),
-                            end: formatCyprusTime(schedule.onCallPeriod.endsAt, intlLocale),
-                          })}
-                        />
-                      </span>
-                    </li>,
-                  ]
-                : [
-                    <li
-                      key={assignment.id}
-                      className="flex items-start justify-between gap-3 text-sm leading-5"
-                    >
-                      <span className="font-semibold text-[var(--ink)]">
-                        {messages.onDuty}
-                      </span>
-                      <span className="text-end text-[var(--ink-muted)]">
-                        {messages.hoursUnavailable}
-                      </span>
-                    </li>,
-                  ],
+            {onCallPeriod && (
+              <li className="text-[var(--ink-muted)]">
+                <BidiStableText
+                  text={message(messages.afterDutyHours, {
+                    time: formatCyprusTime(onCallPeriod.startsAt, intlLocale),
+                  })}
+                />
+              </li>
             )}
           </ul>
+        ) : officialRegularSchedule?.closedAllDayReason ? (
+          <p className="text-sm font-semibold text-[var(--ink-muted)]">
+            {officialRegularSchedule.closedAllDayReason === "public_holiday"
+              ? messages.closedPublicHoliday
+              : messages.closedRegularSchedule}
+          </p>
+        ) : relevantDutyAssignments.length > 0 ? (
+          <p className="text-sm font-semibold text-[var(--ink-muted)]">
+            {messages.hoursUnavailable}
+          </p>
         ) : (
-          <p className="text-sm leading-5 text-[var(--ink-muted)]">
+          <p className="text-sm text-[var(--ink-muted)]">
             {messages.hoursUnavailableForDay}
           </p>
         )}
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
+      <div data-card-region="proximity" className="pharmacy-card__proximity">
+        {distanceKm !== null && (
+          <p className="mt-4 flex items-center gap-2 text-xs font-semibold text-[var(--ink-muted)]">
+            <MapPin className="size-4 shrink-0 text-[var(--brand)]" aria-hidden="true" />
+            <span dir="ltr" className="shrink-0 whitespace-nowrap">
+              ≈ {formatDistance(distanceKm, intlLocale)}
+            </span>
+            <span className="min-w-0">
+              <span aria-hidden="true">{"·\u00a0"}</span>
+              {messages.distanceMethod}
+            </span>
+          </p>
+        )}
+      </div>
+
+      <div
+        data-card-region="actions"
+        className="pharmacy-card__actions mt-auto grid grid-cols-2 gap-3 pt-5"
+      >
         {pharmacy.phoneE164 ? (
           <a
-            className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-4 text-sm font-extrabold text-white transition-colors hover:bg-[var(--brand-strong)]"
+            className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-3 text-sm font-extrabold text-white transition-colors hover:bg-[var(--brand-strong)]"
             href={`tel:${pharmacy.phoneE164}`}
+            aria-label={`${messages.call}: ${formatPhoneDisplay(pharmacy.phoneE164)}`}
           >
-            <Phone className="size-4" aria-hidden="true" />
-            {messages.call}
+            <Phone className="size-5" aria-hidden="true" />
+            <bdi dir="ltr">{formatPhoneDisplay(pharmacy.phoneE164)}</bdi>
           </a>
         ) : (
-          <span className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--surface-muted)] px-4 text-sm font-extrabold text-[var(--ink-muted)]">
-            <Phone className="size-4" aria-hidden="true" />
+          <span className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[var(--surface-muted)] px-3 text-sm font-extrabold text-[var(--ink-muted)]">
+            <Phone className="size-5" aria-hidden="true" />
             {messages.phoneUnavailable}
           </span>
         )}
         <a
-          className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[var(--line-strong)] bg-white px-4 text-sm font-extrabold text-[var(--brand-strong)] transition-colors hover:bg-[var(--surface-muted)]"
+          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-[var(--line-strong)] bg-white px-3 text-sm font-extrabold text-[var(--brand-strong)] transition-colors hover:bg-[var(--surface-muted)]"
           href={directions}
           target="_blank"
           rel="noreferrer"
         >
-          <Navigation className="size-4" aria-hidden="true" />
+          <Navigation className="size-5" aria-hidden="true" />
           {messages.directions}
         </a>
       </div>
@@ -553,12 +590,13 @@ export function PharmacyFinder({
   languageLabel,
 }: PharmacyFinderProps) {
   const [selectedDay, setSelectedDay] = useState<SelectedDay>("today");
+  const [selectedDistrict, setSelectedDistrict] =
+    useState<PharmacyDistrict>("Paphos");
   const [filter, setFilter] = useState<AvailabilityFilter>("all");
   const [now, setNow] = useState(() => new Date(generatedAt));
   const [searchOrigin, setSearchOrigin] = useState<SearchOrigin | null>(null);
   const [geolocationStatus, setGeolocationStatus] =
     useState<GeolocationStatus>("idle");
-  const [manualSearchOpen, setManualSearchOpen] = useState(false);
   const [manualQuery, setManualQuery] = useState("");
   const [manualSearchStatus, setManualSearchStatus] =
     useState<ManualSearchStatus>("idle");
@@ -570,6 +608,10 @@ export function PharmacyFinder({
     () => new SessionManualLocationLookup<ManualLocationSuggestion[]>(),
   );
   const [resultsExpanded, setResultsExpanded] = useState(false);
+  const [showBackToFinder, setShowBackToFinder] = useState(false);
+  const [showLocationIntro, setShowLocationIntro] = useState(false);
+  const locationIntroDialogRef = useRef<HTMLDialogElement>(null);
+  const locationIntroYesRef = useRef<HTMLButtonElement>(null);
   const coordinates: Coordinates | null = searchOrigin?.coordinates ?? null;
   const currentLocalDate = getCyprusDayWindow(now).localDate;
   const openNowFilterAvailable =
@@ -595,13 +637,123 @@ export function PharmacyFinder({
     [manualLocationLookup],
   );
 
+  useEffect(() => {
+    const activeTab = document.querySelector<HTMLElement>(
+      `[data-district-tab="${selectedDistrict}"]`,
+    );
+    activeTab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [selectedDistrict]);
+
+  useEffect(() => {
+    const updateBackToFinderVisibility = () => {
+      const controls = document.getElementById("finder-controls");
+      const threshold = controls
+        ? controls.offsetTop + controls.offsetHeight + 240
+        : 720;
+      setShowBackToFinder(window.scrollY > threshold);
+    };
+
+    updateBackToFinderVisibility();
+    window.addEventListener("scroll", updateBackToFinderVisibility, {
+      passive: true,
+    });
+    window.addEventListener("resize", updateBackToFinderVisibility);
+    return () => {
+      window.removeEventListener("scroll", updateBackToFinderVisibility);
+      window.removeEventListener("resize", updateBackToFinderVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    const shownAt = new Date();
+    let shouldShow = true;
+
+    try {
+      shouldShow = !hasFreshLocationIntroMarker(
+        window.localStorage.getItem(LOCATION_INTRO_STORAGE_KEY),
+        shownAt,
+      );
+    } catch {
+      // Storage can be unavailable in private or restricted browser contexts.
+    }
+
+    if (!shouldShow) return;
+    let cancelled = false;
+    window.queueMicrotask(() => {
+      if (cancelled) return;
+      setShowLocationIntro(true);
+      try {
+        window.localStorage.setItem(
+          LOCATION_INTRO_STORAGE_KEY,
+          JSON.stringify({
+            version: LOCATION_INTRO_MARKER_VERSION,
+            shownAt: shownAt.toISOString(),
+          }),
+        );
+      } catch {
+        // The informational prompt remains usable without persistent storage.
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showLocationIntro) return;
+    const dialog = locationIntroDialogRef.current;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    if (dialog && !dialog.open && typeof dialog.showModal === "function") {
+      dialog.showModal();
+    } else if (dialog && !dialog.open) {
+      dialog.setAttribute("open", "");
+    }
+    const focusTimer = window.setTimeout(() => {
+      locationIntroYesRef.current?.focus();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      previouslyFocused?.focus();
+    };
+  }, [showLocationIntro]);
+
   const dayWindow = useMemo(
     () => getCyprusDayWindow(now, selectedDay === "tomorrow" ? 1 : 0),
     [now, selectedDay],
   );
+  const districtPharmacies = useMemo(
+    () => pharmacies.filter((pharmacy) => pharmacy.district === selectedDistrict),
+    [pharmacies, selectedDistrict],
+  );
+  const normalizedPharmacyQuery = searchOrigin
+    ? ""
+    : manualQuery.trim().normalize("NFKC").toLocaleLowerCase(LOCALE_FORMAT_IDS[locale]);
+  const searchedPharmacies = useMemo(() => {
+    if (!normalizedPharmacyQuery) return districtPharmacies;
+    return districtPharmacies.filter((pharmacy) =>
+      [
+        pharmacy.name,
+        pharmacy.addressLine,
+        pharmacy.addressAdditional,
+        pharmacy.locality,
+        pharmacy.postalCode,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .some((value) =>
+          value
+            .normalize("NFKC")
+            .toLocaleLowerCase(LOCALE_FORMAT_IDS[locale])
+            .includes(normalizedPharmacyQuery),
+        ),
+    );
+  }, [districtPharmacies, locale, normalizedPharmacyQuery]);
   const results = useMemo(() => {
     const matching = filterPharmaciesByAvailability(
-      pharmacies,
+      searchedPharmacies,
       filter,
       dayWindow,
       now,
@@ -633,7 +785,7 @@ export function PharmacyFinder({
         (value.openNow === true ? 2 : 0) + (value.onDuty ? 1 : 0);
       return score(rightAvailability) - score(leftAvailability);
     });
-  }, [coordinates, dayWindow, filter, now, ordinaryOpeningDataAvailable, pharmacies]);
+  }, [coordinates, dayWindow, filter, now, ordinaryOpeningDataAvailable, searchedPharmacies]);
   const visibleResults = useMemo(
     () =>
       visiblePharmacyResults(results, {
@@ -650,6 +802,18 @@ export function PharmacyFinder({
     if (day === "tomorrow" && filter === "open_now") setFilter("all");
   }
 
+  function chooseDistrict(district: PharmacyDistrict) {
+    manualLocationLookup.cancel();
+    setSelectedDistrict(district);
+    setSearchOrigin((current) =>
+      current?.source === "manual" ? null : current,
+    );
+    setManualSuggestions([]);
+    setManualSearchError(null);
+    setManualSearchStatus("idle");
+    setResultsExpanded(false);
+  }
+
   function chooseFilter(nextFilter: AvailabilityFilter) {
     setFilter(nextFilter);
     setResultsExpanded(false);
@@ -658,7 +822,6 @@ export function PharmacyFinder({
   function requestLocation() {
     if (!("geolocation" in navigator)) {
       setGeolocationStatus("unavailable");
-      setManualSearchOpen(true);
       return;
     }
 
@@ -681,7 +844,6 @@ export function PharmacyFinder({
         setGeolocationStatus(
           error.code === error.PERMISSION_DENIED ? "denied" : "unavailable",
         );
-        setManualSearchOpen(true);
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
     );
@@ -708,7 +870,7 @@ export function PharmacyFinder({
           method: "POST",
           cache: "no-store",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query }),
+          body: JSON.stringify({ query, district: selectedDistrict }),
           signal,
         });
         const body = (await response.json()) as {
@@ -723,7 +885,7 @@ export function PharmacyFinder({
           );
         }
         return body.suggestions ?? [];
-      })
+      }, selectedDistrict)
       .then((suggestions) => {
         if (suggestions.length > 0) {
           setManualSuggestions(suggestions);
@@ -750,6 +912,7 @@ export function PharmacyFinder({
 
   function changeManualQuery(value: string) {
     manualLocationLookup.cancel();
+    if (searchOrigin) setSearchOrigin(null);
     setManualQuery(value);
     setManualSuggestions([]);
     setManualSearchError(null);
@@ -771,12 +934,13 @@ export function PharmacyFinder({
     setManualSuggestions([]);
     setManualSearchError(null);
     setManualSearchStatus("idle");
-    setManualSearchOpen(false);
+    setManualQuery(suggestion.label);
     setResultsExpanded(false);
   }
 
   function clearSearchOrigin() {
     setSearchOrigin(null);
+    setManualQuery("");
     if (geolocationStatus === "ready") setGeolocationStatus("idle");
     setResultsExpanded(false);
   }
@@ -790,22 +954,110 @@ export function PharmacyFinder({
         ? messages.findingLocation
         : null;
 
+  const districtNames: Record<PharmacyDistrict, string> = {
+    Nicosia: messages.districtNicosia,
+    Larnaca: messages.districtLarnaca,
+    Limassol: messages.districtLimassol,
+    Paphos: messages.districtPaphos,
+    Famagusta: messages.districtFamagusta,
+  };
+  const dutyCount = districtPharmacies.filter((pharmacy) =>
+    pharmacy.dutyAssignments.some(
+      (assignment) => assignment.dutyDate === dayWindow.localDate,
+    ),
+  ).length;
+  const pharmacyCountLabel = formatPluralCount(
+    districtPharmacies.length,
+    locale,
+    {
+      resultOne: messages.pharmacyCountOne,
+      resultFew: messages.pharmacyCountFew,
+      resultMany: messages.pharmacyCountMany,
+      resultOther: messages.pharmacyCountOther,
+    },
+  );
+  const dutyCountLabel = formatPluralCount(dutyCount, locale, {
+    resultOne: messages.dutyCountOne,
+    resultFew: messages.dutyCountFew,
+    resultMany: messages.dutyCountMany,
+    resultOther: messages.dutyCountOther,
+  });
   return (
-    <main className="mx-auto min-h-screen w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
-      <header className="mb-5 flex items-start gap-3">
-        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--brand)] text-white shadow-sm">
-          <Plus className="size-7 stroke-[3]" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-extrabold tracking-[-0.025em] text-[var(--ink)]">
-            Paphos Pharmacy
+    <main className="min-h-screen w-full bg-[var(--background)] pb-8">
+      <FinderHeader
+        locale={locale}
+        brandName={messages.brandName}
+        about={messages.about}
+        dataSources={messages.dataSources}
+        languageLabel={languageLabel}
+      />
+
+      {showLocationIntro && (
+        <dialog
+          ref={locationIntroDialogRef}
+          aria-labelledby="location-intro-title"
+          aria-describedby="location-intro-body"
+          onCancel={(event) => {
+            event.preventDefault();
+            setShowLocationIntro(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              setShowLocationIntro(false);
+            }
+          }}
+          className="fixed inset-0 z-[60] m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-[var(--line)] bg-white p-0 text-[var(--ink)] shadow-[0_24px_70px_rgba(16,15,15,0.22)] backdrop:bg-black/35 backdrop:backdrop-blur-[2px]"
+        >
+          <div className="p-5 sm:p-6">
+            <h2
+              id="location-intro-title"
+              className="text-xl font-semibold tracking-[-0.02em]"
+            >
+              {messages.locationIntroTitle}
+            </h2>
+            <p
+              id="location-intro-body"
+              className="mt-2 text-sm leading-6 text-[var(--ink-muted)]"
+            >
+              {messages.locationIntroBody}
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                ref={locationIntroYesRef}
+                type="button"
+                onClick={() => {
+                  setShowLocationIntro(false);
+                  requestLocation();
+                }}
+                className="location-intro-action min-h-10 rounded-xl border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[rgb(190,255,80)]"
+              >
+                {messages.locationIntroYes}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLocationIntro(false)}
+                className="location-intro-action min-h-10 rounded-xl border border-[var(--line-strong)] bg-white px-4 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[#FF956A]"
+              >
+                {messages.locationIntroLater}
+              </button>
+            </div>
+          </div>
+        </dialog>
+      )}
+
+      <section className="bg-[linear-gradient(120deg,var(--hero-dark),var(--brand-strong))] text-white">
+        <div className="mx-auto flex w-full max-w-7xl flex-col justify-center px-4 py-12 sm:px-6 sm:py-16 lg:min-h-[22rem] lg:px-8 lg:py-16">
+          <h1 className="max-w-5xl text-balance text-[clamp(2.5rem,5vw,4rem)] font-medium leading-[0.98] tracking-[-0.035em]">
+            {messages.heroTitle}
           </h1>
-          <p className="text-sm text-[var(--ink-muted)]">
-            {messages.heroDescription}
-          </p>
+          <h2 className="mt-4 max-w-6xl text-balance text-[clamp(1.125rem,2vw,1.5rem)] font-normal leading-[1.2] text-white/65 lg:whitespace-nowrap">
+            {messages.heroSchedulePeriod}
+          </h2>
         </div>
-        <LanguageSelector locale={locale} label={languageLabel} />
-      </header>
+      </section>
+
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
 
       {source === "fixtures" && (
         <aside className="mb-4 rounded-2xl border border-[#ead8ae] bg-[var(--amber-soft)] px-4 py-3 text-sm leading-5 text-[#68420b]">
@@ -813,35 +1065,41 @@ export function PharmacyFinder({
         </aside>
       )}
 
-      {attribution && (
-        <aside className="mb-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm leading-6 text-[var(--ink-muted)]">
-          {messages.attributionPrefix}{" "}
-          <a
-            className="font-bold underline"
-            href={attribution.datasetPage}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <bdi dir="auto">{attribution.organization}</bdi> {messages.attributionSourcesSuffix}
-          </a>{" "}
-          (<a className="underline" href={attribution.licenseUrl} target="_blank" rel="noreferrer">
-            {attribution.license}
-          </a>). {messages.attributionWarning}{" "}
-          <Link className="font-bold text-[var(--brand-strong)] underline" href={localePath(locale, "/data-sources")}>
-            {messages.dataSources}
-          </Link>
-        </aside>
-      )}
+      <nav
+        id="finder-top"
+        aria-label={messages.districtSelector}
+        className="-mx-4 scroll-mt-28 overflow-x-auto border-b border-[var(--line)] bg-white px-4 min-[24rem]:max-sm:overflow-x-hidden sm:-mx-6 sm:scroll-mt-20 sm:px-6 lg:-mx-8 lg:px-8"
+      >
+        <div className="mx-auto flex min-w-max justify-between gap-8 min-[24rem]:max-sm:grid min-[24rem]:max-sm:w-full min-[24rem]:max-sm:min-w-0 min-[24rem]:max-sm:grid-cols-5 min-[24rem]:max-sm:gap-0 sm:gap-12 lg:min-w-0 lg:max-w-5xl">
+          {districts.map((district) => (
+            <button
+              key={district}
+              type="button"
+              data-district-tab={district}
+              aria-pressed={selectedDistrict === district}
+              onClick={() => chooseDistrict(district)}
+              className={`relative min-h-16 min-w-11 shrink-0 whitespace-nowrap px-1 text-sm font-bold transition-colors min-[24rem]:max-sm:w-full min-[24rem]:max-sm:min-w-0 min-[24rem]:max-sm:px-0 min-[24rem]:max-sm:text-[0.8125rem] sm:text-base ${
+                selectedDistrict === district
+                  ? "text-[var(--ink)] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[var(--brand)]"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              }`}
+            >
+              {districtNames[district]}
+            </button>
+          ))}
+        </div>
+      </nav>
 
-      <section aria-label={messages.searchControls} className="mb-5 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--shadow)]">
-        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[var(--surface-muted)] p-1">
+      <section id="finder-controls" aria-label={messages.searchControls} className="relative z-10 -mx-1 -mt-px mb-8 bg-white px-1 py-4 sm:mx-0 sm:rounded-b-2xl sm:px-5 sm:shadow-[var(--shadow)]">
+        <div className="grid gap-3 lg:grid-cols-[auto_auto_minmax(18rem,1fr)_auto] lg:items-center">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-[var(--surface-muted)] p-1">
           {(["today", "tomorrow"] as const).map((day) => (
             <button
               key={day}
               type="button"
               aria-pressed={selectedDay === day}
               onClick={() => chooseDay(day)}
-              className={`min-h-11 rounded-xl px-4 text-sm font-bold transition-colors ${
+              className={`min-h-11 rounded-lg px-3 text-sm font-bold transition-colors sm:px-4 ${
                 selectedDay === day
                   ? "bg-white text-[var(--brand-strong)] shadow-sm"
                   : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
@@ -852,7 +1110,7 @@ export function PharmacyFinder({
           ))}
         </div>
 
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label={messages.availabilityFilter}>
+        <div className="flex justify-center gap-2 overflow-x-auto sm:justify-start" aria-label={messages.availabilityFilter}>
           {filters[selectedDay]
             .filter((option) => option !== "open_now" || openNowFilterAvailable)
             .map((option) => (
@@ -861,9 +1119,11 @@ export function PharmacyFinder({
                 type="button"
                 aria-pressed={filter === option}
                 onClick={() => chooseFilter(option)}
-                className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-bold transition-colors ${
+                className={`min-h-11 shrink-0 rounded-lg border px-3 text-sm font-bold transition-colors sm:px-4 ${
                   filter === option
-                    ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                    ? option === "on_duty"
+                      ? "border-[#92c33e] bg-[rgb(190,255,80)] text-[#17210b]"
+                      : "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
                     : "border-[var(--line)] bg-white text-[var(--ink-muted)] hover:border-[var(--line-strong)]"
                 }`}
               >
@@ -876,196 +1136,154 @@ export function PharmacyFinder({
             ))}
         </div>
 
-        {openNowFilterAvailable && (
-          <p className="mt-2 text-xs leading-5 text-[var(--ink-muted)]">
-            {messages.openNowExplanation}
-          </p>
-        )}
-
-        <div className="mt-4 border-t border-[var(--line)] pt-4">
-          <h2 className="text-base font-extrabold text-[var(--ink)]">
-            {messages.findNear}
-          </h2>
-          <p className="mt-1 text-sm leading-5 text-[var(--ink-muted)]">
-            {messages.browseWithoutLocation}
-          </p>
+        <div className="min-w-0">
+          <form onSubmit={searchManualLocation} className="relative flex min-w-0 items-center">
+            <label htmlFor="manual-location" className="sr-only">
+              {messages.locationInputLabel}
+            </label>
+            <Search className="pointer-events-none absolute start-3 size-5 text-[var(--ink-muted)]" aria-hidden="true" />
+            <input
+              id="manual-location"
+              value={manualQuery}
+              onChange={(event) => changeManualQuery(event.target.value)}
+              placeholder={messages.locationPlaceholder}
+              dir="auto"
+              minLength={MINIMUM_MANUAL_QUERY_CHARACTERS}
+              maxLength={120}
+              className="min-h-11 min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] pe-14 ps-11 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)] focus:border-[var(--brand)] focus:bg-white sm:min-h-12"
+            />
+            <button
+              type="submit"
+              disabled={manualSearchStatus === "searching"}
+              aria-label={messages.search}
+              className="absolute end-0.5 grid size-11 place-items-center rounded-[0.65rem] bg-[var(--brand)] text-white transition-colors hover:bg-[var(--brand-strong)] disabled:cursor-wait disabled:opacity-60"
+            >
+              <Search className="size-4" aria-hidden="true" />
+            </button>
+          </form>
 
           {searchOrigin && (
-            <div className="mt-3 flex items-start justify-between gap-3 rounded-2xl bg-[var(--brand-soft)] px-3 py-3">
+            <div className="mt-2 flex items-start justify-between gap-3 rounded-xl bg-[var(--brand-soft)] px-3 py-2">
               <p className="min-w-0 text-sm leading-5 text-[var(--brand-strong)]">
                 <span className="font-extrabold">{messages.near}</span>{" "}
                 <bdi dir="auto" className="break-words">{searchOrigin.label}</bdi>
               </p>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setManualSearchOpen(true)}
-                  className="text-xs font-extrabold text-[var(--brand-strong)] underline"
-                >
-                  {messages.change}
-                </button>
-                <button
-                  type="button"
-                  onClick={clearSearchOrigin}
-                  className="flex items-center gap-1 text-xs font-extrabold text-[var(--brand-strong)] underline"
-                >
-                  <X className="size-3.5" aria-hidden="true" />
-                  {messages.clear}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={clearSearchOrigin}
+                className="flex shrink-0 items-center gap-1 text-xs font-extrabold text-[var(--brand-strong)] underline"
+              >
+                <X className="size-3.5" aria-hidden="true" />
+                {messages.clear}
+              </button>
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={requestLocation}
-            disabled={geolocationStatus === "locating" || gpsUnavailable}
-            className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-5 text-sm font-extrabold text-white transition-colors hover:bg-[var(--brand-strong)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <LocateFixed className="size-5" aria-hidden="true" />
-            {geolocationStatus === "locating"
-              ? messages.findingLocation
-              : gpsUnavailable
-                ? messages.locationUnavailable
-                : searchOrigin?.source === "gps"
-                  ? messages.updateLocation
-                  : messages.useLocation}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setManualSearchOpen((open) => !open)}
-            className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--line-strong)] bg-white px-5 text-sm font-extrabold text-[var(--brand-strong)]"
-          >
-            <Search className="size-4" aria-hidden="true" />
-            {messages.enterArea}
-          </button>
-
-          {(manualSearchOpen || gpsUnavailable) && (
-            <div className="mt-3 rounded-2xl bg-[var(--surface-muted)] p-3">
-              <form onSubmit={searchManualLocation} className="flex gap-2">
-                <label htmlFor="manual-location" className="sr-only">
-                  {messages.locationInputLabel}
-                </label>
-                <input
-                  id="manual-location"
-                  value={manualQuery}
-                  onChange={(event) => changeManualQuery(event.target.value)}
-                  placeholder={messages.locationPlaceholder}
-                  dir="auto"
-                  minLength={MINIMUM_MANUAL_QUERY_CHARACTERS}
-                  maxLength={120}
-                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-[var(--line-strong)] bg-white px-3 text-sm text-[var(--ink)] outline-none focus:border-[var(--brand)]"
-                />
-                <button
-                  type="submit"
-                  disabled={manualSearchStatus === "searching"}
-                  className="min-h-11 shrink-0 rounded-xl bg-[var(--brand-strong)] px-4 text-sm font-extrabold text-white disabled:cursor-wait disabled:opacity-60"
-                >
-                  {manualSearchStatus === "searching" ? messages.searching : messages.search}
-                </button>
-              </form>
-
-              {manualSuggestions.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
-                    {messages.chooseLocation}
-                  </p>
-                  <ul className="mt-2 space-y-2">
-                    {manualSuggestions.map((suggestion) => (
-                      <li key={suggestion.resultIdentifier}>
-                        <button
-                          type="button"
-                          onClick={() => chooseManualLocation(suggestion)}
-                          className="flex min-h-11 w-full items-start gap-2 rounded-xl border border-[var(--line)] bg-white px-3 py-2.5 text-start text-sm font-semibold leading-5 text-[var(--ink)]"
-                        >
-                          <MapPin className="mt-0.5 size-4 shrink-0 text-[var(--brand)]" aria-hidden="true" />
-                          <bdi dir="auto">{suggestion.label}</bdi>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-2 text-end text-[0.7rem] text-[var(--ink-muted)]">
-                    <a
-                      className="underline"
-                      href="https://www.geoapify.com/"
-                      target="_blank"
-                      rel="noreferrer"
+          {manualSuggestions.length > 0 && (
+            <div className="mt-2 rounded-xl border border-[var(--line)] bg-white p-2 shadow-[var(--shadow)]">
+              <p className="px-2 py-1 text-xs font-extrabold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                {messages.chooseLocation}
+              </p>
+              <ul className="space-y-1">
+                {manualSuggestions.map((suggestion) => (
+                  <li key={suggestion.resultIdentifier}>
+                    <button
+                      type="button"
+                      onClick={() => chooseManualLocation(suggestion)}
+                      className="flex min-h-11 w-full items-start gap-2 rounded-lg px-2 py-2.5 text-start text-sm font-semibold leading-5 text-[var(--ink)] hover:bg-[var(--surface-muted)]"
                     >
-                      Powered by Geoapify
-                    </a>
-                  </p>
-                </div>
-              )}
+                      <MapPin className="mt-0.5 size-4 shrink-0 text-[var(--brand)]" aria-hidden="true" />
+                      <bdi dir="auto">{suggestion.label}</bdi>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="px-2 pt-1 text-end text-[0.7rem] text-[var(--ink-muted)]">
+                <a className="underline" href="https://www.geoapify.com/" target="_blank" rel="noreferrer">
+                  Powered by Geoapify
+                </a>
+              </p>
             </div>
           )}
 
-          <p
-            aria-live="polite"
-            className={`mt-2 min-h-5 text-xs leading-5 ${
-              manualSearchError || gpsUnavailable
-                ? "font-semibold text-[var(--danger)]"
-                : "text-[var(--ink-muted)]"
-            }`}
-          >
-            {manualSearchError ??
-              locationMessage ??
-              (searchOrigin
-                ? messages.distanceCoverage
-                : messages.locationOptional)}
-          </p>
-
-          {searchOrigin && (
-            <p className="mt-1 text-xs leading-5 text-[var(--ink-muted)]">
-              {messages.distanceMethod}
+          {(manualSearchError || locationMessage) && (
+            <p aria-live="polite" className="mt-2 text-xs font-semibold leading-5 text-[var(--danger)]">
+              {manualSearchError ?? locationMessage}
             </p>
           )}
-
-          {searchOrigin && (
-            <button
-              type="button"
-              onClick={clearSearchOrigin}
-              className="mt-1 text-xs font-bold text-[var(--ink-muted)] underline"
-            >
-              {messages.browseAllInstead}
-            </button>
-          )}
+        </div>
+        <button
+          type="button"
+          onClick={requestLocation}
+          disabled={geolocationStatus === "locating" || gpsUnavailable}
+          className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-white px-3 text-sm font-extrabold text-[var(--brand-strong)] transition-colors hover:bg-[var(--surface-muted)] disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-12 sm:px-4"
+        >
+          <LocateFixed className="size-5" aria-hidden="true" />
+          {geolocationStatus === "locating"
+            ? messages.findingLocation
+            : gpsUnavailable
+              ? messages.locationUnavailable
+              : searchOrigin?.source === "gps"
+                ? messages.updateLocation
+                : messages.useLocation}
+        </button>
         </div>
       </section>
 
+      {showBackToFinder && (
+        <button
+          type="button"
+          aria-label={backToFinderLabels[locale]}
+          onClick={() => {
+            document.getElementById("finder-top")?.scrollIntoView({
+              behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                ? "auto"
+                : "smooth",
+              block: "start",
+            });
+          }}
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 grid size-11 place-items-center rounded-full border border-[var(--line)] bg-white/90 text-[var(--brand-strong)] shadow-[0_8px_24px_rgba(16,15,15,0.14)] backdrop-blur-md transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2 sm:right-6 sm:size-12"
+        >
+          <ArrowUp className="size-5" aria-hidden="true" />
+        </button>
+      )}
+
       <section aria-labelledby="results-heading">
-        <div className="mb-3 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand)]">
-              {selectedDay === "today" ? messages.todayInPaphos : messages.tomorrowSchedule}
-            </p>
-            <h2 id="results-heading" className="mt-1 text-lg font-extrabold tracking-[-0.015em]">
-              {messages.pharmacyResults}
-            </h2>
-          </div>
-          <span className="shrink-0 text-sm font-semibold text-[var(--ink-muted)]">
-            {visibleResults.length < results.length
-              ? message(messages.showingResults, {
-                  visible: formatLocalizedNumber(visibleResults.length, locale),
-                  total: formatLocalizedNumber(results.length, locale),
-                })
-              : formatResultCount(results.length, locale, messages)}
-          </span>
-        </div>
+        <h2 id="results-heading" className="mb-4 text-sm font-semibold text-[var(--ink-muted)] sm:text-base">
+          {districtNames[selectedDistrict]} · {formatCyprusDate(dayWindow.start, LOCALE_FORMAT_IDS[locale])} · {pharmacyCountLabel} · {dutyCountLabel}
+        </h2>
 
         {results.length > 0 ? (
           <div className="space-y-4">
-            {visibleResults.map((result) => (
-              <PharmacyCard
-                key={result.pharmacy.id}
-                result={result}
-                selectedDay={selectedDay}
-                now={now}
-                ordinaryOpeningDataAvailable={ordinaryOpeningDataAvailable}
-                locale={locale}
-                messages={messages}
-              />
-            ))}
+            {Array.from(
+              { length: Math.ceil(visibleResults.length / 2) },
+              (_, rowIndex) => {
+                const rowResults = visibleResults.slice(
+                  rowIndex * 2,
+                  rowIndex * 2 + 2,
+                );
+
+                return (
+                  <div
+                    key={rowResults.map((result) => result.pharmacy.id).join(":")}
+                    data-card-row
+                    className="pharmacy-card-row"
+                  >
+                    {rowResults.map((result) => (
+                      <PharmacyCard
+                        key={result.pharmacy.id}
+                        result={result}
+                        selectedDay={selectedDay}
+                        now={now}
+                        ordinaryOpeningDataAvailable={ordinaryOpeningDataAvailable}
+                        locale={locale}
+                        messages={messages}
+                      />
+                    ))}
+                  </div>
+                );
+              },
+            )}
             {visibleResults.length < results.length && (
               <button
                 type="button"
@@ -1100,6 +1318,7 @@ export function PharmacyFinder({
         <p>
           <BidiStableText text={messages.scheduleNote} />
         </p>
+        <p>{messages.attributionWarning}</p>
         {coordinateAttributions.length > 0 && (
           <p>
             {messages.locationData}{" "}
@@ -1120,7 +1339,19 @@ export function PharmacyFinder({
             . {messages.officialAddressesUnchanged}
           </p>
         )}
+        {attribution && (
+          <p>
+            <a className="font-bold underline" href={attribution.datasetPage} target="_blank" rel="noreferrer">
+              {attribution.organization}
+            </a>{" "}
+            ·{" "}
+            <a className="underline" href={attribution.licenseUrl} target="_blank" rel="noreferrer">
+              {attribution.license}
+            </a>
+          </p>
+        )}
       </section>
+      </div>
     </main>
   );
 }

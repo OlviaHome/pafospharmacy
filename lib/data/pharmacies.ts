@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -40,6 +41,8 @@ const GOOGLE_CACHE_PATH = path.join(
   process.cwd(),
   "data/geocoding/cache/paphos-google-places.json",
 );
+
+export const PHARMACY_DATA_CACHE_TAG = "pharmacy-data";
 
 interface SupabaseIntervalRow {
   id: number;
@@ -107,6 +110,14 @@ interface SupabasePharmacyRow {
     | SupabaseGooglePlaceRow
     | SupabaseGooglePlaceRow[]
     | null;
+}
+
+interface SupabaseDatasetWindow {
+  localDate: string;
+  yesterdayLocalDate: string;
+  tomorrowLocalDate: string;
+  todayStart: string;
+  tomorrowEnd: string;
 }
 
 const attribution: DataAttribution = {
@@ -346,18 +357,55 @@ function mapPharmacy(row: SupabasePharmacyRow, now: Date): Pharmacy {
   };
 }
 
+const getCachedSupabasePharmacyRows = unstable_cache(
+  async (window: SupabaseDatasetWindow): Promise<SupabasePharmacyRow[]> => {
+    const url = process.env.SUPABASE_URL?.trim();
+    const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
+
+    if (!url || !publishableKey) {
+      throw new Error(
+        "Supabase runtime configuration is incomplete. Set both SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.",
+      );
+    }
+
+    const supabase = createClient(url, publishableKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await supabase
+      .from("pharmacies")
+      .select(
+        "id,name,address_line,address_additional,locality,district,postal_code,latitude,longitude,geocode_provider,geocode_result_identifier,geocode_query,geocode_quality,geocoded_at,phone_e164,official_registration_number,pharmacist_given_name,pharmacist_surname,source,source_dataset,source_resource_url,source_retrieved_at,availability_intervals(id,pharmacy_id,starts_at,ends_at,schedule_kind,service_mode),duty_assignments(id,pharmacy_id,duty_date,source_dataset,source_record_identifier,source_resource_url,source_retrieved_at),pharmacy_google_places(official_registration_number,place_id,display_name,formatted_address,latitude,longitude,google_phone_e164,classification,matching_evidence,retrieved_at,expires_at)",
+      )
+      .eq("is_active", true)
+      .lt("availability_intervals.starts_at", window.tomorrowEnd)
+      .gt("availability_intervals.ends_at", window.todayStart)
+      .gte("duty_assignments.duty_date", window.yesterdayLocalDate)
+      .lte("duty_assignments.duty_date", window.tomorrowLocalDate)
+      .order("name");
+
+    if (error) {
+      throw new Error(`Unable to load pharmacy data from Supabase: ${error.message}`);
+    }
+
+    return (data ?? []) as SupabasePharmacyRow[];
+  },
+  ["supabase-pharmacy-data-by-cyprus-date"],
+  {
+    revalidate: 86_400,
+    tags: [PHARMACY_DATA_CACHE_TAG],
+  },
+);
+
 async function getOfficialSnapshotDataset(now: Date): Promise<PharmacyDataset> {
   const googleCache = await readTrustedLocalGoogleCache(now);
-  const paphosPharmacies = officialSnapshot.pharmacies.filter(
-    (pharmacy) => pharmacy.district === "Paphos",
-  );
-  const paphosRegistrationNumbers = new Set(
-    paphosPharmacies.map((pharmacy) => pharmacy.officialRegistrationNumber),
+  const activePharmacies = officialSnapshot.pharmacies;
+  const activeRegistrationNumbers = new Set(
+    activePharmacies.map((pharmacy) => pharmacy.officialRegistrationNumber),
   );
   const assignmentsByRegistration = new Map<string, DutyAssignment[]>();
 
   for (const assignment of officialSnapshot.dutyAssignments) {
-    if (!paphosRegistrationNumbers.has(assignment.pharmacyRegistrationNumber)) continue;
+    if (!activeRegistrationNumbers.has(assignment.pharmacyRegistrationNumber)) continue;
     const assignments = assignmentsByRegistration.get(assignment.pharmacyRegistrationNumber) ?? [];
     assignments.push({
       id: assignment.sourceRecordIdentifier,
@@ -371,7 +419,7 @@ async function getOfficialSnapshotDataset(now: Date): Promise<PharmacyDataset> {
     assignmentsByRegistration.set(assignment.pharmacyRegistrationNumber, assignments);
   }
 
-  const pharmacies: Pharmacy[] = paphosPharmacies.map((pharmacy) => {
+  const pharmacies: Pharmacy[] = activePharmacies.map((pharmacy) => {
     const geocoding = geocodingByRegistration.get(
       pharmacy.officialRegistrationNumber,
     );
@@ -445,28 +493,14 @@ export async function getPharmacyDataset(now: Date): Promise<PharmacyDataset> {
   const yesterday = getCyprusDayWindow(now, -1);
   const today = getCyprusDayWindow(now);
   const tomorrow = getCyprusDayWindow(now, 1);
-  const supabase = createClient(url, publishableKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
+  const rows = await getCachedSupabasePharmacyRows({
+    localDate: today.localDate,
+    yesterdayLocalDate: yesterday.localDate,
+    tomorrowLocalDate: tomorrow.localDate,
+    todayStart: today.start,
+    tomorrowEnd: tomorrow.end,
   });
-
-  const { data, error } = await supabase
-    .from("pharmacies")
-    .select(
-      "id,name,address_line,address_additional,locality,district,postal_code,latitude,longitude,geocode_provider,geocode_result_identifier,geocode_query,geocode_quality,geocoded_at,phone_e164,official_registration_number,pharmacist_given_name,pharmacist_surname,source,source_dataset,source_resource_url,source_retrieved_at,availability_intervals(id,pharmacy_id,starts_at,ends_at,schedule_kind,service_mode),duty_assignments(id,pharmacy_id,duty_date,source_dataset,source_record_identifier,source_resource_url,source_retrieved_at),pharmacy_google_places(official_registration_number,place_id,display_name,formatted_address,latitude,longitude,google_phone_e164,classification,matching_evidence,retrieved_at,expires_at)",
-    )
-    .eq("is_active", true)
-    .eq("district", "Paphos")
-    .lt("availability_intervals.starts_at", tomorrow.end)
-    .gt("availability_intervals.ends_at", today.start)
-    .gte("duty_assignments.duty_date", yesterday.localDate)
-    .lte("duty_assignments.duty_date", tomorrow.localDate)
-    .order("name");
-
-  if (error) {
-    throw new Error(`Unable to load pharmacy data from Supabase: ${error.message}`);
-  }
-
-  const pharmacies = ((data ?? []) as SupabasePharmacyRow[]).map((row) =>
+  const pharmacies = rows.map((row) =>
     mapPharmacy(row, now),
   );
   const googleGeneratedAt = pharmacies

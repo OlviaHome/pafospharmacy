@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { localeDirection, localizePath, preferredLocale } from "./config";
+import { ar } from "./locales/ar";
+import { el } from "./locales/el";
+import { en } from "./locales/en";
+import { ru } from "./locales/ru";
 
 describe("locale configuration", () => {
   it("matches weighted language preferences by supported base language", () => {
@@ -25,4 +29,17 @@ describe("locale configuration", () => {
     expect(localizePath("/en/data-sources", "ar")).toBe("/ar/data-sources");
     expect(localizePath("/privacy", "el")).toBe("/el/privacy");
   });
+
+  it.each([en, el, ru, ar])(
+    "keeps complete finder parity for $locale",
+    (dictionary) => {
+      const values = Object.values(dictionary.finder);
+      expect(values.every((value) => typeof value === "string" && value.length > 0)).toBe(
+        true,
+      );
+      expect(dictionary.finder.brandName).toBe("Cyprus Pharmacy");
+      expect(dictionary.finder.distanceMethod.length).toBeGreaterThan(0);
+      expect(dictionary.finder.onCallBadge.length).toBeGreaterThan(0);
+    },
+  );
 });

@@ -17,4 +17,14 @@ describe("haversineDistanceKm", () => {
     expect(distance).toBeGreaterThan(95);
     expect(distance).toBeLessThan(100);
   });
+
+  it("is symmetric because it calculates geographic straight-line distance only", () => {
+    const paphos = { latitude: 34.772, longitude: 32.4297 };
+    const larnaca = { latitude: 34.9182, longitude: 33.6201 };
+
+    expect(haversineDistanceKm(paphos, larnaca)).toBeCloseTo(
+      haversineDistanceKm(larnaca, paphos),
+      10,
+    );
+  });
 });

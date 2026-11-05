@@ -19,9 +19,9 @@ function json(body: unknown, init: ResponseInit = {}): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  let query: string;
+  let searchRequest: Awaited<ReturnType<typeof parseLocationSearchRequest>>;
   try {
-    query = await parseLocationSearchRequest(request);
+    searchRequest = await parseLocationSearchRequest(request);
   } catch (error) {
     if (error instanceof LocationSearchRequestError) {
       return json({ error: error.message }, { status: error.status });
@@ -29,7 +29,8 @@ export async function POST(request: Request): Promise<Response> {
     return json({ error: "Enter a valid location search." }, { status: 400 });
   }
 
-  const cachedSuggestions = await readCachedManualLocationSuggestions(query);
+  const { query, district } = searchRequest;
+  const cachedSuggestions = await readCachedManualLocationSuggestions(query, district);
   if (cachedSuggestions !== null) {
     return json({ suggestions: cachedSuggestions });
   }
@@ -70,8 +71,12 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const suggestions = await fetchManualLocationSuggestions(query, request.signal);
-    await writeCachedManualLocationSuggestions(query, suggestions);
+    const suggestions = await fetchManualLocationSuggestions(
+      query,
+      district,
+      request.signal,
+    );
+    await writeCachedManualLocationSuggestions(query, district, suggestions);
     return json({ suggestions });
   } catch (error) {
     if (error instanceof LocationSearchProviderError && error.status === 429) {

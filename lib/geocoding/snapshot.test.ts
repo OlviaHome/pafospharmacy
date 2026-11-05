@@ -13,13 +13,37 @@ import {
 const geocodingSnapshot = geocodingSnapshotJson as unknown as GeocodingSnapshot;
 
 describe("checked-in Paphos geocoding reconciliation", () => {
-  it("contains one cached reconciliation record per official Paphos pharmacy", () => {
+  it("keeps its historical cohort while identifying the active Paphos records", () => {
     const paphosPharmacies = officialSnapshot.pharmacies.filter(
       (pharmacy) => pharmacy.district === "Paphos",
     );
-    expect(geocodingSnapshot.records).toHaveLength(paphosPharmacies.length);
+    const activeRegistrations = new Set(
+      paphosPharmacies.map((pharmacy) => pharmacy.officialRegistrationNumber),
+    );
+    const activeRecords = geocodingSnapshot.records.filter((record) =>
+      activeRegistrations.has(record.officialRegistrationNumber),
+    );
+
+    expect(geocodingSnapshot.records).toHaveLength(90);
     expect(new Set(geocodingSnapshot.records.map((record) => record.officialRegistrationNumber)).size)
-      .toBe(paphosPharmacies.length);
+      .toBe(90);
+    expect(activeRecords).toHaveLength(87);
+    expect(
+      geocodingSnapshot.records
+        .filter((record) => !activeRegistrations.has(record.officialRegistrationNumber))
+        .map((record) => record.officialRegistrationNumber),
+    ).toEqual(["731", "1280", "1332"]);
+    const snapshotRegistrations = new Set(
+      geocodingSnapshot.records.map((record) => record.officialRegistrationNumber),
+    );
+    expect(
+      paphosPharmacies
+        .filter(
+          (pharmacy) =>
+            !snapshotRegistrations.has(pharmacy.officialRegistrationNumber),
+        )
+        .map((pharmacy) => pharmacy.officialRegistrationNumber),
+    ).toEqual(["1430", "1433", "1434", "1438", "1439"]);
   });
 
   it("matches the current query builder, reconciler, and aggregate report", () => {
@@ -32,10 +56,10 @@ describe("checked-in Paphos geocoding reconciliation", () => {
 
     for (const record of geocodingSnapshot.records) {
       const pharmacy = pharmacies.get(record.officialRegistrationNumber);
-      expect(pharmacy).toBeDefined();
-      expect(record.query).toBe(buildGeocodingQuery(pharmacy!));
+      if (!pharmacy) continue;
+      expect(record.query).toBe(buildGeocodingQuery(pharmacy));
       const reconciliation = reconcileNominatimResults(
-        pharmacy!,
+        pharmacy,
         record.providerResults,
       );
       expect(reconciliation.status).toBe(record.status);

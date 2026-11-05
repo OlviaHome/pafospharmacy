@@ -2,7 +2,7 @@
 
 ## Product summary
 
-Paphos Pharmacy is a mobile-first pharmacy finder for Paphos, Cyprus. Its primary job is to answer one urgent question as quickly and clearly as possible:
+Cyprus Pharmacy is a mobile-first pharmacy finder for all five districts of Cyprus. Its primary job is to answer one urgent question as quickly and clearly as possible:
 
 > Which pharmacy can I use right now?
 
@@ -41,22 +41,22 @@ The first slice includes only:
 - Supabase/PostgreSQL with `pharmacies`, timed `availability_intervals`, and date-only `duty_assignments` tables.
 - Official Cyprus Pharmaceutical Services pharmacy identities and date-only rota assignments, with visible CC BY 4.0 attribution.
 - Availability calculated from explicit timed facts, the versioned 2026 official regular pharmacy schedule, and the applicable versioned duty-hours notice through 30 April 2027 applied to an explicit official duty-date record.
-- Optional browser geolocation or a user-selected Paphos area/address as the origin for approximate distance.
+- Five district views for Nicosia, Larnaca, Limassol, Paphos, and Famagusta, with optional browser geolocation or a supported manual area/address as the origin for approximate distance.
 - An **Open Now** filter whose current official-schedule meaning is the union of the regular pharmacy schedule and any active mandatory duty-open period.
 - An **On Duty** filter for the selected local calendar day.
 - A Today/Tomorrow selector using Cyprus local time.
 - Call and directions actions.
 - Locale-prefixed English, Greek, Russian, and Arabic UI with browser-language detection, an explicit saved language choice, and Arabic right-to-left layout.
 
-The default experience must remain useful when location permission is denied or unavailable. Users have three explicit paths: **Use my location**, **Enter area or address**, or browse every pharmacy without sharing location. A denied device permission exposes manual search immediately rather than ending in an error. No origin is required for pharmacy status, address, call, or directions.
+The default experience must remain useful when location permission is denied or unavailable. Users can use the unified pharmacy/address search, choose **Use my location**, or browse every pharmacy in the selected district without sharing location. No origin is required for pharmacy status, address, call, or directions.
 
-Manual search accepts Paphos areas, municipalities, streets, landmarks, hotels, and addresses supported by the geocoder. The user chooses from a short list of Cyprus/Paphos-constrained matches; the application never silently selects among multiple plausible locations.
+Manual search accepts areas, municipalities, streets, landmarks, hotels, and addresses supported by the geocoder in the selected district. The selected district is sent with the search text, and the user chooses from a short list of Cyprus results verified against that district; the application never silently selects among multiple plausible locations.
 
-Distance ordering is limited to pharmacies with verified map coordinates. Pharmacies without coordinates remain visible without a distance, and the UI must not imply that the ordered subset is globally nearest among every Paphos pharmacy.
+Distance ordering is limited to pharmacies with verified map coordinates. Pharmacies without coordinates remain visible without a distance, and the UI must not imply that the ordered subset is globally nearest among every pharmacy in the selected district.
 
 Once the user chooses GPS or a manual area/address, that origin persists while switching between All, On Duty, Today, and Tomorrow. On Duty results use the same trusted pharmacy coordinates and sort known distances nearest-first, followed by every pharmacy without coordinates. Filter/day changes never request device location again; only an explicit location-button tap may do so.
 
-For the current Paphos reconciliation, only a fresh Google Places exact identity match may be preferred for distance and Directions. Probable or ambiguous Places candidates are never used silently. Existing independently accepted coordinate enrichment remains available as fallback, and the displayed pharmacy identity/address always remains the official Cyprus record.
+For the current Paphos reconciliation, only a fresh Google Places exact identity match may be preferred for distance and Directions. Probable or ambiguous Places candidates are never used silently. Existing independently accepted coordinate enrichment remains available as fallback. Pharmacy identity and the canonical address always remain the official Cyprus record. Greek displays the canonical name and address; English uses deterministic Latin transliteration, Russian uses deterministic Cyrillic transliteration, and Arabic uses deterministic Arabic-script transliteration. When a Greek segment cannot be transliterated by the supported mapping, the UI preserves that canonical segment rather than inventing a translation.
 
 ## Day and filter behavior
 

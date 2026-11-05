@@ -1,4 +1,5 @@
 import type { GeocodeQuality } from "../domain/types";
+import type { LocationSearchDistrict } from "../location/manual-search";
 import {
   coordinatesInBounds,
   geocodingHouseNumbers,
@@ -17,6 +18,42 @@ export const PAPHOS_DISTRICT_BOUNDS = {
   north: 35.2,
   west: 32.2,
   east: 32.82,
+};
+
+const LOCATION_SEARCH_DISTRICT_CONFIG: Record<
+  LocationSearchDistrict,
+  { isoCode: string; queryName: string; aliases: string[]; bias: string }
+> = {
+  Nicosia: {
+    isoCode: "CY-01",
+    queryName: "Nicosia District",
+    aliases: ["Nicosia", "Lefkosia", "Λευκωσία", "Επαρχία Λευκωσίας"],
+    bias: "proximity:33.3823,35.1856",
+  },
+  Larnaca: {
+    isoCode: "CY-03",
+    queryName: "Larnaca District",
+    aliases: ["Larnaca", "Larnaka", "Λάρνακα", "Επαρχία Λάρνακας"],
+    bias: "proximity:33.6232,34.9182",
+  },
+  Limassol: {
+    isoCode: "CY-02",
+    queryName: "Limassol District",
+    aliases: ["Limassol", "Lemesos", "Λεμεσός", "Επαρχία Λεμεσού"],
+    bias: "proximity:33.0444,34.6786",
+  },
+  Paphos: {
+    isoCode: "CY-05",
+    queryName: "Paphos District",
+    aliases: ["Paphos", "Pafos", "Επαρχία Πάφου"],
+    bias: "proximity:32.425,34.775",
+  },
+  Famagusta: {
+    isoCode: "CY-04",
+    queryName: "Famagusta District",
+    aliases: ["Famagusta", "Ammochostos", "Αμμόχωστος", "Επαρχία Αμμοχώστου"],
+    bias: "proximity:33.985,35.039",
+  },
 };
 
 export interface GeoapifyResult {
@@ -118,44 +155,71 @@ function paphosRectangleFilter(): string {
 export function buildGeoapifySearchUrl(
   query: string,
   apiKey: string,
-  options: { limit?: number; language?: string } = {},
+  options: {
+    limit?: number;
+    language?: string;
+    district?: LocationSearchDistrict;
+  } = {},
 ): string {
   const url = new URL(GEOAPIFY_ENDPOINT);
   url.searchParams.set("text", query);
   url.searchParams.set("format", "json");
-  url.searchParams.set("filter", paphosRectangleFilter());
-  url.searchParams.set("bias", "proximity:32.425,34.775");
+  if (options.district) {
+    const config = LOCATION_SEARCH_DISTRICT_CONFIG[options.district];
+    url.searchParams.set(
+      "filter",
+      options.district === "Paphos" ? paphosRectangleFilter() : "countrycode:cy",
+    );
+    url.searchParams.set("bias", config.bias);
+  } else {
+    url.searchParams.set("filter", paphosRectangleFilter());
+    url.searchParams.set("bias", LOCATION_SEARCH_DISTRICT_CONFIG.Paphos.bias);
+  }
   url.searchParams.set("limit", String(options.limit ?? 5));
   url.searchParams.set("lang", options.language ?? "en");
   url.searchParams.set("apiKey", apiKey);
   return url.toString();
 }
 
-export function buildManualLocationQuery(value: string): string {
+export function buildManualLocationQuery(
+  value: string,
+  district: LocationSearchDistrict = "Paphos",
+): string {
   const trimmed = value.trim().replace(/\s+/g, " ");
-  return `${trimmed}, Paphos District, Cyprus`;
+  return `${trimmed}, ${LOCATION_SEARCH_DISTRICT_CONFIG[district].queryName}, Cyprus`;
 }
 
-function resultIsInPaphos(result: GeoapifyResult): boolean {
+function resultIsInLocationDistrict(
+  result: GeoapifyResult,
+  district: LocationSearchDistrict,
+): boolean {
   if (
     result.country_code?.toLocaleLowerCase("en") !== "cy" ||
     !Number.isFinite(result.lat) ||
-    !Number.isFinite(result.lon) ||
-    !coordinatesInBounds(result.lat, result.lon, PAPHOS_DISTRICT_BOUNDS)
+    !Number.isFinite(result.lon)
   ) {
     return false;
   }
 
-  if (result.iso3166_2) return result.iso3166_2.toLocaleUpperCase("en") === "CY-05";
+  const config = LOCATION_SEARCH_DISTRICT_CONFIG[district];
+  if (result.iso3166_2) {
+    return result.iso3166_2.toLocaleUpperCase("en") === config.isoCode;
+  }
 
   const districtText = normalizeGeocodingText(
     [result.state, result.state_district, result.county].filter(Boolean).join(" "),
   );
-  return textContainsGeocodingAlias(districtText, [
-    "Paphos",
-    "Pafos",
-    "Επαρχία Πάφου",
-  ]);
+  return textContainsGeocodingAlias(districtText, config.aliases);
+}
+
+function resultIsInPaphos(result: GeoapifyResult): boolean {
+  if (
+    !resultIsInLocationDistrict(result, "Paphos") ||
+    !coordinatesInBounds(result.lat, result.lon, PAPHOS_DISTRICT_BOUNDS)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function specificLocalityText(result: GeoapifyResult): string {
@@ -342,12 +406,16 @@ export function reconcileGeoapifyResults(
 
 export function manualLocationSuggestions(
   results: GeoapifyResult[],
+  district: LocationSearchDistrict = "Paphos",
 ): ManualLocationSuggestion[] {
   const seen = new Set<string>();
   const coarseTypes = new Set(["country", "state", "county"]);
 
   return results.flatMap((result) => {
-    if (!resultIsInPaphos(result) || coarseTypes.has(result.result_type ?? "")) return [];
+    if (
+      !resultIsInLocationDistrict(result, district) ||
+      coarseTypes.has(result.result_type ?? "")
+    ) return [];
     const key = `${result.place_id}:${result.lat.toFixed(5)}:${result.lon.toFixed(5)}`;
     if (seen.has(key)) return [];
     seen.add(key);

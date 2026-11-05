@@ -9,11 +9,11 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - `Asia/Nicosia` day windows, half-open interval logic, separate open/duty/on-call derivation, and focused automated tests.
 - Cyprus Pharmaceutical Services ingestion pipeline for the current private-pharmacy directory and duty rota resources through April 2027.
 - Registration-number identity, pragmatic provenance, idempotent upsert keys, validation/reporting, and a checked-in normalized snapshot.
-- All published districts retained in data; the UI remains Paphos-only and displays 90 real pharmacy identities with applicable official date-only assignments.
+- Five first-class district views for Nicosia, Limassol, Larnaca, Famagusta, and Paphos, with each selection consistently scoping pharmacy lists, counts, text results, and manual-location lookup against the national official snapshot.
 - Nullable coordinates, address-based Directions, and no persisted generated schedule modes.
 - Reproducible Paphos-only Nominatim enrichment with cached raw results, conservative ambiguity handling, separate coordinate provenance, and eight accepted precise matches.
 - Geoapify second-provider reconciliation for the 82 unresolved records, with 20 additional accepted coordinates, retained provider/source provenance, and conservative rejection of reused geometries and non-pharmacy amenities.
-- Three optional proximity paths—GPS, explicit manual Paphos location selection, or browse-all—using transient `searchOrigin` state and no GPS persistence.
+- Three optional proximity paths—GPS, explicit manual location selection within the selected district, or browse-all—using transient `searchOrigin` state and no GPS persistence.
 - Located results sorted nearest-first with unknown distances retained, human-readable distance, a nearest-10 progressive reveal for All, and untruncated On Duty results.
 - Full 90-record Paphos Google Places API (New) reconciliation using official-phone-first identity evidence: 81 exact matches, 3 probable, 3 ambiguous, and 3 no match.
 - A 30-day expiring Google content/coordinate cache with day-25 manual refresh, durable Place IDs, exact-only runtime trust, and unchanged Geoapify/Nominatim fallback data.
@@ -42,7 +42,7 @@ Supporting data work remains deliberately source-led: integrate an official per-
 
 ## LATER — expansion and B2B
 
-- Add district selection when product scope expands beyond Paphos.
+- Extend trusted coordinate enrichment beyond the current separately sourced Paphos cohort only when equivalent provenance and reconciliation safeguards are available.
 - Pharmacy verification and business accounts.
 - Pharmacy profile, product, and service information.
 - Push notifications, SEO pages, and privacy-respecting analytics.

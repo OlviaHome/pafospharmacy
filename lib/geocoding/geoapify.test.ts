@@ -128,6 +128,67 @@ describe("Geoapify pharmacy reconciliation", () => {
 });
 
 describe("Geoapify manual location results", () => {
+  it.each([
+    ["Nicosia", "CY-01", "Nicosia District", 35.18, 33.38],
+    ["Larnaca", "CY-03", "Larnaca District", 34.92, 33.62],
+    ["Limassol", "CY-02", "Limassol District", 34.68, 33.04],
+    ["Paphos", "CY-05", "Paphos District", 34.77, 32.42],
+    ["Famagusta", "CY-04", "Famagusta District", 35.04, 33.98],
+  ] as const)(
+    "scopes and validates manual suggestions for %s",
+    (district, isoCode, state, lat, lon) => {
+      const url = new URL(
+        buildGeoapifySearchUrl(
+          buildManualLocationQuery("Makariou Avenue", district),
+          "server-secret",
+          { district },
+        ),
+      );
+      const matching = result({
+        formatted: `${district} match`,
+        iso3166_2: isoCode,
+        state,
+        lat,
+        lon,
+        result_type: "street",
+      });
+      const wrongDistrict =
+        district === "Paphos"
+          ? result({
+              place_id: "wrong-district",
+              iso3166_2: "CY-01",
+              state: "Nicosia District",
+              lat: 35.18,
+              lon: 33.38,
+            })
+          : result({ place_id: "wrong-district" });
+
+      expect(url.searchParams.get("text")).toBe(
+        `Makariou Avenue, ${district} District, Cyprus`,
+      );
+      expect(url.searchParams.get("filter")).toBe(
+        district === "Paphos"
+          ? "rect:32.2,34.54,32.82,35.2"
+          : "countrycode:cy",
+      );
+      expect(url.searchParams.get("bias")).toMatch(/^proximity:/);
+      expect(
+        manualLocationSuggestions(
+          [matching, wrongDistrict],
+          district,
+        ),
+      ).toEqual([
+        {
+          resultIdentifier: "geoapify-result-1",
+          label: `${district} match`,
+          latitude: lat,
+          longitude: lon,
+          resultType: "street",
+        },
+      ]);
+    },
+  );
+
   it("returns explicit Paphos suggestions for user disambiguation", () => {
     expect(
       manualLocationSuggestions([

@@ -4,7 +4,9 @@ import {
   MANUAL_SEARCH_DEBOUNCE_MILLISECONDS,
   MANUAL_SUGGESTION_LIMIT,
   MINIMUM_MANUAL_QUERY_CHARACTERS,
+  LOCATION_SEARCH_DISTRICTS,
   SessionManualLocationLookup,
+  isLocationSearchDistrict,
   isManualSearchCancellation,
   normalizeManualLocationQuery,
 } from "./manual-search";
@@ -18,6 +20,15 @@ describe("manual location request budget", () => {
     expect(MINIMUM_MANUAL_QUERY_CHARACTERS).toBe(3);
     expect(MANUAL_SEARCH_DEBOUNCE_MILLISECONDS).toBe(400);
     expect(MANUAL_SUGGESTION_LIMIT).toBe(3);
+    expect(LOCATION_SEARCH_DISTRICTS).toEqual([
+      "Nicosia",
+      "Larnaca",
+      "Limassol",
+      "Paphos",
+      "Famagusta",
+    ]);
+    expect(isLocationSearchDistrict("Limassol")).toBe(true);
+    expect(isLocationSearchDistrict("Kyrenia")).toBe(false);
   });
 
   it("normalizes repeated queries for session caching", () => {
@@ -80,5 +91,23 @@ describe("manual location request budget", () => {
       "Chloraka",
     ]);
     expect(request).toHaveBeenCalledOnce();
+  });
+
+  it("keeps identical queries isolated between district scopes", async () => {
+    vi.useFakeTimers();
+    const lookup = new SessionManualLocationLookup<string[]>();
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(["Paphos result"])
+      .mockResolvedValueOnce(["Limassol result"]);
+
+    const paphos = lookup.lookup("Makariou", request, "Paphos");
+    await vi.advanceTimersByTimeAsync(400);
+    await expect(paphos).resolves.toEqual(["Paphos result"]);
+
+    const limassol = lookup.lookup("Makariou", request, "Limassol");
+    await vi.advanceTimersByTimeAsync(400);
+    await expect(limassol).resolves.toEqual(["Limassol result"]);
+    expect(request).toHaveBeenCalledTimes(2);
   });
 });

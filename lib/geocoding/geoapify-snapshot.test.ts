@@ -21,9 +21,18 @@ const nominatimSnapshot = nominatimSnapshotJson as unknown as GeocodingSnapshot;
 
 describe("checked-in Geoapify Paphos reconciliation", () => {
   it("attempts exactly the pharmacies unresolved by the first provider", () => {
+    const activeRegistrations = new Set(
+      officialSnapshot.pharmacies
+        .filter((pharmacy) => pharmacy.district === "Paphos")
+        .map((pharmacy) => pharmacy.officialRegistrationNumber),
+    );
     const nominatimAccepted = new Set(
       nominatimSnapshot.records
-        .filter((record) => record.status === "accepted")
+        .filter(
+          (record) =>
+            record.status === "accepted" &&
+            activeRegistrations.has(record.officialRegistrationNumber),
+        )
         .map((record) => record.officialRegistrationNumber),
     );
     const expected = officialSnapshot.pharmacies
@@ -33,11 +42,29 @@ describe("checked-in Geoapify Paphos reconciliation", () => {
           !nominatimAccepted.has(pharmacy.officialRegistrationNumber),
       )
       .map((pharmacy) => pharmacy.officialRegistrationNumber);
+    const registrationsWithoutHistoricalFallbackLookup = new Set([
+      "1430",
+      "1433",
+      "1434",
+      "1438",
+      "1439",
+    ]);
+    const activeGeoapifyRecords = geoapifySnapshot.records.filter((record) =>
+      activeRegistrations.has(record.officialRegistrationNumber),
+    );
 
-    expect(geoapifySnapshot.records.map((record) => record.officialRegistrationNumber)).toEqual(
-      expected,
+    expect(activeGeoapifyRecords.map((record) => record.officialRegistrationNumber)).toEqual(
+      expected.filter(
+        (registration) =>
+          !registrationsWithoutHistoricalFallbackLookup.has(registration),
+      ),
     );
     expect(geoapifySnapshot.records).toHaveLength(82);
+    expect(
+      geoapifySnapshot.records
+        .filter((record) => !activeRegistrations.has(record.officialRegistrationNumber))
+        .map((record) => record.officialRegistrationNumber),
+    ).toEqual(["731", "1332"]);
   });
 
   it("matches the current query, conservative reconciler, duplicate guard, and report", () => {
@@ -49,9 +76,9 @@ describe("checked-in Geoapify Paphos reconciliation", () => {
     );
     const reconciled = geoapifySnapshot.records.map((record) => {
       const pharmacy = pharmacies.get(record.officialRegistrationNumber);
-      expect(pharmacy).toBeDefined();
-      expect(record.query).toBe(buildGeocodingQuery(pharmacy!));
-      const result = reconcileGeoapifyResults(pharmacy!, record.providerResults);
+      if (!pharmacy) return record;
+      expect(record.query).toBe(buildGeocodingQuery(pharmacy));
+      const result = reconcileGeoapifyResults(pharmacy, record.providerResults);
       return {
         ...record,
         status: result.status,

@@ -1,6 +1,21 @@
 export const MINIMUM_MANUAL_QUERY_CHARACTERS = 3;
 export const MANUAL_SEARCH_DEBOUNCE_MILLISECONDS = 400;
 export const MANUAL_SUGGESTION_LIMIT = 3;
+export const LOCATION_SEARCH_DISTRICTS = [
+  "Nicosia",
+  "Larnaca",
+  "Limassol",
+  "Paphos",
+  "Famagusta",
+] as const;
+
+export type LocationSearchDistrict = (typeof LOCATION_SEARCH_DISTRICTS)[number];
+
+export function isLocationSearchDistrict(
+  value: unknown,
+): value is LocationSearchDistrict {
+  return LOCATION_SEARCH_DISTRICTS.includes(value as LocationSearchDistrict);
+}
 
 export function normalizeManualLocationQuery(value: string): string {
   return value
@@ -34,12 +49,14 @@ export class SessionManualLocationLookup<Result> {
   lookup(
     query: string,
     request: (signal: AbortSignal) => Promise<Result>,
+    cacheScope = "",
   ): Promise<Result> {
     const normalizedQuery = normalizeManualLocationQuery(query);
+    const cacheKey = `${cacheScope}:${normalizedQuery}`;
     this.cancel();
 
-    if (this.cache.has(normalizedQuery)) {
-      return Promise.resolve(this.cache.get(normalizedQuery)!);
+    if (this.cache.has(cacheKey)) {
+      return Promise.resolve(this.cache.get(cacheKey)!);
     }
 
     const generation = ++this.generation;
@@ -52,7 +69,7 @@ export class SessionManualLocationLookup<Result> {
         try {
           const result = await request(controller.signal);
           if (controller.signal.aborted || this.generation !== generation) return;
-          this.cache.set(normalizedQuery, result);
+          this.cache.set(cacheKey, result);
           resolve(result);
         } catch (error) {
           reject(error);

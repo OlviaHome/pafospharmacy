@@ -14,7 +14,7 @@ import { ru } from "@/lib/i18n/locales/ru";
 vi.mock("next/navigation", () => ({
   usePathname: () => "/en/about",
   useSearchParams: () => new URLSearchParams(),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }),
 }));
 
 const dictionaries = [en, el, ru, ar] as const;
@@ -51,7 +51,12 @@ describe("localized legal and information pages", () => {
     expect(document.body.textContent).toContain(
       "strictly necessary cookie named “paphos_locale”",
     );
-    expect(screen.getByText(/Apart from the necessary language-preference cookie/)).toBeTruthy();
+    expect(document.body.textContent).toContain(
+      "one local browser marker for up to six months",
+    );
+    expect(document.body.textContent).toContain(
+      "contains no coordinates or location-permission status",
+    );
     expect(
       screen.getByRole("heading", { level: 2, name: "Vercel Web Analytics" }),
     ).toBeTruthy();
@@ -117,5 +122,32 @@ describe("localized legal and information pages", () => {
     expect(
       screen.getByRole("link", { name: ar.footer.dataSources }).getAttribute("href"),
     ).toBe("/ar/data-sources");
+  });
+
+  it("keeps official source, rule, attribution, and finder navigation reachable", () => {
+    render(
+      <LocalizedContentPage locale="en" dictionary={en} page={en.pages.dataSources} />,
+    );
+
+    expect(
+      screen
+        .getByRole("link", {
+          name: "Cyprus Pharmaceutical Services 2026 open-data release",
+        })
+        .getAttribute("href"),
+    ).toBe("https://www.data.gov.cy/en/dataset/817");
+    expect(screen.getByRole("link", { name: "CC BY 4.0" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Cyprus pharmacy-hours order" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", {
+        name: "Cyprus Pharmaceutical Services 2026 duty-hours notice",
+      }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "© OpenStreetMap contributors" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Powered by Geoapify" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Google Maps" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: en.backToFinder }).getAttribute("href")).toBe(
+      "/en",
+    );
   });
 });

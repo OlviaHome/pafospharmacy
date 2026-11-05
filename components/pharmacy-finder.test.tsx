@@ -5,9 +5,10 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Pharmacy } from "@/lib/domain/types";
 import { ar } from "@/lib/i18n/locales/ar";
@@ -21,10 +22,41 @@ import { PharmacyFinder } from "./pharmacy-finder";
 vi.mock("next/navigation", () => ({
   usePathname: () => "/en",
   useSearchParams: () => new URLSearchParams(),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }),
 }));
 
 const generatedAt = "2026-09-01T10:00:00.000Z";
+const locationIntroStorageKey = "pharmacy_location_intro_v1";
+const supportedDistricts = [
+  "Nicosia",
+  "Limassol",
+  "Larnaca",
+  "Famagusta",
+  "Paphos",
+] as const;
+
+beforeEach(() => {
+  const values = new Map<string, string>();
+  const localStorage = {
+    get length() {
+      return values.size;
+    },
+    clear: vi.fn(() => values.clear()),
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    key: vi.fn((index: number) => [...values.keys()][index] ?? null),
+    removeItem: vi.fn((key: string) => values.delete(key)),
+    setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+  } satisfies Storage;
+
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: localStorage,
+  });
+  window.localStorage.setItem(
+    locationIntroStorageKey,
+    JSON.stringify({ version: 1, shownAt: new Date().toISOString() }),
+  );
+});
 
 function expectPageText(text: string) {
   expect(document.body.textContent).toContain(text);
@@ -74,6 +106,10 @@ function pharmacy(
 }
 
 function renderFinder(pharmacies: Pharmacy[], now = generatedAt) {
+  window.localStorage.setItem(
+    locationIntroStorageKey,
+    JSON.stringify({ version: 1, shownAt: new Date().toISOString() }),
+  );
   return render(
     <PharmacyFinder
       pharmacies={pharmacies}
@@ -94,6 +130,10 @@ function renderLocalizedFinder(
   pharmacies: Pharmacy[],
   now = generatedAt,
 ) {
+  window.localStorage.setItem(
+    locationIntroStorageKey,
+    JSON.stringify({ version: 1, shownAt: new Date().toISOString() }),
+  );
   return render(
     <div lang={dictionary.locale} dir={dictionary.locale === "ar" ? "rtl" : "ltr"}>
       <PharmacyFinder
@@ -130,7 +170,139 @@ function installGeolocation(
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   Reflect.deleteProperty(window.navigator, "geolocation");
+  Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+  window.localStorage.clear();
+  vi.useRealTimers();
+});
+
+describe("PharmacyFinder location introduction", () => {
+  function renderIntroFinder(dictionary: TranslationDictionary = en) {
+    return render(
+      <div lang={dictionary.locale} dir={dictionary.locale === "ar" ? "rtl" : "ltr"}>
+        <PharmacyFinder
+          pharmacies={[pharmacy(`${dictionary.locale}-intro`)]}
+          source="official_snapshot"
+          generatedAt={generatedAt}
+          ordinaryOpeningDataAvailable={false}
+          attribution={null}
+          coordinateAttributions={[]}
+          locale={dictionary.locale}
+          messages={dictionary.finder}
+          languageLabel={dictionary.languageSelectorLabel}
+        />
+      </div>,
+    );
+  }
+
+  function renderFirstVisit(dictionary: TranslationDictionary = en) {
+    window.localStorage.removeItem(locationIntroStorageKey);
+    return renderIntroFinder(dictionary);
+  }
+
+  it("shows once, stores a dated marker, and stays hidden on reload", async () => {
+    const firstRender = renderFirstVisit();
+
+    expect(
+      await screen.findByRole("dialog", { name: en.finder.locationIntroTitle }),
+    ).toBeTruthy();
+    const marker = JSON.parse(
+      window.localStorage.getItem(locationIntroStorageKey) ?? "null",
+    ) as { version: number; shownAt: string };
+    expect(marker.version).toBe(1);
+    expect(Number.isFinite(new Date(marker.shownAt).getTime())).toBe(true);
+
+    firstRender.unmount();
+    renderIntroFinder();
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  });
+
+  it("shows again when the marker is older than six calendar months", async () => {
+    const staleDate = new Date();
+    staleDate.setUTCMonth(staleDate.getUTCMonth() - 7);
+    window.localStorage.setItem(
+      locationIntroStorageKey,
+      JSON.stringify({ version: 1, shownAt: staleDate.toISOString() }),
+    );
+    renderIntroFinder();
+
+    expect(
+      await screen.findByRole("dialog", { name: en.finder.locationIntroTitle }),
+    ).toBeTruthy();
+  });
+
+  it("uses the existing location request only after Yes", async () => {
+    const getCurrentPosition = installGeolocation();
+    renderFirstVisit();
+    expect(
+      await screen.findByRole("dialog", { name: en.finder.locationIntroTitle }),
+    ).toBeTruthy();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: en.finder.locationIntroYes }));
+
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText(en.finder.yourLocation)).toBeTruthy();
+  });
+
+  it("closes on Later or Escape without requesting location", async () => {
+    const getCurrentPosition = installGeolocation();
+    const laterRender = renderFirstVisit();
+    await screen.findByRole("dialog", { name: en.finder.locationIntroTitle });
+    fireEvent.click(screen.getByRole("button", { name: en.finder.locationIntroLater }));
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    laterRender.unmount();
+    window.localStorage.removeItem(locationIntroStorageKey);
+    renderFirstVisit();
+    const dialog = await screen.findByRole("dialog", {
+      name: en.finder.locationIntroTitle,
+    });
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it.each([en, ru, el, ar] as const)(
+    "renders localized accessible copy in $locale",
+    async (dictionary) => {
+      renderFirstVisit(dictionary);
+      const dialog = await screen.findByRole("dialog", {
+        name: dictionary.finder.locationIntroTitle,
+      });
+      expect(dialog.closest("[dir]")?.getAttribute("dir")).toBe(
+        dictionary.locale === "ar" ? "rtl" : "ltr",
+      );
+      expect(screen.getByText(dictionary.finder.locationIntroBody)).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: dictionary.finder.locationIntroYes }),
+      ).toBeTruthy();
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          screen.getByRole("button", { name: dictionary.finder.locationIntroYes }),
+        );
+      });
+    },
+  );
+
+  it("keeps working when localStorage is unavailable", async () => {
+    vi.spyOn(window.localStorage, "getItem").mockImplementation(() => {
+      throw new Error("storage blocked");
+    });
+    vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw new Error("storage blocked");
+    });
+
+    renderFirstVisit();
+    expect(
+      await screen.findByRole("dialog", { name: en.finder.locationIntroTitle }),
+    ).toBeTruthy();
+  });
 });
 
 describe("PharmacyFinder location controls", () => {
@@ -189,10 +361,16 @@ describe("PharmacyFinder location controls", () => {
     );
 
     expect(
-      screen.getByText(
-        /Find open and on-duty pharmacies in Paphos using official Cyprus pharmacy and duty data/,
-      ),
+      screen.getByRole("heading", {
+        level: 2,
+        name: /Official duty schedule across Cyprus · 1 Oct 2026 — 30 Apr 2027/,
+      }),
     ).toBeTruthy();
+    expect(screen.getAllByRole("link", { name: "About" }).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("link", { name: "Info" }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("combobox", { name: "Language" })).toBeTruthy();
     expect(screen.queryByText(/Official directory/)).toBeNull();
     expect(screen.getByText(/Published schedules may not reflect exceptional same-day closures/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "CC BY 4.0" })).toBeTruthy();
@@ -221,18 +399,45 @@ describe("PharmacyFinder location controls", () => {
       />,
     );
 
-    expect(markup).toContain("Find pharmacies near you");
+    expect(markup).toContain("Find an open pharmacy now");
     expect(markup).toContain("Use my location");
-    expect(markup).toContain("Enter area or address");
-    expect(markup).toContain(
-      "You can also browse all pharmacies without sharing your location.",
-    );
+    expect(markup).toContain("District, address, or pharmacy name");
+    expect(markup).not.toContain("You can also browse all pharmacies without sharing your location.");
     expect(markup).toContain("Pharmacy 1");
     expect(markup).toContain('href="tel:+35726000000"');
     expect(markup).not.toContain("facetime:");
     expect(markup).not.toContain("facetime-audio:");
     expect(markup).not.toContain("PRIVATE-HOUSE-99111111");
     expect(markup).not.toContain("+35799111111");
+  });
+
+  it("preserves progressive reveal only for located All results", () => {
+    installGeolocation();
+    renderFinder(
+      Array.from({ length: 12 }, (_, index) =>
+        pharmacy(`progressive-${index + 1}`, {
+          latitude: 34.77 + index * 0.001,
+          longitude: 32.42,
+        }),
+      ),
+    );
+
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(12);
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(10);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all 12 pharmacies" }));
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(12);
+  });
+
+  it("preserves explicit unknown-data messaging outside supported schedule coverage", () => {
+    renderFinder(
+      [pharmacy("unsupported", { dutyAssignments: [] })],
+      "2027-01-04T10:00:00.000Z",
+    );
+
+    expect(screen.getByText("HOURS UNAVAILABLE")).toBeTruthy();
+    expect(screen.getByText("Hours are unavailable for this day.")).toBeTruthy();
   });
 
   it("keeps a GPS origin and distance when switching to On Duty", () => {
@@ -277,7 +482,11 @@ describe("PharmacyFinder location controls", () => {
       );
 
       expect(screen.getByText(disclosure)).toBeTruthy();
-      expect(screen.getByText(/^≈ /)).toBeTruthy();
+      const distanceValue = screen.getByText(/^≈ /);
+      expect(distanceValue.className).toContain("whitespace-nowrap");
+      expect(distanceValue.nextElementSibling?.textContent).toContain(
+        `·\u00a0${disclosure}`,
+      );
     },
   );
 
@@ -301,9 +510,8 @@ describe("PharmacyFinder location controls", () => {
     );
     renderFinder([pharmacy("manual", { latitude: 34.881, longitude: 32.381 })]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Enter area or address" }));
     fireEvent.change(
-      screen.getByLabelText("Hotel, area, landmark, or address in Paphos"),
+      screen.getByLabelText("District, address, or pharmacy name"),
       { target: { value: "Peyia" } },
     );
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
@@ -338,6 +546,27 @@ describe("PharmacyFinder location controls", () => {
     expect(screen.getAllByText(/^≈ /)).toHaveLength(2);
   });
 
+  it("keeps pharmacies without coordinates visible and labels distance only when calculable", () => {
+    installGeolocation();
+    renderFinder([
+      pharmacy("known-coordinate", { latitude: 34.771, longitude: 32.421 }),
+      pharmacy("unknown-coordinate", { latitude: null, longitude: null }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+
+    expect(screen.getByRole("heading", { name: "Pharmacy known-coordinate" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Pharmacy unknown-coordinate" })).toBeTruthy();
+    const distanceValue = screen.getByText(/^≈ /);
+    expect(distanceValue.className).toContain("whitespace-nowrap");
+    expect(distanceValue.nextElementSibling?.textContent).toContain(
+      "·\u00a0Distance is measured in a straight line.",
+    );
+    expectPageText(
+      "Distance is measured in a straight line. The actual walking or driving route may be longer.",
+    );
+  });
+
   it("keeps the normal duty order when no search origin exists", () => {
     renderFinder([
       pharmacy("far", { latitude: 35.03, longitude: 32.42 }),
@@ -353,6 +582,308 @@ describe("PharmacyFinder location controls", () => {
         .map((heading) => heading.textContent),
     ).toEqual(["Pharmacy far", "Pharmacy unknown", "Pharmacy near"]);
     expect(screen.queryAllByText(/^≈ /)).toHaveLength(0);
+  });
+
+  it("switches the shared pharmacy list and metadata between districts", () => {
+    renderFinder([
+      pharmacy("paphos"),
+      pharmacy("nicosia", {
+        district: "Nicosia",
+        locality: "Nicosia",
+        addressLine: "2 Capital Street",
+        dutyAssignments: [],
+      }),
+    ]);
+
+    expect(screen.getByRole("heading", { name: "Pharmacy paphos" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Pharmacy nicosia" })).toBeNull();
+    expect(document.getElementById("results-heading")?.textContent).toContain(
+      "Paphos · Tue 1 Sept · 1 pharmacy · 1 on duty",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+
+    expect(screen.getByRole("heading", { name: "Pharmacy nicosia" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Pharmacy paphos" })).toBeNull();
+    expect(document.getElementById("results-heading")?.textContent).toContain(
+      "Nicosia · Tue 1 Sept · 1 pharmacy · 0 on duty",
+    );
+  });
+
+  it("keeps one non-color selected tab visible in the local scroll region", () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    renderFinder([
+      pharmacy("paphos-tab"),
+      pharmacy("nicosia-tab", { district: "Nicosia", locality: "Nicosia" }),
+    ]);
+    scrollIntoView.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+
+    const selectedTabs = screen
+      .getAllByRole("button")
+      .filter((button) => button.getAttribute("data-district-tab"))
+      .filter((button) => button.getAttribute("aria-pressed") === "true");
+    expect(selectedTabs).toHaveLength(1);
+    expect(selectedTabs[0].className).toContain("after:h-0.5");
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "nearest",
+      inline: "nearest",
+    });
+  });
+
+  it.each(supportedDistricts)(
+    "keeps list, counts, filters, search, and empty state scoped to %s",
+    (selectedDistrict) => {
+      renderFinder(
+        supportedDistricts.map((district) =>
+          pharmacy(district.toLocaleLowerCase("en"), {
+            district,
+            locality: district,
+            addressLine: `${district} unique address`,
+          }),
+        ),
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: selectedDistrict }));
+      expect(
+        screen.getByRole("button", { name: selectedDistrict }).getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
+      expect(
+        screen.getByRole("heading", {
+          name: `Pharmacy ${selectedDistrict.toLocaleLowerCase("en")}`,
+        }),
+      ).toBeTruthy();
+      expect(document.getElementById("results-heading")?.textContent).toContain(
+        `${selectedDistrict} · Tue 1 Sept · 1 pharmacy · 1 on duty`,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "On Duty" }));
+      expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
+      fireEvent.click(screen.getByRole("button", { name: "All" }));
+      fireEvent.change(
+        screen.getByLabelText("District, address, or pharmacy name"),
+        { target: { value: "No pharmacy here" } },
+      );
+      expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
+
+      fireEvent.change(
+        screen.getByLabelText("District, address, or pharmacy name"),
+        { target: { value: `${selectedDistrict} unique` } },
+      );
+      expect(
+        screen.getByRole("heading", {
+          name: `Pharmacy ${selectedDistrict.toLocaleLowerCase("en")}`,
+        }),
+      ).toBeTruthy();
+
+      fireEvent.click(screen.getByRole("button", { name: "Tomorrow" }));
+      expect(document.getElementById("results-heading")?.textContent).toContain(
+        `${selectedDistrict} · Wed 2 Sept · 1 pharmacy · 0 on duty`,
+      );
+    },
+  );
+
+  it("clears a selected manual origin when the district changes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          suggestions: [
+            {
+              label: "Peyia centre, Paphos, Cyprus",
+              latitude: 34.88,
+              longitude: 32.38,
+              resultIdentifier: "peyia-centre",
+            },
+          ],
+        }),
+      }),
+    );
+    renderFinder([
+      pharmacy("paphos-origin"),
+      pharmacy("limassol-origin", {
+        district: "Limassol",
+        locality: "Limassol",
+      }),
+    ]);
+
+    fireEvent.change(screen.getByLabelText("District, address, or pharmacy name"), {
+      target: { value: "Peyia" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Peyia centre, Paphos, Cyprus" }),
+    );
+    expect(screen.getByText("Peyia centre, Paphos, Cyprus")).toBeTruthy();
+    expect(screen.getByText(/^≈ /)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Limassol" }));
+
+    expect(screen.queryByText("Peyia centre, Paphos, Cyprus")).toBeNull();
+    expect(screen.queryByText(/^≈ /)).toBeNull();
+  });
+
+  it("preserves a GPS origin when the district changes", () => {
+    const getCurrentPosition = installGeolocation();
+    renderFinder([
+      pharmacy("paphos-gps"),
+      pharmacy("nicosia-gps", {
+        district: "Nicosia",
+        locality: "Nicosia",
+        latitude: 35.18,
+        longitude: 33.38,
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+
+    expect(screen.getByText("Your location")).toBeTruthy();
+    expect(screen.getByText(/^≈ /)).toBeTruthy();
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending manual lookup and re-evaluates retained query text", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    renderFinder([
+      pharmacy("paphos-query", { name: "Harbour Pharmacy" }),
+      pharmacy("nicosia-query", {
+        district: "Nicosia",
+        locality: "Nicosia",
+        name: "Capital Pharmacy",
+      }),
+    ]);
+
+    fireEvent.change(screen.getByLabelText("District, address, or pharmacy name"), {
+      target: { value: "Harbour" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      (screen.getByLabelText("District, address, or pharmacy name") as HTMLInputElement)
+        .value,
+    ).toBe("Harbour");
+    expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
+    vi.useRealTimers();
+  });
+
+  it("clears visible manual suggestions and errors on district change", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          suggestions: [
+            {
+              label: "Paphos Harbour",
+              latitude: 34.75,
+              longitude: 32.41,
+              resultIdentifier: "paphos-harbour",
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({}),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    renderFinder([
+      pharmacy("paphos-state"),
+      pharmacy("limassol-state", { district: "Limassol", locality: "Limassol" }),
+    ]);
+
+    fireEvent.change(screen.getByLabelText("District, address, or pharmacy name"), {
+      target: { value: "Paphos Harbour" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(await screen.findByRole("button", { name: "Paphos Harbour" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Limassol" }));
+    expect(screen.queryByRole("button", { name: "Paphos Harbour" })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("District, address, or pharmacy name"), {
+      target: { value: "Limassol Marina" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(await screen.findByText("Location search is temporarily unavailable.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+    expect(
+      screen.queryByText("Location search is temporarily unavailable."),
+    ).toBeNull();
+  });
+
+  it("resets progressive reveal when changing districts", () => {
+    installGeolocation();
+    const pharmacies = supportedDistricts
+      .filter((district) => district === "Paphos" || district === "Limassol")
+      .flatMap((district) =>
+        Array.from({ length: 12 }, (_, index) =>
+          pharmacy(`${district}-${index + 1}`, {
+            district,
+            locality: district,
+            latitude: 34.7 + index * 0.001,
+            longitude: 32.4,
+          }),
+        ),
+      );
+    renderFinder(pharmacies);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show all 12 pharmacies" }));
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(12);
+    fireEvent.click(screen.getByRole("button", { name: "Limassol" }));
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(10);
+  });
+
+  it("filters the selected district immediately from the unified search field", () => {
+    renderFinder([
+      pharmacy("harbour", { name: "Harbour Pharmacy" }),
+      pharmacy("village", { name: "Village Pharmacy", locality: "Peyia" }),
+    ]);
+
+    fireEvent.change(screen.getByLabelText("District, address, or pharmacy name"), {
+      target: { value: "Peyia" },
+    });
+
+    expect(screen.getByRole("heading", { name: "Village Pharmacy" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Harbour Pharmacy" })).toBeNull();
+  });
+
+  it("sends the selected district with manual location searches", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ suggestions: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderFinder([
+      pharmacy("paphos"),
+      pharmacy("limassol", { district: "Limassol", locality: "Limassol" }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Limassol" }));
+    fireEvent.change(screen.getByLabelText("District, address, or pharmacy name"), {
+      target: { value: "Makariou Avenue" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({
+      query: "Makariou Avenue",
+      district: "Limassol",
+    });
   });
 
   it("does not request location again when filters or days change", () => {
@@ -378,20 +909,14 @@ describe("PharmacyFinder official duty hours", () => {
     expect(screen.getByText("OPEN NOW")).toBeTruthy();
     expectPageText("ON DUTY TODAY · UNTIL 23:00");
     expectPageText("After 23:00, urgent prescriptions are handled by phone until 08:00.");
-    expect(screen.getByText("13:30–16:00")).toBeTruthy();
-    expect(screen.getByText("19:30–23:00")).toBeTruthy();
-    expect(
-      screen.getByText(
-        /Open Now uses the official Cyprus regular schedule plus current duty-opening hours/,
-      ),
-    ).toBeTruthy();
+    expectPageText("Open: 08:00–23:00");
   });
 
   it("keeps a scheduled gap on duty without labelling it open", () => {
     renderFinder([pharmacy("gap")], "2026-09-01T04:00:00.000Z");
 
     expectPageText("ON DUTY TODAY · UNTIL 23:00");
-    expectPageText("Mandatory duty opening starts at 13:30.");
+    expectPageText("Open: 08:00–23:00");
     expect(screen.queryByText("OPEN NOW")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
@@ -450,6 +975,37 @@ describe("PharmacyFinder official duty hours", () => {
     expect(screen.queryByText("NIGHT DUTY · CALL FIRST")).toBeNull();
   });
 
+  it("shows conflicting source modes as a call-to-confirm state without hiding hours", () => {
+    renderFinder([
+      pharmacy("conflict", {
+        dutyAssignments: [],
+        intervals: [
+          {
+            id: "conflict-ordinary-open",
+            pharmacyId: "conflict",
+            startsAt: "2026-09-01T09:00:00.000Z",
+            endsAt: "2026-09-01T11:00:00.000Z",
+            scheduleKind: "ordinary",
+            serviceMode: "open",
+          },
+          {
+            id: "conflict-duty-call",
+            pharmacyId: "conflict",
+            startsAt: "2026-09-01T09:00:00.000Z",
+            endsAt: "2026-09-01T11:00:00.000Z",
+            scheduleKind: "duty",
+            serviceMode: "on_call",
+          },
+        ],
+      }),
+    ]);
+
+    expect(screen.getByText(/HOURS CONFLICT — CALL TO CONFIRM/)).toBeTruthy();
+    expect(screen.getByText("Today's hours")).toBeTruthy();
+    expect(screen.getByText("Recorded regular hours · open")).toBeTruthy();
+    expect(screen.getByText("Recorded duty hours · on call")).toBeTruthy();
+  });
+
   it.each([
     [en, "ON DUTY TODAY · UNTIL 22:00", "NIGHT DUTY · CALL FIRST"],
     [el, "ΕΦΗΜΕΡΕΥΕΙ ΣΗΜΕΡΑ · ΕΩΣ ΤΙΣ 22:00", "ΝΥΧΤΕΡΙΝΗ ΕΦΗΜΕΡΙΑ · ΚΑΛΕΣΤΕ ΠΡΩΤΑ"],
@@ -480,17 +1036,99 @@ describe("PharmacyFinder official duty hours", () => {
     renderLocalizedFinder(dictionary, [localizedDuty], "2026-10-01T19:00:00.000Z");
     expect(screen.getAllByText(nightLabel).length).toBeGreaterThan(0);
   });
+
+  it.each([
+    [en, "ON DUTY · THU 5 NOV · UNTIL 22:00"],
+    [el, "ΣΕ ΕΦΗΜΕΡΙΑ · ΠΕΜ 5 ΝΟΕ · ΕΩΣ ΤΙΣ 22:00"],
+    [ru, "ДЕЖУРНАЯ АПТЕКА · ЧТ 5 НОЯБ. · ДО 22:00"],
+    [ar, "في المناوبة · الخميس 5 نوفمبر · حتى 22:00"],
+  ])("shows a localized dated tomorrow duty badge in $locale", (dictionary, badge) => {
+    const tomorrowDuty = pharmacy(`tomorrow-duty-${dictionary.locale}`, {
+      dutyAssignments: [
+        {
+          ...pharmacy("source").dutyAssignments[0],
+          id: `tomorrow-duty-${dictionary.locale}`,
+          pharmacyId: `tomorrow-duty-${dictionary.locale}`,
+          dutyDate: "2026-11-05",
+        },
+      ],
+    });
+
+    renderLocalizedFinder(
+      dictionary,
+      [tomorrowDuty],
+      "2026-11-04T10:00:00.000Z",
+    );
+    fireEvent.click(screen.getByRole("button", { name: dictionary.finder.tomorrow }));
+    fireEvent.click(screen.getByRole("button", { name: dictionary.finder.onDuty }));
+
+    expectPageText(badge);
+    expect(screen.queryByText(dictionary.finder.openNowBadge)).toBeNull();
+  });
+});
+
+describe("PharmacyFinder shared card grid contract", () => {
+  it("groups only adjacent cards and exposes complete semantic regions", () => {
+    const longOfficialAddress =
+      "123 Archbishop Makarios III Avenue, Building Alpha, Ground Floor, Suite 14";
+    const { container } = renderFinder([
+      pharmacy("all-duty-short"),
+      pharmacy("all-duty-long", {
+        name: "A Pharmacy With A Substantially Longer Official Registered Name",
+        addressLine: longOfficialAddress,
+      }),
+      pharmacy("mixed-duty"),
+      pharmacy("mixed-none", { dutyAssignments: [] }),
+      pharmacy("none-short", { dutyAssignments: [] }),
+      pharmacy("none-long", {
+        dutyAssignments: [],
+        addressLine: longOfficialAddress,
+      }),
+    ]);
+
+    const rows = [...container.querySelectorAll<HTMLElement>("[data-card-row]")];
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => row.querySelectorAll("[data-pharmacy-card]").length))
+      .toEqual([2, 2, 2]);
+
+    const cards = [...container.querySelectorAll<HTMLElement>("[data-pharmacy-card]")];
+    expect(cards).toHaveLength(6);
+    for (const card of cards) {
+      expect(card.querySelector('[data-card-region="identity"]')).toBeTruthy();
+      expect(card.querySelector('[data-card-panel="hours"]')).toBeTruthy();
+      expect(card.querySelector('[data-card-region="proximity"]')).toBeTruthy();
+      expect(card.querySelector('[data-card-region="actions"]')).toBeTruthy();
+    }
+
+    expect(rows[0].querySelectorAll('[data-card-panel="duty"]')).toHaveLength(2);
+    expect(rows[1].querySelectorAll('[data-card-panel="duty"]')).toHaveLength(1);
+    expect(rows[2].querySelectorAll('[data-card-panel="duty"]')).toHaveLength(0);
+    expect(rows[2].textContent).not.toContain("ON DUTY TODAY");
+    expect(screen.getAllByText(new RegExp(longOfficialAddress))).toHaveLength(2);
+  });
+
+  it("keeps the natural semantic order for single-column presentation", () => {
+    const { container } = renderFinder([pharmacy("semantic-order")]);
+    const card = container.querySelector<HTMLElement>("[data-pharmacy-card]");
+    expect(card).toBeTruthy();
+    expect(
+      [...card!.querySelectorAll<HTMLElement>("[data-card-region]")].map(
+        (region) => region.dataset.cardRegion,
+      ),
+    ).toEqual(["identity", "duty", "hours", "proximity", "actions"]);
+  });
 });
 
 describe("PharmacyFinder official regular hours", () => {
-  it("shows a regular-schedule pharmacy as open with its closing time", () => {
+  it("shows a regular-schedule pharmacy as open with today's hours", () => {
     renderFinder(
       [pharmacy("ordinary-open", { dutyAssignments: [] })],
       "2026-08-31T07:00:00.000Z",
     );
 
     expect(screen.getByText("OPEN NOW")).toBeTruthy();
-    expectPageText("Regular hours · open until 13:30");
+    expectPageText("Open: 08:00–13:30");
+    expectPageText("Open: 16:00–19:30");
     expect(screen.queryByText("ON DUTY TODAY")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
     expect(screen.getByRole("heading", { name: "Pharmacy ordinary-open" })).toBeTruthy();
@@ -503,7 +1141,8 @@ describe("PharmacyFinder official regular hours", () => {
     );
 
     expect(screen.getByText("CLOSED")).toBeTruthy();
-    expectPageText("Afternoon break · reopens at 16:00");
+    expectPageText("Open: 08:00–13:30");
+    expectPageText("Open: 16:00–19:30");
     fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
     expect(screen.getByText("No pharmacies match this filter")).toBeTruthy();
   });
@@ -515,7 +1154,29 @@ describe("PharmacyFinder official regular hours", () => {
     );
 
     expect(screen.getByText("CLOSED")).toBeTruthy();
-    expect(screen.getByText("Regular hours ended")).toBeTruthy();
+    expectPageText("Open: 08:00–13:30");
+    expectPageText("Open: 16:00–19:30");
+  });
+
+  it("shows both source-backed winter Thursday periods as separate opening lines", () => {
+    renderFinder(
+      [pharmacy("winter-thursday", { dutyAssignments: [] })],
+      "2026-11-05T06:00:00.000Z",
+    );
+
+    expectPageText("Open: 08:00–13:30");
+    expectPageText("Open: 15:00–18:30");
+    expect(screen.queryByText("Open: 08:00–18:30")).toBeNull();
+  });
+
+  it("does not invent an afternoon period on a source-backed Wednesday", () => {
+    renderFinder(
+      [pharmacy("winter-wednesday", { dutyAssignments: [] })],
+      "2026-11-04T06:00:00.000Z",
+    );
+
+    expectPageText("Open: 08:00–13:30");
+    expect(screen.queryByText("Open: 15:00–18:30")).toBeNull();
   });
 
   it("keeps a Sunday ordinary pharmacy closed while a duty pharmacy is open", () => {
@@ -554,20 +1215,102 @@ describe("PharmacyFinder official regular hours", () => {
       }),
     ]);
 
-    expect(screen.getByRole("link", { name: "Call" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "Call: 26 938784" }).getAttribute("href")).toBe(
       "tel:+35726938784",
     );
     expect(screen.getByRole("link", { name: "Directions" }).getAttribute("href")).toBe(
       "https://www.google.com/maps/search/?api=1&query=34.7565252%2C32.4164677",
     );
   });
+
+  it("shows tomorrow's schedule without a live current-time badge", () => {
+    renderFinder(
+      [pharmacy("tomorrow", { dutyAssignments: [] })],
+      "2026-08-31T07:00:00.000Z",
+    );
+
+    expect(screen.getByText("OPEN NOW")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tomorrow" }));
+
+    expect(screen.queryByText("OPEN NOW")).toBeNull();
+    expect(screen.getByText("Tomorrow's hours")).toBeTruthy();
+    expectPageText("Open: 08:00–13:30");
+    expectPageText("Open: 16:00–19:30");
+  });
+
+  it.each([
+    [en, "Open: 08:00–13:30", "Open: 15:00–18:30"],
+    [el, "Ανοικτό: 08:00–13:30", "Ανοικτό: 15:00–18:30"],
+    [ru, "Открыто: 08:00–13:30", "Открыто: 15:00–18:30"],
+    [ar, "مفتوح: 08:00–13:30", "مفتوح: 15:00–18:30"],
+  ])(
+    "uses day-neutral multi-period opening lines in $locale",
+    (dictionary, morning, afternoon) => {
+      renderLocalizedFinder(
+        dictionary,
+        [pharmacy(`periods-${dictionary.locale}`, { dutyAssignments: [] })],
+        "2026-11-05T06:00:00.000Z",
+      );
+
+      expectPageText(morning);
+      expectPageText(afternoon);
+    },
+  );
 });
 
 describe("PharmacyFinder localization", () => {
+  it.each([
+    [en, "Info"],
+    [el, "Πληροφορίες"],
+    [ru, "Информация"],
+    [ar, "معلومات"],
+  ] as const)("uses the concise information label in $locale", (dictionary, label) => {
+    renderLocalizedFinder(dictionary, [pharmacy(`info-${dictionary.locale}`)]);
+
+    expect(screen.getAllByRole("link", { name: label }).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("link", { name: label })[0]?.getAttribute("href"),
+    ).toBe(`/${dictionary.locale}/data-sources`);
+  });
+
+  it.each([en, el, ru, ar])(
+    "renders district, summary, status, hours, and action copy in $locale",
+    (dictionary) => {
+      renderLocalizedFinder(dictionary, [pharmacy(`locale-${dictionary.locale}`)]);
+
+      expect(
+        screen.getByRole("button", { name: dictionary.finder.districtNicosia }),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: dictionary.finder.districtLimassol }),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: dictionary.finder.districtLarnaca }),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: dictionary.finder.districtFamagusta }),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: dictionary.finder.districtPaphos }),
+      ).toBeTruthy();
+      expect(document.getElementById("results-heading")?.textContent).toContain(
+        dictionary.finder.districtPaphos,
+      );
+      expect(screen.getAllByText(dictionary.finder.openNowBadge).length).toBeGreaterThan(0);
+      expect(screen.getByText(dictionary.finder.todayHours)).toBeTruthy();
+      expect(
+        screen.getByRole("link", {
+          name: `${dictionary.finder.call}: 26 000000`,
+        }),
+      ).toBeTruthy();
+      expect(screen.getByRole("link", { name: dictionary.finder.directions })).toBeTruthy();
+    },
+  );
+
   it.each([en, el, ru, ar])(
     "keeps schedule, Call, and Directions semantics unchanged in $locale",
     (dictionary) => {
-      const officialName = "Μάη - Φραγκούδη Ελένη";
+      const officialName = "Παναγιώτου Έλενα";
       const officialAddress = "Λεωφόρος Ελλάδος 1";
       renderLocalizedFinder(
         dictionary,
@@ -586,9 +1329,26 @@ describe("PharmacyFinder localization", () => {
       );
 
       expect(screen.getAllByText(dictionary.finder.openNowBadge).length).toBeGreaterThan(0);
-      expect(screen.getByText(officialName).textContent).toBe(officialName);
-      expect(screen.getByText(new RegExp(officialAddress)).textContent).toContain(officialAddress);
-      expect(screen.getByRole("link", { name: dictionary.finder.call }).getAttribute("href"))
+      const expectedName = {
+        el: "Παναγιώτου Έλενα",
+        en: "Panagiotou Elena",
+        ru: "Панагиоту Елена",
+        ar: "باناغيوتو إلينا",
+      }[dictionary.locale];
+      const expectedAddress =
+        {
+          el: "Λεωφόρος Ελλάδος 1, Πάφος 8010",
+          en: "Leoforos Ellados 1, Pafos 8010",
+          ru: "Леофорос Елладос 1, Пафос 8010",
+          ar: "ليوفوروس إللاذوس 1, بافوس 8010",
+        }[dictionary.locale];
+      expect(screen.getByText(expectedName).textContent).toBe(expectedName);
+      expect(screen.getByText(expectedAddress).textContent).toBe(expectedAddress);
+      expect(
+        screen.getByRole("link", {
+          name: `${dictionary.finder.call}: 26 938784`,
+        }).getAttribute("href"),
+      )
         .toBe("tel:+35726938784");
       expect(
         screen.getByRole("link", { name: dictionary.finder.directions }).getAttribute("href"),
@@ -603,11 +1363,41 @@ describe("PharmacyFinder localization", () => {
     );
 
     expect(container.firstElementChild?.getAttribute("dir")).toBe("rtl");
-    expect(screen.getByText("صيدلية Δοκιμή 607").closest("bdi")?.getAttribute("dir"))
+    expect(screen.getByText("صيدلية ذوكيمي 607").closest("bdi")?.getAttribute("dir"))
       .toBe("auto");
-    expect(screen.getByRole("link", { name: ar.finder.call }).getAttribute("href"))
+    const callLink = screen.getByRole("link", { name: `${ar.finder.call}: 26 000000` });
+    expect(callLink.getAttribute("href"))
       .toBe("tel:+35726000000");
-    expect(screen.getByText("13:30").closest("bdi")?.getAttribute("dir")).toBe("ltr");
+    expect(screen.getByText("26 000000").closest("bdi")?.getAttribute("dir")).toBe("ltr");
+    expect(screen.getByText("08:00–23:00").closest("bdi")?.getAttribute("dir")).toBe("ltr");
+  });
+
+  it("keeps the canonical address for directions when coordinates are unavailable", () => {
+    renderLocalizedFinder(
+      en,
+      [
+        pharmacy("address-directions", {
+          addressLine: "Λεωφόρος Ελλάδος 1",
+          addressAdditional: null,
+          locality: "Πάφος",
+          latitude: null,
+          longitude: null,
+        }),
+      ],
+    );
+
+    expect(screen.getByText("Leoforos Ellados 1, Pafos 8010")).toBeTruthy();
+    expect(screen.getByRole("link", { name: en.finder.directions }).getAttribute("href"))
+      .toBe(
+        "https://www.google.com/maps/search/?api=1&query=%CE%9B%CE%B5%CF%89%CF%86%CF%8C%CF%81%CE%BF%CF%82%20%CE%95%CE%BB%CE%BB%CE%AC%CE%B4%CE%BF%CF%82%201%2C%20%CE%A0%CE%AC%CF%86%CE%BF%CF%82%208010",
+      );
+  });
+
+  it("keeps the safe unavailable-phone state when no phone number exists", () => {
+    renderLocalizedFinder(ar, [pharmacy("no-phone", { phoneE164: null })]);
+
+    expect(screen.getByText(ar.finder.phoneUnavailable)).toBeTruthy();
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull();
   });
 
   it.each([
@@ -634,9 +1424,6 @@ describe("PharmacyFinder localization", () => {
       vi.stubGlobal("fetch", fetchMock);
       renderLocalizedFinder(dictionary, [pharmacy(dictionary.locale)]);
 
-      fireEvent.click(
-        screen.getByRole("button", { name: dictionary.finder.enterArea }),
-      );
       fireEvent.change(screen.getByLabelText(dictionary.finder.locationInputLabel), {
         target: { value: query },
       });
@@ -644,7 +1431,10 @@ describe("PharmacyFinder localization", () => {
 
       const suggestion = await screen.findByRole("button", { name: label });
       expect(suggestion.querySelector("bdi")?.getAttribute("dir")).toBe("auto");
-      expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({ query });
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({
+        query,
+        district: "Paphos",
+      });
     },
   );
 
@@ -652,7 +1442,6 @@ describe("PharmacyFinder localization", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
     renderLocalizedFinder(ar, [pharmacy("ar-error")]);
 
-    fireEvent.click(screen.getByRole("button", { name: ar.finder.enterArea }));
     fireEvent.change(screen.getByLabelText(ar.finder.locationInputLabel), {
       target: { value: "ميناء بافوس" },
     });
@@ -675,9 +1464,6 @@ describe("PharmacyFinder localization", () => {
       );
       renderLocalizedFinder(dictionary, [pharmacy(`${dictionary.locale}-limit`)]);
 
-      fireEvent.click(
-        screen.getByRole("button", { name: dictionary.finder.enterArea }),
-      );
       fireEvent.change(screen.getByLabelText(dictionary.finder.locationInputLabel), {
         target: { value: "Paphos harbour" },
       });
@@ -700,7 +1486,6 @@ describe("PharmacyFinder localization", () => {
     );
     renderLocalizedFinder(en, [pharmacy("global-limit")]);
 
-    fireEvent.click(screen.getByRole("button", { name: en.finder.enterArea }));
     fireEvent.change(screen.getByLabelText(en.finder.locationInputLabel), {
       target: { value: "Paphos harbour" },
     });

@@ -1,6 +1,6 @@
-# Paphos Pharmacy Agent Guide
+# Cyprus Pharmacy Agent Guide
 
-Paphos Pharmacy is a mobile-first Next.js/PWA product that helps people in Paphos answer: “Which pharmacy can I use right now?”
+Cyprus Pharmacy is a mobile-first Next.js/PWA product that helps people across the five supported Cyprus districts answer: “Which pharmacy can I use right now?” District selection must consistently scope pharmacy lists, counts, and search results.
 
 Read the relevant documentation before making changes:
 

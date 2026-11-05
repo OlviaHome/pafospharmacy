@@ -72,21 +72,41 @@ function request(
 }
 
 function jsonRequest(body: unknown, headers: Record<string, string> = {}): Request {
-  return request(JSON.stringify(body), {
+  const requestBody =
+    typeof body === "object" &&
+    body !== null &&
+    !Array.isArray(body) &&
+    "query" in body &&
+    !("district" in body)
+      ? { ...body, district: "Paphos" }
+      : body;
+  return request(JSON.stringify(requestBody), {
     "Content-Type": "application/json",
     ...headers,
   });
 }
 
-function providerResults(count = 1) {
+const providerDistricts = {
+  Nicosia: { lat: 35.18, lon: 33.38, isoCode: "CY-01", state: "Nicosia District" },
+  Larnaca: { lat: 34.92, lon: 33.62, isoCode: "CY-03", state: "Larnaca District" },
+  Limassol: { lat: 34.68, lon: 33.04, isoCode: "CY-02", state: "Limassol District" },
+  Paphos: { lat: 34.77, lon: 32.42, isoCode: "CY-05", state: "Paphos District" },
+  Famagusta: { lat: 35.04, lon: 33.98, isoCode: "CY-04", state: "Famagusta District" },
+} as const;
+
+function providerResults(
+  count = 1,
+  district: keyof typeof providerDistricts = "Paphos",
+) {
+  const config = providerDistricts[district];
   return Array.from({ length: count }, (_, index) => ({
     place_id: `place-${index}`,
-    lat: 34.77 + index * 0.001,
-    lon: 32.42 + index * 0.001,
-    formatted: `Paphos match ${index}`,
+    lat: config.lat + index * 0.001,
+    lon: config.lon + index * 0.001,
+    formatted: `${district} match ${index}`,
     country_code: "cy",
-    state: "Paphos District",
-    iso3166_2: "CY-05",
+    state: config.state,
+    iso3166_2: config.isoCode,
     result_type: "city",
   }));
 }
@@ -156,7 +176,7 @@ describe("manual location route request hardening", () => {
     );
 
     const response = await POST(
-      request(JSON.stringify({ query: "Paphos" }), {
+      request(JSON.stringify({ query: "Paphos", district: "Paphos" }), {
         "Content-Type": "application/json; charset=utf-8",
       }),
     );
@@ -204,6 +224,8 @@ describe("manual location route request hardening", () => {
     ["a numeric query", JSON.stringify({ query: 123 })],
     ["a boolean query", JSON.stringify({ query: false })],
     ["a null query", JSON.stringify({ query: null })],
+    ["a missing district", JSON.stringify({ query: "Paphos" })],
+    ["an unsupported district", JSON.stringify({ query: "Kyrenia", district: "Kyrenia" })],
   ])("rejects %s without coercion", async (_label, body) => {
     const providerFetch = vi.fn();
     vi.stubGlobal("fetch", providerFetch);
@@ -264,6 +286,86 @@ describe("manual location route request hardening", () => {
 
     expect(response.status).toBe(200);
   });
+
+  it.each(["Nicosia", "Limassol", "Larnaca", "Famagusta", "Paphos"] as const)(
+    "scopes %s searches to the selected supported district",
+    async (district) => {
+      const providerFetch = vi
+        .fn()
+        .mockResolvedValue(Response.json({ results: providerResults(1, district) }));
+      vi.stubGlobal("fetch", providerFetch);
+
+      const response = await POST(
+        jsonRequest({ query: "Makariou Avenue", district }),
+      );
+      const providerUrl = new URL(String(providerFetch.mock.calls[0]?.[0]));
+
+      expect(response.status).toBe(200);
+      expect(providerUrl.searchParams.get("text")).toContain(`${district} District`);
+      expect(providerUrl.searchParams.get("bias")).toMatch(/^proximity:/);
+      expect(await response.json()).toEqual({
+        suggestions: [
+          expect.objectContaining({ label: `${district} match 0` }),
+        ],
+      });
+    },
+  );
+
+  it.each(["Nicosia", "Limassol", "Larnaca", "Famagusta", "Paphos"] as const)(
+    "keeps cached, empty, and error responses isolated to %s",
+    async (district) => {
+      const normalizedDistrict = district.toLocaleLowerCase("en");
+      const cachedSuggestions = [
+        {
+          resultIdentifier: `${normalizedDistrict}-cached`,
+          label: `Cached ${district} match`,
+          latitude: providerDistricts[district].lat,
+          longitude: providerDistricts[district].lon,
+          resultType: "city",
+        },
+      ];
+      cacheStore.set(`${normalizedDistrict}:cached avenue`, cachedSuggestions);
+      const providerFetch = vi
+        .fn()
+        .mockResolvedValueOnce(Response.json({ results: [] }))
+        .mockResolvedValueOnce(new Response("upstream detail", { status: 500 }));
+      vi.stubGlobal("fetch", providerFetch);
+
+      const cached = await POST(
+        jsonRequest({ query: "Cached Avenue", district }),
+      );
+      expect(cached.status).toBe(200);
+      expect(await cached.json()).toEqual({ suggestions: cachedSuggestions });
+      expect(runtimeCacheGetMock).toHaveBeenCalledWith(
+        `${normalizedDistrict}:cached avenue`,
+      );
+      expect(providerFetch).not.toHaveBeenCalled();
+
+      const empty = await POST(
+        jsonRequest({ query: "Empty Avenue", district }),
+      );
+      expect(empty.status).toBe(200);
+      expect(await empty.json()).toEqual({ suggestions: [] });
+      expect(runtimeCacheSetMock).toHaveBeenCalledWith(
+        `${normalizedDistrict}:empty avenue`,
+        [],
+        expect.objectContaining({ ttl: 300 }),
+      );
+
+      const failed = await POST(
+        jsonRequest({ query: "Failure Avenue", district }),
+      );
+      expect(failed.status).toBe(502);
+      expect(await failed.json()).toEqual({
+        error: "Location search is temporarily unavailable. Try again.",
+      });
+      expect(runtimeCacheSetMock).not.toHaveBeenCalledWith(
+        `${normalizedDistrict}:failure avenue`,
+        expect.anything(),
+        expect.anything(),
+      );
+    },
+  );
 });
 
 describe("manual location route provider protections", () => {
@@ -383,7 +485,7 @@ describe("manual location route provider protections", () => {
     expect(runtimeCacheGetMock).toHaveBeenCalledTimes(2);
     expect(runtimeCacheSetMock).toHaveBeenCalledTimes(1);
     expect(runtimeCacheSetMock).toHaveBeenCalledWith(
-      "páphos harbour",
+      "paphos:páphos harbour",
       expect.any(Array),
       expect.objectContaining({ ttl: 300 }),
     );
@@ -415,7 +517,7 @@ describe("manual location route provider protections", () => {
         resultType: "city",
       },
     ];
-    cacheStore.set("paphos", suggestions);
+    cacheStore.set("paphos:paphos", suggestions);
     const providerFetch = vi.fn();
     vi.stubGlobal("fetch", providerFetch);
 
@@ -423,12 +525,41 @@ describe("manual location route provider protections", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ suggestions });
-    expect(runtimeCacheGetMock).toHaveBeenCalledWith("paphos");
+    expect(runtimeCacheGetMock).toHaveBeenCalledWith("paphos:paphos");
     expect(ipAddressMock).not.toHaveBeenCalled();
     expect(shortTermLimitMock).not.toHaveBeenCalled();
     expect(dailyLimitMock).not.toHaveBeenCalled();
     expect(clientLimitMock).not.toHaveBeenCalled();
     expect(providerFetch).not.toHaveBeenCalled();
+  });
+
+  it("does not share cached suggestions between districts", async () => {
+    const providerFetch = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ results: providerResults(1, "Limassol") }),
+      );
+    vi.stubGlobal("fetch", providerFetch);
+    cacheStore.set("paphos:makariou avenue", [
+      {
+        resultIdentifier: "paphos-place",
+        label: "Makariou Avenue, Paphos",
+        latitude: 34.77,
+        longitude: 32.42,
+        resultType: "street",
+      },
+    ]);
+
+    const response = await POST(
+      jsonRequest({ query: "Makariou Avenue", district: "Limassol" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(runtimeCacheGetMock).toHaveBeenCalledWith("limassol:makariou avenue");
+    expect(providerFetch).toHaveBeenCalledOnce();
+    expect(await response.json()).toEqual({
+      suggestions: [expect.objectContaining({ label: "Limassol match 0" })],
+    });
   });
 
   it("limits one client to five misses while another client can still search", async () => {
