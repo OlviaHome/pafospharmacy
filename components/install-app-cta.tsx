@@ -9,6 +9,12 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
+declare global {
+  interface Window {
+    __pharmacyBeforeInstallPrompt?: BeforeInstallPromptEvent;
+  }
+}
+
 type InstallMode =
   | "browser-prompt"
   | "ios-instructions"
@@ -59,12 +65,10 @@ export function InstallAppCta({
     const initialMode: InstallMode = isIosSafari()
       ? "ios-instructions"
       : "browser-instructions";
-    window.queueMicrotask(() => {
-      if (!cancelled) setInstallMode((current) => current ?? initialMode);
-    });
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
+      window.__pharmacyBeforeInstallPrompt = undefined;
       setInstallPrompt(event as BeforeInstallPromptEvent);
       setInstallMode("browser-prompt");
     };
@@ -75,6 +79,19 @@ export function InstallAppCta({
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
+
+    const capturedPrompt = window.__pharmacyBeforeInstallPrompt;
+    window.__pharmacyBeforeInstallPrompt = undefined;
+    window.queueMicrotask(() => {
+      if (cancelled) return;
+      if (capturedPrompt) {
+        setInstallPrompt(capturedPrompt);
+        setInstallMode("browser-prompt");
+        return;
+      }
+      setInstallMode((current) => current ?? initialMode);
+    });
+
     return () => {
       cancelled = true;
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);

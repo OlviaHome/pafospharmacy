@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Sans } from "next/font/google";
 import { notFound } from "next/navigation";
+import Script from "next/script";
 import type { ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -86,6 +87,12 @@ export default async function LocaleLayout({
       className={instrumentSans.variable}
     >
       <body>
+        <Script id="capture-before-install-prompt" strategy="beforeInteractive">
+          {`window.addEventListener("beforeinstallprompt", function (event) {
+  event.preventDefault();
+  window.__pharmacyBeforeInstallPrompt = event;
+});`}
+        </Script>
         {children}
         <SiteFooter locale={locale} messages={dictionary.footer} />
         <Analytics />

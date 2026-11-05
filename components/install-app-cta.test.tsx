@@ -34,6 +34,7 @@ function setStandaloneMatch(matches: boolean) {
 }
 
 beforeEach(() => {
+  window.__pharmacyBeforeInstallPrompt = undefined;
   setStandaloneMatch(false);
   setNavigatorValue("userAgent", "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36");
   setNavigatorValue("platform", "Linux x86_64");
@@ -47,6 +48,25 @@ afterEach(() => {
 });
 
 describe("InstallAppCta", () => {
+  it("uses an install prompt captured before hydration", async () => {
+    const prompt = vi.fn().mockResolvedValue(undefined);
+    window.__pharmacyBeforeInstallPrompt = Object.assign(
+      new Event("beforeinstallprompt"),
+      {
+        prompt,
+        userChoice: Promise.resolve({ outcome: "accepted" as const, platform: "web" }),
+      },
+    );
+
+    render(<InstallAppCta messages={en.finder} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: en.finder.installApp }),
+    );
+
+    expect(prompt).toHaveBeenCalledTimes(1);
+    expect(window.__pharmacyBeforeInstallPrompt).toBeUndefined();
+  });
+
   it("uses the captured browser install prompt and hides after the choice", async () => {
     const prompt = vi.fn().mockResolvedValue(undefined);
     const event = Object.assign(new Event("beforeinstallprompt"), {
