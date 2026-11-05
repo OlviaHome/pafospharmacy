@@ -38,6 +38,10 @@ export interface FinderMessages {
   about: string;
   heroTitle: string;
   heroSchedulePeriod: string;
+  installApp: string;
+  installIosInstruction: string;
+  installBrowserInstruction: string;
+  installDialogClose: string;
   loading: string;
   developmentTitle: string;
   developmentBody: string;

@@ -3,7 +3,7 @@ import type { TranslationDictionary } from "@/lib/i18n/types";
 
 export function LoadingFinder({ dictionary }: { dictionary: TranslationDictionary }) {
   return (
-    <main className="min-h-screen bg-[var(--background)]">
+    <main className="min-h-screen bg-white">
       <FinderHeader
         locale={dictionary.locale}
         brandName={dictionary.finder.brandName}

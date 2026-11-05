@@ -14,6 +14,10 @@ export const en = {
     about: "About",
     heroTitle: "Find an open pharmacy now",
     heroSchedulePeriod: "Official duty schedule across Cyprus · 1 Oct 2026 — 30 Apr 2027",
+    installApp: "Install app",
+    installIosInstruction: "In Safari, tap Share → Add to Home Screen.",
+    installBrowserInstruction: "Automatic installation isn’t available in this browser. Use the browser menu → “Install app” or “Add to Home Screen”.",
+    installDialogClose: "Close",
     loading: "Loading pharmacy information…",
     developmentTitle: "Development data only.",
     developmentBody:
@@ -168,7 +172,7 @@ export const en = {
         {
           heading: "How to use it",
           blocks: [
-            { type: "steps", items: ["Choose a district, then browse its pharmacies or filter by Open Now or On Duty.", "Search by pharmacy name or address, or use your device location to see approximate distance where verified coordinates are available.", "Use Call to contact the pharmacy or Directions to open Google Maps."] },
+            { type: "steps", items: ["Choose a district, then browse its pharmacies or filter by Open Now or On Duty.", "Search by pharmacy name or address, or use your device location to see approximate distance where verified coordinates are available.", "Use Call to contact the pharmacy or Directions to open Google Maps.", "You can use Cyprus Pharmacy directly in your browser or add it to your home screen for quick access like an app."] },
             { type: "paragraphs", items: ["No account is required."] },
           ],
         },

@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { FinderHeader } from "@/components/finder-header";
+import { InstallAppCta } from "@/components/install-app-cta";
 
 import {
   deriveAvailability,
@@ -983,7 +984,7 @@ export function PharmacyFinder({
     resultOther: messages.dutyCountOther,
   });
   return (
-    <main className="min-h-screen w-full bg-[var(--background)] pb-8">
+    <main className="min-h-screen w-full bg-white pb-8">
       <FinderHeader
         locale={locale}
         brandName={messages.brandName}
@@ -1046,7 +1047,7 @@ export function PharmacyFinder({
         </dialog>
       )}
 
-      <section className="bg-[linear-gradient(120deg,var(--hero-dark),var(--brand-strong))] text-white">
+      <section className="relative bg-[linear-gradient(120deg,var(--hero-dark),var(--brand-strong))] text-white">
         <div className="mx-auto flex w-full max-w-7xl flex-col justify-center px-4 py-12 sm:px-6 sm:py-16 lg:min-h-[22rem] lg:px-8 lg:py-16">
           <h1 className="max-w-5xl text-balance text-[clamp(2.5rem,5vw,4rem)] font-medium leading-[0.98] tracking-[-0.035em]">
             {messages.heroTitle}
@@ -1054,6 +1055,7 @@ export function PharmacyFinder({
           <h2 className="mt-4 max-w-6xl text-balance text-[clamp(1.125rem,2vw,1.5rem)] font-normal leading-[1.2] text-white/65 lg:whitespace-nowrap">
             {messages.heroSchedulePeriod}
           </h2>
+          <InstallAppCta messages={messages} />
         </div>
       </section>
 
@@ -1068,7 +1070,7 @@ export function PharmacyFinder({
       <nav
         id="finder-top"
         aria-label={messages.districtSelector}
-        className="-mx-4 scroll-mt-28 overflow-x-auto border-b border-[var(--line)] bg-white px-4 min-[24rem]:max-sm:overflow-x-hidden sm:-mx-6 sm:scroll-mt-20 sm:px-6 lg:-mx-8 lg:px-8"
+        className="scroll-mt-28 overflow-x-auto border-b border-[var(--line)] bg-white min-[24rem]:max-sm:overflow-x-hidden sm:scroll-mt-20"
       >
         <div className="mx-auto flex min-w-max justify-between gap-8 min-[24rem]:max-sm:grid min-[24rem]:max-sm:w-full min-[24rem]:max-sm:min-w-0 min-[24rem]:max-sm:grid-cols-5 min-[24rem]:max-sm:gap-0 sm:gap-12 lg:min-w-0 lg:max-w-5xl">
           {districts.map((district) => (
