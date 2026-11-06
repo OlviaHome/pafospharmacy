@@ -15,11 +15,7 @@ declare global {
   }
 }
 
-type InstallMode =
-  | "browser-prompt"
-  | "ios-instructions"
-  | "browser-instructions"
-  | null;
+type InstallMode = "browser-prompt" | "ios-instructions" | null;
 
 const INSTALLED_MARKER_KEY = "pharmacy_pwa_installed_v1";
 
@@ -62,10 +58,7 @@ export function InstallAppCta({
 }: {
   messages: Pick<
     FinderMessages,
-    | "installApp"
-    | "installIosInstruction"
-    | "installBrowserInstruction"
-    | "installDialogClose"
+    "installApp" | "installIosInstruction" | "installDialogClose"
   >;
 }) {
   const [installMode, setInstallMode] = useState<InstallMode>(null);
@@ -83,9 +76,7 @@ export function InstallAppCta({
     }
 
     let cancelled = false;
-    const initialMode: InstallMode = isIosSafari()
-      ? "ios-instructions"
-      : "browser-instructions";
+    const initialMode: InstallMode = isIosSafari() ? "ios-instructions" : null;
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -140,10 +131,7 @@ export function InstallAppCta({
   };
 
   const handleInstall = async () => {
-    if (
-      installMode === "ios-instructions" ||
-      installMode === "browser-instructions"
-    ) {
+    if (installMode === "ios-instructions") {
       setShowIosInstructions(true);
       return;
     }
@@ -158,7 +146,7 @@ export function InstallAppCta({
       setInstallMode(null);
       return;
     }
-    setInstallMode("browser-instructions");
+    setInstallMode(null);
   };
 
   return (
@@ -186,9 +174,7 @@ export function InstallAppCta({
         >
           <div className="p-5 sm:p-6">
             <p className="text-base font-medium leading-6">
-              {installMode === "ios-instructions"
-                ? messages.installIosInstruction
-                : messages.installBrowserInstruction}
+              {messages.installIosInstruction}
             </p>
             <button
               ref={closeRef}

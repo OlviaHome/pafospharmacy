@@ -117,7 +117,7 @@ describe("InstallAppCta", () => {
     );
   });
 
-  it("keeps the fallback CTA after the browser prompt is dismissed", async () => {
+  it("hides the CTA after the browser prompt is dismissed", async () => {
     const event = Object.assign(new Event("beforeinstallprompt"), {
       prompt: vi.fn().mockResolvedValue(undefined),
       userChoice: Promise.resolve({ outcome: "dismissed", platform: "web" }),
@@ -129,14 +129,23 @@ describe("InstallAppCta", () => {
       await screen.findByRole("button", { name: en.finder.installApp }),
     );
 
-    expect(
-      await screen.findByRole("button", { name: en.finder.installApp }),
-    ).toBeTruthy();
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: en.finder.installApp }),
+      ).toBeNull();
+    });
     expect(window.localStorage.getItem("pharmacy_pwa_installed_v1")).toBeNull();
   });
 
   it("stores the marker and hides when the appinstalled event fires", async () => {
     render(<InstallAppCta messages={en.finder} />);
+    fireEvent(
+      window,
+      Object.assign(new Event("beforeinstallprompt"), {
+        prompt: vi.fn().mockResolvedValue(undefined),
+        userChoice: Promise.resolve({ outcome: "accepted", platform: "web" }),
+      }),
+    );
     await screen.findByRole("button", { name: en.finder.installApp });
 
     fireEvent(window, new Event("appinstalled"));
@@ -163,20 +172,15 @@ describe("InstallAppCta", () => {
     });
   });
 
-  it("stays visible without a browser install prompt and shows brief guidance", async () => {
+  it("stays hidden on desktop without a browser install prompt", async () => {
     render(<InstallAppCta messages={en.finder} />);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: en.finder.installApp }),
-    );
-
-    const dialog = await screen.findByRole("dialog", {
-      name: en.finder.installApp,
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: en.finder.installApp }),
+      ).toBeNull();
     });
-    expect(dialog.textContent).toContain(en.finder.installBrowserInstruction);
-    expect(
-      screen.getByRole("button", { name: en.finder.installApp }),
-    ).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it.each([en, ru, el, ar] as const)(
