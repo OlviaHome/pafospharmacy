@@ -33,8 +33,27 @@ function setStandaloneMatch(matches: boolean) {
   });
 }
 
+function setLocalStorageMock() {
+  const values = new Map<string, string>();
+  const storage: Storage = {
+    get length() {
+      return values.size;
+    },
+    clear: vi.fn(() => values.clear()),
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    key: vi.fn((index: number) => Array.from(values.keys())[index] ?? null),
+    removeItem: vi.fn((key: string) => values.delete(key)),
+    setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+  };
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: storage,
+  });
+}
+
 beforeEach(() => {
   window.__pharmacyBeforeInstallPrompt = undefined;
+  setLocalStorageMock();
   setStandaloneMatch(false);
   setNavigatorValue("userAgent", "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36");
   setNavigatorValue("platform", "Linux x86_64");
@@ -65,9 +84,14 @@ describe("InstallAppCta", () => {
 
     expect(prompt).toHaveBeenCalledTimes(1);
     expect(window.__pharmacyBeforeInstallPrompt).toBeUndefined();
+    await waitFor(() => {
+      expect(window.localStorage.getItem("pharmacy_pwa_installed_v1")).toBe(
+        "true",
+      );
+    });
   });
 
-  it("uses the captured browser install prompt and hides after the choice", async () => {
+  it("uses the captured browser install prompt and hides after acceptance", async () => {
     const prompt = vi.fn().mockResolvedValue(undefined);
     const event = Object.assign(new Event("beforeinstallprompt"), {
       prompt,
@@ -83,6 +107,55 @@ describe("InstallAppCta", () => {
     );
 
     expect(prompt).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: en.finder.installApp }),
+      ).toBeNull();
+    });
+    expect(window.localStorage.getItem("pharmacy_pwa_installed_v1")).toBe(
+      "true",
+    );
+  });
+
+  it("keeps the fallback CTA after the browser prompt is dismissed", async () => {
+    const event = Object.assign(new Event("beforeinstallprompt"), {
+      prompt: vi.fn().mockResolvedValue(undefined),
+      userChoice: Promise.resolve({ outcome: "dismissed", platform: "web" }),
+    });
+
+    render(<InstallAppCta messages={en.finder} />);
+    fireEvent(window, event);
+    fireEvent.click(
+      await screen.findByRole("button", { name: en.finder.installApp }),
+    );
+
+    expect(
+      await screen.findByRole("button", { name: en.finder.installApp }),
+    ).toBeTruthy();
+    expect(window.localStorage.getItem("pharmacy_pwa_installed_v1")).toBeNull();
+  });
+
+  it("stores the marker and hides when the appinstalled event fires", async () => {
+    render(<InstallAppCta messages={en.finder} />);
+    await screen.findByRole("button", { name: en.finder.installApp });
+
+    fireEvent(window, new Event("appinstalled"));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: en.finder.installApp }),
+      ).toBeNull();
+    });
+    expect(window.localStorage.getItem("pharmacy_pwa_installed_v1")).toBe(
+      "true",
+    );
+  });
+
+  it("stays hidden in a browser tab when the installed marker exists", async () => {
+    window.localStorage.setItem("pharmacy_pwa_installed_v1", "true");
+
+    render(<InstallAppCta messages={en.finder} />);
+
     await waitFor(() => {
       expect(
         screen.queryByRole("button", { name: en.finder.installApp }),

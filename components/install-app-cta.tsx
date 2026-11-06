@@ -21,6 +21,24 @@ type InstallMode =
   | "browser-instructions"
   | null;
 
+const INSTALLED_MARKER_KEY = "pharmacy_pwa_installed_v1";
+
+function hasInstalledMarker(): boolean {
+  try {
+    return window.localStorage.getItem(INSTALLED_MARKER_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function saveInstalledMarker(): void {
+  try {
+    window.localStorage.setItem(INSTALLED_MARKER_KEY, "true");
+  } catch {
+    // Storage can be unavailable without affecting installation behavior.
+  }
+}
+
 function isStandalone(): boolean {
   return (
     window.matchMedia?.("(display-mode: standalone)").matches === true ||
@@ -59,7 +77,10 @@ export function InstallAppCta({
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (isStandalone()) return;
+    if (isStandalone() || hasInstalledMarker()) {
+      window.__pharmacyBeforeInstallPrompt = undefined;
+      return;
+    }
 
     let cancelled = false;
     const initialMode: InstallMode = isIosSafari()
@@ -73,6 +94,7 @@ export function InstallAppCta({
       setInstallMode("browser-prompt");
     };
     const handleAppInstalled = () => {
+      saveInstalledMarker();
       setInstallPrompt(null);
       setInstallMode(null);
     };
@@ -129,12 +151,14 @@ export function InstallAppCta({
 
     const prompt = installPrompt;
     setInstallPrompt(null);
-    try {
-      await prompt.prompt();
-      await prompt.userChoice;
-    } finally {
+    await prompt.prompt();
+    const choice = await prompt.userChoice;
+    if (choice.outcome === "accepted") {
+      saveInstalledMarker();
       setInstallMode(null);
+      return;
     }
+    setInstallMode("browser-instructions");
   };
 
   return (
