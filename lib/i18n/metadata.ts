@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { localePath, SUPPORTED_LOCALES } from "./config";
 import type { ContentPageMessages, Locale } from "./types";
 
-const PRODUCTION_URL = "https://pafospharmacy.vercel.app";
+export const PRODUCTION_URL = "https://healthguide.cy";
 
 export const metadataBase = new URL(process.env.SITE_URL ?? PRODUCTION_URL);
 
