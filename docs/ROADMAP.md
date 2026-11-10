@@ -27,7 +27,7 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 
 ## NOW — validate the official-data experience
 
-- Launch the Telegram editorial agent: apply both blog migrations, deploy, open `/api/telegram/setup`, and run the first article (GeSY) end to end.
+- Launch the Telegram editorial agent: apply the three blog migrations, deploy, open `/api/telegram/setup`, and run the first article (GeSY) end to end.
 - Apply for Unsplash production access if the photo volume grows beyond demo limits.
 
 - Verify the source refresh cadence and define behavior before the published duty coverage ends on 2027-04-30.

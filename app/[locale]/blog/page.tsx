@@ -7,10 +7,10 @@ import { connection } from "next/server";
 
 import { isHotlinked } from "@/components/blog/blog-figure";
 import { BlogShell } from "@/components/blog/blog-shell";
-import { chooseTranslation, findImage, imageAlt, readingMinutes, fillTemplate, translationLocales } from "@/lib/blog/content";
+import { chooseTranslation, findImage, imageAlt, pluralize, readingMinutes, translationLocales } from "@/lib/blog/content";
 import { formatBlogDate } from "@/lib/blog/format";
 import { getPublishedPosts } from "@/lib/blog/repository";
-import { isLocale, localeDirection, localePath, LOCALE_NAMES } from "@/lib/i18n/config";
+import { isLocale, localeDirection, localePath, LOCALE_NAMES, LOCALE_SHORT_NAMES } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { localizedAlternates, metadataBase } from "@/lib/i18n/metadata";
 
@@ -98,9 +98,7 @@ export default async function BlogIndexPage({ params }: { params: Promise<{ loca
                         {publishedAt && <time dateTime={publishedAt}>{formatBlogDate(publishedAt, translation.locale)}</time>}
                         <span aria-hidden="true">·</span>
                         <span>
-                          {fillTemplate(getDictionary(translation.locale).blog.minutesRead, {
-                            count: readingMinutes(translation),
-                          })}
+                          {pluralize(getDictionary(translation.locale).blog.minutesRead, readingMinutes(translation), translation.locale)}
                         </span>
                         {availableLocales.length > 1 && (
                           <span className="flex flex-wrap gap-1" dir="ltr">
@@ -108,9 +106,10 @@ export default async function BlogIndexPage({ params }: { params: Promise<{ loca
                               <span
                                 key={l}
                                 title={LOCALE_NAMES[l]}
-                                className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-[0.68rem] font-bold uppercase text-[var(--brand-strong)]"
+                                lang={l}
+                                className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-[0.68rem] font-bold text-[var(--brand-strong)]"
                               >
-                                {l}
+                                {LOCALE_SHORT_NAMES[l]}
                               </span>
                             ))}
                           </span>

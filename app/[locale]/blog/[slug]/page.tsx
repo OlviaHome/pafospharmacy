@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { BlogArticle } from "@/components/blog/blog-article";
 import { BlogJsonLd } from "@/components/blog/blog-json-ld";
 import { BlogShell } from "@/components/blog/blog-shell";
+import { ViewBeacon } from "@/components/blog/view-beacon";
 import { chooseTranslation } from "@/lib/blog/content";
 import { blogArticleMetadata, blogPostPath } from "@/lib/blog/metadata";
 import { getPublishedPost } from "@/lib/blog/repository";
@@ -51,6 +52,7 @@ export default async function BlogPostPage({
   return (
     <BlogShell dictionary={siteDictionary}>
       <BlogJsonLd post={post} translation={chosen.translation} />
+      <ViewBeacon slug={post.slug} />
       <BlogArticle
         post={post}
         chosen={chosen}

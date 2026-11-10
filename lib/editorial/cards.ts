@@ -3,7 +3,8 @@ import { localePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/types";
 
 import { markerSlots, wordCount } from "./normalize";
-import { isOfficialUrl } from "./prompts";
+import { formatChecks, type CheckResult } from "./checks";
+import { sourceKind } from "./prompts";
 import type { EditorialPost } from "./store";
 import { escapeHtml, type InlineKeyboard } from "./telegram";
 
@@ -57,7 +58,7 @@ export function hasRussianAndEnglish(post: EditorialPost): boolean {
 export function renderCard(
   post: EditorialPost,
   origin: string,
-  extras: { costUsd: number; canUndo: boolean },
+  extras: { costUsd: number; canUndo: boolean; checks?: CheckResult[] },
 ): { text: string; keyboard: InlineKeyboard } {
   const ru = post.translations.find((t) => t.locale === "ru");
   const lines: string[] = [
@@ -79,12 +80,15 @@ export function renderCard(
     lines.push(`Картинки: ${ready} готово${missing ? `, ${missing} нужно прислать` : ""}`);
   }
   if (ru) {
-    const unofficial = ru.sources.filter((source) => !isOfficialUrl(source.url)).length;
+    const unofficial = ru.sources.filter((source) => sourceKind(source.url) === "other").length;
     lines.push(
       `Источники: ${ru.sources.length}${unofficial ? ` (⚠️ неофициальных: ${unofficial})` : " (официальные)"} · FAQ: ${ru.faq.length} · ~${wordCount(ru.bodyMd)} слов`,
     );
   }
   if (extras.costUsd > 0) lines.push(`Стоимость: ~$${extras.costUsd.toFixed(2)}`);
+  if (extras.checks?.length && post.status !== "generating" && post.status !== "archived") {
+    lines.push("", `<b>Проверки перед публикацией (RU + EN):</b>\n${escapeHtml(formatChecks(extras.checks))}`);
+  }
   if (post.editorNotes) lines.push("", `🔎 <b>Проверьте:</b>\n${escapeHtml(post.editorNotes.slice(0, 1200))}`);
   if (post.lastError) lines.push("", `⚠️ ${escapeHtml(post.lastError.slice(0, 300))}`);
 
@@ -161,7 +165,11 @@ function cardKeyboard(post: EditorialPost, canUndo: boolean): InlineKeyboard {
 }
 
 /** Card for the Greek and Arabic translations of a published article. */
-export function renderTranslationsCard(post: EditorialPost, origin: string): { text: string; keyboard: InlineKeyboard } {
+export function renderTranslationsCard(
+  post: EditorialPost,
+  origin: string,
+  checks: CheckResult[] = [],
+): { text: string; keyboard: InlineKeyboard } {
   const pending = post.translations.filter((t) => t.locale === "el" || t.locale === "ar");
   const lines = [
     `🌍 <b>#${post.number} · переводы</b>`,
@@ -171,6 +179,7 @@ export function renderTranslationsCard(post: EditorialPost, origin: string): { t
       (t) =>
         `${LOCALE_SHORT[t.locale]}: ${TRANSLATION_STATUS_LABEL[t.status]} · ${link(previewUrl(origin, post, t.locale), "превью")}`,
     ),
+    ...(checks.length ? ["", `<b>Проверки:</b>\n${escapeHtml(formatChecks(checks))}`] : []),
   ];
   const canPublish = pending.some((t) => t.status === "review");
   return {

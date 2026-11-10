@@ -1,4 +1,4 @@
-import { ArrowLeft, Info } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Eye, Info, RefreshCw, UserRound } from "lucide-react";
 import Link from "next/link";
 
 import { ArticleLanguageBadges } from "@/components/blog/article-language-badges";
@@ -7,6 +7,7 @@ import { BlogMarkdown } from "@/components/blog/blog-markdown";
 import {
   fillTemplate,
   findImage,
+  pluralize,
   readingMinutes,
   splitBody,
   type ChosenTranslation,
@@ -87,27 +88,39 @@ export function BlogArticle({
           {translation.description && (
             <p className="mt-4 text-lg leading-8 text-[var(--ink-muted)]">{translation.description}</p>
           )}
-          <p className="mt-4 flex flex-wrap gap-x-2 gap-y-1 text-sm text-[var(--ink-muted)]">
-            <span className="font-semibold text-[var(--ink)]">{post.authorName}</span>
+          {/* Author, dates, reading time and views, all in the article's language. */}
+          <ul className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--ink-muted)]">
+            <li className="inline-flex items-center gap-1.5 font-semibold text-[var(--ink)]">
+              <UserRound className="size-4 text-[var(--brand)]" aria-hidden="true" />
+              {post.authorName}
+            </li>
             {publishedAt && (
-              <>
-                <span aria-hidden="true">·</span>
+              <li className="inline-flex items-center gap-1.5">
+                <CalendarDays className="size-4" aria-hidden="true" />
                 <time dateTime={publishedAt}>
                   {fillTemplate(messages.publishedOn, { date: formatBlogDate(publishedAt, contentLocale) })}
                 </time>
-              </>
+              </li>
             )}
             {showUpdated && (
-              <>
-                <span aria-hidden="true">·</span>
+              <li className="inline-flex items-center gap-1.5">
+                <RefreshCw className="size-4" aria-hidden="true" />
                 <time dateTime={translation.updatedAt}>
                   {fillTemplate(messages.updatedOn, { date: formatBlogDate(translation.updatedAt, contentLocale) })}
                 </time>
-              </>
+              </li>
             )}
-            <span aria-hidden="true">·</span>
-            <span>{fillTemplate(messages.minutesRead, { count: readingMinutes(translation) })}</span>
-          </p>
+            <li className="inline-flex items-center gap-1.5">
+              <Clock className="size-4" aria-hidden="true" />
+              {pluralize(messages.minutesRead, readingMinutes(translation), contentLocale)}
+            </li>
+            {post.viewCount > 0 && (
+              <li className="inline-flex items-center gap-1.5">
+                <Eye className="size-4" aria-hidden="true" />
+                {pluralize(messages.views, post.viewCount, contentLocale)}
+              </li>
+            )}
+          </ul>
         </header>
 
         {cover && (

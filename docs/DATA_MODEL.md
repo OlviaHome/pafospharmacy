@@ -170,6 +170,7 @@ Editorial articles live in four tables created by `20261110100000_create_blog_sc
 - Anonymous roles read only published posts, published translations, and images of published posts. `preview_token` and `topic` are not granted, revisions are private, and all writes require the secret key. `get_blog_preview(token)` is a `security definer` function that returns one non-archived article in every status to whoever holds its token.
 - Images are stored in the public Supabase Storage bucket `blog-images`.
 - Editorial agent tables (`20261110150000_create_blog_editorial_agent.sql`, all private to the secret key): `blog_agent_jobs` (queued/running/done/failed work units with a JSON payload), `blog_ai_usage` (tokens, web searches and estimated USD per OpenAI call), `blog_bot_updates` (processed Telegram update ids), and `blog_bot_messages` (which bot message belongs to which draft, so replies are routed). `blog_posts` gains a private short `number` (#12 in the bot), `last_error`, and `editor_notes` (facts the agent could not fully verify). `blog_images` gains licence fields, provider photo ids already tried, the stock search query, and its storage path; `source` also allows `unsplash` and `openverse`. Revisions gain `batch_id` to roll back one action across languages.
+- `20261110200000_add_blog_launch_checks.sql`: private `blog_posts.source_checks` (last link check per source URL) and public `blog_posts.view_count`, incremented only through `increment_blog_view(slug)` for published articles.
 
 ## Deferred concepts
 

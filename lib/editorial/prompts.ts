@@ -1,28 +1,44 @@
 import type { Locale } from "@/lib/i18n/types";
 
-/** Domains treated as official. Others are allowed but flagged to the editor. */
+/**
+ * Official sources: Cyprus government and public health bodies, the EU and the WHO.
+ * Subdomains count too (moh.gov.cy matches gov.cy).
+ */
 export const OFFICIAL_SOURCE_DOMAINS = [
   "gov.cy",
   "gesy.org.cy",
   "hio.org.cy",
-  "moh.gov.cy",
-  "cyprus.gov.cy",
-  "pio.gov.cy",
-  "mof.gov.cy",
-  "cylaw.org",
+  "shso.org.cy",
   "europa.eu",
   "who.int",
-  "shsorg.org.cy",
-  "okypy.org.cy",
 ];
 
-export function isOfficialUrl(url: string): boolean {
+/**
+ * Reliable but not governmental: not flagged as unofficial, but they do not count as the
+ * official source every article needs. CyLaw publishes Cyprus legislation but is not run
+ * by the state.
+ */
+export const TRUSTED_SOURCE_DOMAINS = ["cylaw.org"];
+
+export type SourceKind = "official" | "trusted" | "other";
+
+function matchesDomain(url: string, domains: string[]): boolean {
   try {
     const host = new URL(url).hostname.toLowerCase();
-    return OFFICIAL_SOURCE_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
+    return domains.some((domain) => host === domain || host.endsWith(`.${domain}`));
   } catch {
     return false;
   }
+}
+
+export function sourceKind(url: string): SourceKind {
+  if (matchesDomain(url, OFFICIAL_SOURCE_DOMAINS)) return "official";
+  if (matchesDomain(url, TRUSTED_SOURCE_DOMAINS)) return "trusted";
+  return "other";
+}
+
+export function isOfficialUrl(url: string): boolean {
+  return sourceKind(url) === "official";
 }
 
 const faqSchema = {
@@ -69,8 +85,8 @@ export const ARTICLE_SCHEMA = {
   additionalProperties: false,
   properties: {
     slug: { type: "string", description: "Short English kebab-case URL slug, max 60 chars." },
-    title: { type: "string" },
-    description: { type: "string", description: "Meta description, 140–160 characters." },
+    title: { type: "string", description: "At most 55 characters." },
+    description: { type: "string", description: "Meta description, 130–155 characters." },
     body_md: { type: "string" },
     faq: faqSchema,
     sources: sourcesSchema,
@@ -148,8 +164,11 @@ Accuracy rules (most important):
 - Every concrete fact — eligibility, fees, co-payments, deadlines, phone numbers, addresses, opening hours, URLs, step names on a portal — must come from a source you opened. Never invent or estimate numbers. If sources disagree or you are unsure, say so neutrally in the text ("уточните на портале") and explain it in editor_notes.
 - Only list sources you actually used. Use full https URLs. Put the official portal first.
 - Do not give personal medical advice. Point readers to a doctor, a pharmacist or 112 in emergencies where relevant.
+- Never invent quotes, testimonials, first-person stories ("я", "мы проверили") or case studies with names or numbers. An example is allowed only when it is generic and clearly labelled as one, starting with "Пример:" (in translations: the same word in that language), and it must not present invented figures as facts.
 
 Format rules for body_md:
+- body_md starts with a "## Коротко" section (in translations: the same heading in that language) of exactly 3 bullet points that together answer the main question on their own.
+- Where natural, write ## headings as the questions readers ask (e.g. "## Кто может пользоваться ГеСИ?"), and answer each in the first 1–2 sentences under it.
 - Markdown only: ## and ### headings, paragraphs, lists, numbered steps, short tables, **bold**, links. No HTML, no H1, no images in Markdown syntax.
 - Do NOT include the title, the FAQ, the sources list or a disclaimer in body_md; the site renders those separately.
 - Place images with a line that contains only [[image:inline-1]], [[image:inline-2]], … between paragraphs. Never put the cover in the body.
@@ -166,9 +185,9 @@ export function writeInstructions(now: Date): string {
   return `You are the editor of a Russian-language health information blog.
 ${SHARED_RULES}
 Write in Russian, in a friendly, clear and practical tone (address the reader as "вы"). The audience is everyone: long-term residents, people who recently moved to Cyprus, and visitors.
-Length: body_md 1000–1500 words. Start with 2–3 sentences that directly answer the main question. Then logical ## sections with practical steps. Mention once, near the start, that the information is current as of ${monthYear(now)}.
+Length: body_md 1000–1500 words. After the "Коротко" section, logical ## sections with practical steps. Mention once, near the start, that the information is current as of ${monthYear(now)}.
 FAQ: 4–6 questions people actually search for, with short complete answers that do not just repeat the body.
-title: natural Russian headline, max ~70 characters, contains the main search phrase. description: 140–160 characters.
+title: natural Russian headline, at most 55 characters, contains the main search phrase. description: 130–155 characters.
 slug: short English kebab-case (e.g. "gesy-registration-cyprus"), max 60 characters.`;
 }
 
@@ -184,7 +203,7 @@ export function translateInstructions(target: Locale): string {
 - Translate naturally and idiomatically for readers in Cyprus; do not add or remove facts.
 - Keep Markdown structure, links and URLs exactly. Keep every [[image:…]] line exactly as it is, on its own line.
 - Official names (GeSY / ΓεΣΥ, Health Insurance Organisation / ΟΑΥ, portal menu items) use the form the official ${targetName === "Greek" ? "Greek" : "English or Greek"} sources use.
-- Write the title and description for search in ${targetName}: title max ~70 characters, description 140–160 characters.
+- Write the title and description for search in ${targetName}: title at most 55 characters, description 130–155 characters.
 - Source titles: translate descriptive titles, keep official page names; never change source URLs.
 - image_alts: one entry per image slot given in the input, translated.`;
 }

@@ -4,7 +4,7 @@ import { localePath } from "@/lib/i18n/config";
 import { metadataBase } from "@/lib/i18n/metadata";
 import type { TranslationDictionary } from "@/lib/i18n/types";
 
-import { findImage, imageAlt, translationLocales } from "./content";
+import { findImage, imageAlt, seoTitle, translationLocales } from "./content";
 import type { BlogPost, BlogTranslation } from "./types";
 
 export function blogPostPath(locale: BlogTranslation["locale"], slug: string): string {
@@ -25,7 +25,7 @@ export function blogArticleMetadata(
   const xDefault = locales.includes("en") ? "en" : locales[0];
   return {
     metadataBase,
-    title: `${translation.title} | ${siteDictionary.siteTitle}`,
+    title: seoTitle(translation.title, siteDictionary.siteTitle),
     description: translation.description,
     alternates: {
       canonical: blogPostPath(translation.locale, post.slug),

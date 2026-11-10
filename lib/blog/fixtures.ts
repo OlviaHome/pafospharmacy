@@ -64,6 +64,7 @@ export const DEV_BLOG_POSTS: BlogPost[] = [
     authorName: "HealthGuide Cyprus",
     publishedAt: now,
     updatedAt: now,
+    viewCount: 128,
     translations: [
       {
         locale: "ru",

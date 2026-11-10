@@ -7,6 +7,7 @@ import type { BlogFaqItem, BlogPostStatus, BlogSource, BlogTranslationStatus } f
 import { isLocale } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/types";
 
+import type { SourceCheck } from "./checks";
 import { supabaseAdminConfig } from "./config";
 import { cyprusDayStart, cyprusMonthStart, STALE_JOB_MS, type JobKind, type UsageSnapshot } from "./limits";
 import type { UsageNumbers } from "./pricing";
@@ -68,6 +69,8 @@ export interface EditorialPost {
   previewToken: string;
   lastError: string | null;
   editorNotes: string | null;
+  sourceChecks: SourceCheck[];
+  viewCount: number;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -76,7 +79,8 @@ export interface EditorialPost {
 }
 
 const POST_COLUMNS = `
-  id, number, slug, topic, status, preview_token, last_error, editor_notes, published_at, created_at, updated_at,
+  id, number, slug, topic, status, preview_token, last_error, editor_notes, source_checks, view_count,
+  published_at, created_at, updated_at,
   translations:blog_post_translations(locale, status, title, description, body_md, faq, sources, published_at, updated_at),
   images:blog_images(id, slot, url, width, height, alt, placeholder_note, source, credit_name, credit_url, source_page_url,
     license_name, license_url, provider_photo_id, tried_photo_ids, search_query, storage_path)
@@ -93,6 +97,8 @@ function mapPost(row: any): EditorialPost {
     previewToken: row.preview_token,
     lastError: row.last_error,
     editorNotes: row.editor_notes,
+    sourceChecks: Array.isArray(row.source_checks) ? row.source_checks : [],
+    viewCount: Number(row.view_count ?? 0),
     publishedAt: row.published_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -176,6 +182,7 @@ export async function updatePost(
     slug: string;
     last_error: string | null;
     editor_notes: string | null;
+    source_checks: SourceCheck[];
     published_at: string | null;
   }>,
 ): Promise<void> {
@@ -190,7 +197,14 @@ export async function deletePost(id: string): Promise<void> {
 }
 
 /** Returns a slug not used by any other post (base, base-2, base-3, …). */
-export async function uniqueSlug(base: string, postId: string): Promise<string> {
+export interface SlugChoice {
+  slug: string;
+  /** The article that already uses the preferred slug, if any: a likely duplicate. */
+  takenBy: { number: number; title: string } | null;
+}
+
+/** Returns a slug not used by any other post (base, base-2, …) and who holds the preferred one. */
+export async function uniqueSlug(base: string, postId: string): Promise<SlugChoice> {
   const clean =
     base
       .toLowerCase()
@@ -201,13 +215,42 @@ export async function uniqueSlug(base: string, postId: string): Promise<string> 
       .replace(/-+$/g, "") || "article";
   const safe = clean === "preview" ? "preview-article" : clean;
   const data = check(
-    await adminClient().from("blog_posts").select("id, slug").like("slug", `${safe}%`).neq("id", postId),
+    await adminClient()
+      .from("blog_posts")
+      .select("id, slug, number, topic, translations:blog_post_translations(locale, title)")
+      .like("slug", `${safe}%`)
+      .neq("id", postId),
     "check slug",
   );
-  const taken = new Set((data ?? []).map((row: { slug: string }) => row.slug));
-  if (!taken.has(safe)) return safe;
-  for (let n = 2; n < 100; n += 1) if (!taken.has(`${safe}-${n}`)) return `${safe}-${n}`;
-  return `${safe}-${randomUUID().slice(0, 6)}`;
+  const rows = (data ?? []) as { slug: string; number: number; topic: string; translations: { locale: string; title: string }[] }[];
+  const taken = new Set(rows.map((row) => row.slug));
+  const holder = rows.find((row) => row.slug === safe);
+  const takenBy = holder
+    ? { number: Number(holder.number), title: holder.translations.find((t) => t.locale === "ru")?.title ?? holder.topic }
+    : null;
+  if (!taken.has(safe)) return { slug: safe, takenBy };
+  for (let n = 2; n < 100; n += 1) if (!taken.has(`${safe}-${n}`)) return { slug: `${safe}-${n}`, takenBy };
+  return { slug: `${safe}-${randomUUID().slice(0, 6)}`, takenBy };
+}
+
+/** Lightweight list of every non-deleted article, for duplicate detection. */
+export async function listTopics(): Promise<{ number: number; status: BlogPostStatus; topic: string; titles: string[] }[]> {
+  const data = check(
+    await adminClient()
+      .from("blog_posts")
+      .select("number, status, topic, translations:blog_post_translations(title)")
+      .order("number", { ascending: false })
+      .limit(500),
+    "list topics",
+  );
+  return ((data ?? []) as { number: number; status: BlogPostStatus; topic: string; translations: { title: string }[] }[]).map(
+    (row) => ({
+      number: Number(row.number),
+      status: row.status,
+      topic: row.topic,
+      titles: row.translations.map((t) => t.title),
+    }),
+  );
 }
 
 export interface TranslationFields {

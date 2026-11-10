@@ -12,6 +12,14 @@ export const LOCALE_NAMES: Record<Locale, string> = {
   ar: "العربية",
 };
 
+/** Compact labels, each in its own language, for article language switches. */
+export const LOCALE_SHORT_NAMES: Record<Locale, string> = {
+  en: "EN",
+  el: "ΕΛ",
+  ru: "РУ",
+  ar: "عربي",
+};
+
 export const LOCALE_FORMAT_IDS: Record<Locale, string> = {
   en: "en-GB",
   el: "el-CY",

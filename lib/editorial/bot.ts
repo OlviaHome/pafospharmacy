@@ -3,6 +3,8 @@ import "server-only";
 import { revalidateTag } from "next/cache";
 
 import { BLOG_CACHE_TAG } from "@/lib/blog/repository";
+import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Locale } from "@/lib/i18n/types";
 
 import type { TelegramCallbackQuery, TelegramMessage, TelegramUpdate } from "./auth";
@@ -16,16 +18,19 @@ import {
   renderImagesMenu,
   renderTranslationsCard,
 } from "./cards";
+import { failedChecks, formatChecks, prePublishChecks, type CheckResult } from "./checks";
 import { editorialLimits, openAiModel, siteOrigin, telegramConfig, unsplashKey } from "./config";
 import { removeStoredImage, storeImageBytes } from "./images";
 import type { JobKind } from "./limits";
-import { nextStockImage, setNotifier, startJob, type StartResult } from "./pipeline";
+import { nextStockImage, refreshSourceChecks, setNotifier, startJob, type StartResult } from "./pipeline";
+import { findSimilar } from "./similar";
 import {
   createPost,
   deletePost,
   findMessage,
   hasUndo,
   listPosts,
+  listTopics,
   loadPost,
   postCostUsd,
   rememberMessage,
@@ -45,11 +50,42 @@ function adminChatId(): number {
   return Number(telegramConfig().adminId);
 }
 
-/* ---------- cards ---------- */
+/* ---------- checks and cards ---------- */
+
+function siteTitles(): Record<Locale, string> {
+  return Object.fromEntries(SUPPORTED_LOCALES.map((locale) => [locale, getDictionary(locale).siteTitle])) as Record<
+    Locale,
+    string
+  >;
+}
+
+function checksFor(post: EditorialPost, locales: Locale[]): CheckResult[] {
+  return prePublishChecks(post.translations, locales, post.sourceChecks, siteTitles());
+}
+
+const TRANSLATION_LOCALES: Locale[] = ["el", "ar"];
+
+function pendingTranslationLocales(post: EditorialPost): Locale[] {
+  return post.translations
+    .filter((t) => TRANSLATION_LOCALES.includes(t.locale) && t.status === "review")
+    .map((t) => t.locale);
+}
+
+/** Re-checks the source links of these languages right before publishing. */
+async function recheckLinks(post: EditorialPost, locales: Locale[]): Promise<EditorialPost> {
+  const urls = post.translations.filter((t) => locales.includes(t.locale)).flatMap((t) => t.sources.map((s) => s.url));
+  if (urls.length === 0) return post;
+  const fresh = await refreshSourceChecks(post.id, urls);
+  // Keep earlier results for links of other languages.
+  const merged = [...post.sourceChecks.filter((check) => !fresh.some((f) => f.url === check.url)), ...fresh];
+  await updatePost(post.id, { source_checks: merged });
+  return { ...post, sourceChecks: merged };
+}
 
 async function cardFor(post: EditorialPost) {
   const [costUsd, canUndo] = await Promise.all([postCostUsd(post.id), hasUndo(post.id)]);
-  return renderCard(post, siteOrigin(), { costUsd, canUndo });
+  const checks = post.translations.some((t) => t.locale === "ru") ? checksFor(post, ["ru", "en"]) : [];
+  return renderCard(post, siteOrigin(), { costUsd, canUndo, checks });
 }
 
 async function sendCard(chatId: number, post: EditorialPost): Promise<void> {
@@ -64,7 +100,8 @@ async function refreshCard(chatId: number, messageId: number, post: EditorialPos
 }
 
 async function sendTranslationsCard(chatId: number, post: EditorialPost): Promise<void> {
-  const card = renderTranslationsCard(post, siteOrigin());
+  const locales = pendingTranslationLocales(post);
+  const card = renderTranslationsCard(post, siteOrigin(), locales.length ? checksFor(post, locales) : []);
   const sent = await sendMessage(chatId, card.text, { keyboard: card.keyboard });
   await rememberMessage(chatId, sent.message_id, "card", post.id);
 }
@@ -110,11 +147,33 @@ const HELP = `Я пишу статьи для блога HealthGuide Cyprus. Н�
 /published: опубликованные
 /usage: расходы и лимиты`;
 
-async function startArticle(chatId: number, topic: string): Promise<void> {
+async function startArticle(chatId: number, topic: string, options: { force?: boolean } = {}): Promise<void> {
   const clean = topic.trim().replace(/\s+/g, " ").slice(0, MAX_TOPIC_LENGTH);
   if (clean.length < 5) {
     await sendMessage(chatId, "Тема слишком короткая. Пример: <code>/new Что такое ГеСИ и как зарегистрироваться</code>");
     return;
+  }
+  if (!options.force) {
+    const similar = findSimilar(clean, await listTopics());
+    if (similar.length > 0) {
+      const sent = await sendMessage(
+        chatId,
+        `🔁 Похоже на уже существующие статьи:\n${similar
+          .map((match) => `#${match.number} «${escapeHtml(match.title.slice(0, 80))}» (${POST_STATUS_LABEL[match.status as EditorialPost["status"]] ?? match.status})`)
+          .join("\n")}\n\nНовая тема: «${escapeHtml(clean)}». Писать всё равно?`,
+        {
+          keyboard: [
+            ...similar.map((match) => [{ text: `Открыть #${match.number}`, callback_data: `open:${match.number}` }]),
+            [
+              { text: "✍️ Всё равно писать", callback_data: "newforce" },
+              { text: "Отмена", callback_data: "cancel" },
+            ],
+          ],
+        },
+      );
+      await rememberMessage(chatId, sent.message_id, "topic_confirm", null, { payload: clean });
+      return;
+    }
   }
   const post = await createPost(clean);
   const result = await startJob(post.id, "write", {});
@@ -368,7 +427,7 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     await editMessage(chatId, messageId, "Отменено.");
     return;
   }
-  if (action === "newok") {
+  if (action === "newok" || action === "newforce") {
     await answerCallback(query.id);
     const context = await findMessage(chatId, messageId);
     if (!context?.payload || context.purpose !== "topic_confirm") {
@@ -378,7 +437,7 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     await editMessage(chatId, messageId, `Тема: «${escapeHtml(context.payload)}»`);
     // Prevent a double tap from starting two articles.
     await rememberMessage(chatId, messageId, "topic_confirm", null, { payload: "" });
-    await startArticle(chatId, context.payload);
+    await startArticle(chatId, context.payload, { force: action === "newforce" });
     return;
   }
 
@@ -401,22 +460,37 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         await answerCallback(query.id, "Сейчас опубликовать нельзя");
         return;
       }
-      const missing = activeImages(post).filter((image) => !image.url);
-      if (action === "pub" && missing.length > 0) {
-        await answerCallback(query.id);
-        await sendMessage(
-          chatId,
-          `В #${post.number} ${missing.length} мест(а) без картинки (${missing.map((image) => image.slot).join(", ")}). На сайте они будут просто скрыты. Публиковать?`,
-          {
-            keyboard: [[
-              { text: "✅ Да, публиковать", callback_data: `pubok:${post.number}` },
-              { text: "🖼 Сначала картинки", callback_data: `img:${post.number}` },
-            ]],
-          },
-        );
-        return;
+      if (action === "pub") {
+        await answerCallback(query.id, "Проверяю ссылки…");
+        const checked = await recheckLinks(post, ["ru", "en"]);
+        const problems = failedChecks(checksFor(checked, ["ru", "en"]));
+        const missing = activeImages(checked).filter((image) => !image.url);
+        if (problems.length > 0 || missing.length > 0) {
+          await sendMessage(
+            chatId,
+            [
+              `Перед публикацией #${post.number} обратите внимание:`,
+              ...(missing.length
+                ? [`⚠️ ${missing.length} мест(а) без картинки (${missing.map((image) => image.slot).join(", ")}): на сайте они будут скрыты`]
+                : []),
+              ...(problems.length ? [escapeHtml(formatChecks(problems))] : []),
+              "",
+              "Публиковать всё равно?",
+            ].join("\n"),
+            {
+              keyboard: [
+                [{ text: "✅ Да, публиковать", callback_data: `pubok:${post.number}` }],
+                [
+                  { text: "✏️ Правки", callback_data: `edit:${post.number}` },
+                  { text: "🖼 Картинки", callback_data: `img:${post.number}` },
+                ],
+              ],
+            },
+          );
+          return;
+        }
       }
-      await answerCallback(query.id, "Публикую…");
+      if (action === "pubok") await answerCallback(query.id, "Публикую…");
       await setTranslationStatus(post.id, ["ru", "en"], "published");
       await updatePost(post.id, {
         status: "published",
@@ -444,15 +518,33 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
       await startTranslations(chatId, post);
       return;
 
-    case "pubtr": {
-      const locales = post.translations
-        .filter((t) => (t.locale === "el" || t.locale === "ar") && t.status === "review")
-        .map((t) => t.locale as Locale);
+    case "pubtr":
+    case "pubtrok": {
+      const locales = pendingTranslationLocales(post);
       if (post.status !== "published" || locales.length === 0) {
         await answerCallback(query.id, "Нечего публиковать");
         return;
       }
-      await answerCallback(query.id, "Публикую…");
+      if (action === "pubtr") {
+        await answerCallback(query.id, "Проверяю…");
+        const checked = await recheckLinks(post, locales);
+        const problems = failedChecks(checksFor(checked, locales));
+        if (problems.length > 0) {
+          await sendMessage(
+            chatId,
+            `Перед публикацией переводов #${post.number} обратите внимание:\n${escapeHtml(formatChecks(problems))}\n\nПубликовать всё равно?`,
+            {
+              keyboard: [[
+                { text: "✅ Да, публиковать", callback_data: `pubtrok:${post.number}` },
+                { text: "🔁 Перевести заново", callback_data: `tr:${post.number}` },
+              ]],
+            },
+          );
+          return;
+        }
+      } else {
+        await answerCallback(query.id, "Публикую…");
+      }
       await setTranslationStatus(post.id, locales, "published");
       revalidateBlog();
       await editMessage(chatId, messageId, `✅ #${post.number}: опубликованы ${locales.map((l) => l.toUpperCase()).join(" и ")}.`);

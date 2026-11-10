@@ -157,6 +157,9 @@ export interface FinderMessages {
   directions: string;
 }
 
+/** Message per plural category of the locale ("{count}" is replaced); "other" is the fallback. */
+export type PluralForms = Partial<Record<Intl.LDMLPluralRule, string>> & { other: string };
+
 export interface BlogMessages {
   title: string;
   description: string;
@@ -164,8 +167,8 @@ export interface BlogMessages {
   empty: string;
   readArticle: string;
   backToBlog: string;
-  /** "{count}" is replaced with the number of minutes. */
-  minutesRead: string;
+  minutesRead: PluralForms;
+  views: PluralForms;
   publishedOn: string;
   updatedOn: string;
   articleLanguages: string;

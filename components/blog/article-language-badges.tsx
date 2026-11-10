@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { Fragment } from "react";
 
-import { LOCALE_NAMES } from "@/lib/i18n/config";
+import { LOCALE_NAMES, LOCALE_SHORT_NAMES } from "@/lib/i18n/config";
 import type { BlogTranslation } from "@/lib/blog/types";
 import type { BlogMessages, Locale } from "@/lib/i18n/types";
 
@@ -11,7 +12,8 @@ const STATUS_KEY = {
 } as const;
 
 /**
- * Lets a reader switch only the article language (?lang=xx) without switching the site.
+ * Compact "EN | ΕΛ | РУ | عربي" switch, each label in its own language.
+ * It changes only the article language (?lang=xx); the site language stays as it is.
  */
 export function ArticleLanguageBadges({
   basePath,
@@ -30,36 +32,47 @@ export function ArticleLanguageBadges({
 }) {
   if (translations.length < 2 && !showStatus) return null;
   return (
-    <nav aria-label={messages.articleLanguages} className="flex flex-wrap items-center gap-2">
-      <span className="me-1 text-xs font-semibold text-[var(--ink-muted)]">
-        {messages.articleLanguages}:
+    <nav aria-label={messages.articleLanguages} className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span className="text-xs font-semibold text-[var(--ink-muted)]">{messages.articleLanguages}</span>
+      <span
+        dir="ltr"
+        className="inline-flex items-center rounded-full border border-[var(--line-strong)] bg-white p-0.5 text-sm"
+      >
+        {translations.map(({ locale, status }, index) => {
+          const active = locale === currentLocale;
+          const href = locale === siteLocale ? basePath : `${basePath}?lang=${locale}`;
+          return (
+            <Fragment key={locale}>
+              {index > 0 && (
+                <span aria-hidden="true" className="px-0.5 text-[var(--line-strong)]">
+                  |
+                </span>
+              )}
+              <Link
+                href={href}
+                hrefLang={locale}
+                lang={locale}
+                title={LOCALE_NAMES[locale]}
+                aria-label={LOCALE_NAMES[locale]}
+                aria-current={active ? "true" : undefined}
+                scroll={false}
+                className={`inline-flex min-h-9 min-w-11 items-center justify-center gap-1 rounded-full px-3 font-bold transition-colors ${
+                  active
+                    ? "bg-[var(--brand)] text-white"
+                    : "text-[var(--brand-strong)] hover:bg-[var(--surface-muted)]"
+                }`}
+              >
+                {LOCALE_SHORT_NAMES[locale]}
+                {showStatus && (
+                  <span className={`text-[0.65rem] font-semibold ${active ? "text-white/75" : "text-[var(--ink-muted)]"}`}>
+                    {messages[STATUS_KEY[status]]}
+                  </span>
+                )}
+              </Link>
+            </Fragment>
+          );
+        })}
       </span>
-      {translations.map(({ locale, status }) => {
-        const active = locale === currentLocale;
-        const href = locale === siteLocale ? basePath : `${basePath}?lang=${locale}`;
-        return (
-          <Link
-            key={locale}
-            href={href}
-            hrefLang={locale}
-            lang={locale}
-            aria-current={active ? "true" : undefined}
-            scroll={false}
-            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold transition-colors ${
-              active
-                ? "border-[var(--brand)] bg-[var(--brand)] text-white"
-                : "border-[var(--line-strong)] bg-white text-[var(--brand-strong)] hover:border-[var(--brand)]"
-            }`}
-          >
-            {LOCALE_NAMES[locale]}
-            {showStatus && (
-              <span className={active ? "text-white/75" : "text-[var(--ink-muted)]"}>
-                · {messages[STATUS_KEY[status]]}
-              </span>
-            )}
-          </Link>
-        );
-      })}
     </nav>
   );
 }

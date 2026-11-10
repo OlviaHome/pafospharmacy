@@ -56,6 +56,7 @@ export interface BlogPost {
   authorName: string;
   publishedAt: string | null;
   updatedAt: string;
+  viewCount: number;
   translations: BlogTranslation[];
   images: BlogImage[];
 }

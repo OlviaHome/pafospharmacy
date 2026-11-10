@@ -25,6 +25,7 @@ function post(locales: BlogTranslation["locale"][]): BlogPost {
     authorName: "HealthGuide Cyprus",
     publishedAt: "2026-11-10T09:00:00Z",
     updatedAt: "2026-11-10T09:00:00Z",
+    viewCount: 0,
     translations: locales.map((locale) => translation(locale)),
     images: [],
   };
@@ -90,5 +91,22 @@ describe("helpers", () => {
 
   it("fills templates and keeps unknown placeholders", () => {
     expect(fillTemplate("{count} min · {other}", { count: 4 })).toBe("4 min · {other}");
+  });
+});
+
+describe("pluralize", () => {
+  it("uses each language's plural rules and digits", async () => {
+    const { pluralize } = await import("./content");
+    const ru = { one: "{count} просмотр", few: "{count} просмотра", many: "{count} просмотров", other: "{count} просмотра" };
+    expect([1, 3, 5, 21].map((n) => pluralize(ru, n, "ru"))).toEqual([
+      "1 просмотр",
+      "3 просмотра",
+      "5 просмотров",
+      "21 просмотр",
+    ]);
+    const ar = { one: "مشاهدة واحدة", two: "مشاهدتان", few: "{count} مشاهدات", other: "{count} مشاهدة" };
+    expect(pluralize(ar, 1, "ar")).toBe("مشاهدة واحدة");
+    expect(pluralize(ar, 2, "ar")).toBe("مشاهدتان");
+    expect(pluralize({ other: "{count} views" }, 1200, "en")).toBe("1,200 views");
   });
 });

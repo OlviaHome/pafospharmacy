@@ -1,5 +1,5 @@
-import { isLocale, SUPPORTED_LOCALES } from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/types";
+import { isLocale, LOCALE_FORMAT_IDS, SUPPORTED_LOCALES } from "@/lib/i18n/config";
+import type { Locale, PluralForms } from "@/lib/i18n/types";
 
 import type {
   BlogBodySegment,
@@ -80,6 +80,21 @@ export function readingMinutes(translation: BlogTranslation): number {
   ].join(" ");
   const words = text.replace(/\[\[image:[^\]]+\]\]/g, " ").split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(words / 200));
+}
+
+/** Search results show about 60 characters, so the site name is added only when it still fits. */
+export const SEO_TITLE_MAX = 60;
+
+export function seoTitle(title: string, siteTitle: string): string {
+  const withSite = `${title} | ${siteTitle}`;
+  return withSite.length <= SEO_TITLE_MAX ? withSite : title;
+}
+
+/** Picks the plural form for the locale and inserts the localized number. */
+export function pluralize(forms: PluralForms, count: number, locale: Locale): string {
+  const category = new Intl.PluralRules(LOCALE_FORMAT_IDS[locale]).select(count);
+  const template = forms[category] ?? forms.other;
+  return template.replace("{count}", new Intl.NumberFormat(LOCALE_FORMAT_IDS[locale]).format(count));
 }
 
 export function fillTemplate(template: string, values: Record<string, string | number>): string {

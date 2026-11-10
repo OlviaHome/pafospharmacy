@@ -6,7 +6,9 @@ import { randomUUID } from "node:crypto";
 import type { Locale } from "@/lib/i18n/types";
 
 import { editorialLimits, openAiModel, siteOrigin, telegramConfig } from "./config";
+import type { SourceCheck } from "./checks";
 import { materializeStock, removeStoredImage, searchStock } from "./images";
+import { checkSourceLinks } from "./links";
 import { evaluateLimits, type JobKind, type LimitDecision } from "./limits";
 import { normalizeArticle, normalizeTranslation } from "./normalize";
 import { callResponses, OpenAiError } from "./openai";
@@ -14,7 +16,7 @@ import { estimateCostUsd, reservedCostUsd } from "./pricing";
 import {
   ARTICLE_SCHEMA,
   editInstructions,
-  isOfficialUrl,
+  sourceKind,
   TRANSLATION_SCHEMA,
   translateInstructions,
   writeInstructions,
@@ -154,12 +156,30 @@ async function chain(postId: string, payload: JobPayload): Promise<void> {
   if (!result.ok) throw new Error(result.reason);
 }
 
-function sourceWarnings(sources: { url: string }[], citedUrls: string[]): string[] {
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
+function sourceWarnings(sources: { url: string }[], citedUrls: string[], checks: SourceCheck[]): string[] {
   const warnings: string[] = [];
-  const unofficial = sources.filter((source) => !isOfficialUrl(source.url));
+  const unofficial = sources.filter((source) => sourceKind(source.url) === "other");
+  const broken = checks.filter((check) => check.state === "broken");
+  const unverified = checks.filter((check) => check.state === "unverified");
+  if (broken.length > 0) {
+    warnings.push(
+      `Ссылки не открываются: ${broken.map((check) => `${check.url}${check.status ? ` (${check.status})` : ""}`).join(", ")}.`,
+    );
+  }
+  if (unverified.length > 0) {
+    warnings.push(`Сайт не дал проверить ссылку, откройте вручную: ${unverified.map((check) => check.url).join(", ")}.`);
+  }
   if (unofficial.length > 0) {
     warnings.push(
-      `Неофициальные источники: ${unofficial.map((source) => new URL(source.url).hostname).join(", ")}.`,
+      `Неофициальные источники: ${unofficial.map((source) => hostOf(source.url)).join(", ")}.`,
     );
   }
   if (citedUrls.length > 0) {
@@ -170,10 +190,10 @@ function sourceWarnings(sources: { url: string }[], citedUrls: string[]): string
         return [];
       }
     }));
-    const unseen = sources.filter((source) => !seenHosts.has(new URL(source.url).hostname.replace(/^www\./, "")));
+    const unseen = sources.filter((source) => !seenHosts.has(hostOf(source.url).replace(/^www\./, "")));
     if (unseen.length > 0) {
       warnings.push(
-        `Агент не открывал эти сайты при поиске, проверьте ссылки: ${unseen.map((s) => new URL(s.url).hostname).join(", ")}.`,
+        `Агент не открывал эти сайты при поиске, проверьте ссылки: ${unseen.map((s) => hostOf(s.url)).join(", ")}.`,
       );
     }
   }
@@ -183,6 +203,20 @@ function sourceWarnings(sources: { url: string }[], citedUrls: string[]): string
 function notesFor(editorNotes: string, warnings: string[]): string | null {
   const text = [editorNotes, ...warnings].filter(Boolean).join("\n");
   return text ? text.slice(0, 3000) : null;
+}
+
+/** Checks every source link and stores the result for the pre-publish checks. */
+export async function refreshSourceChecks(postId: string, urls: string[]): Promise<SourceCheck[]> {
+  const checks = await checkSourceLinks(urls);
+  await updatePost(postId, { source_checks: checks });
+  return checks;
+}
+
+function slugWarning(choice: { slug: string; takenBy: { number: number; title: string } | null }): string[] {
+  if (!choice.takenBy) return [];
+  return [
+    `Адрес уже занят статьёй #${choice.takenBy.number} «${choice.takenBy.title}» — возможно, это дубль. Новой статье дан адрес «${choice.slug}».`,
+  ];
 }
 
 async function runWrite(job: JobRecord, post: EditorialPost): Promise<void> {
@@ -201,7 +235,7 @@ async function runWrite(job: JobRecord, post: EditorialPost): Promise<void> {
   await recordUsage(job.id, model, result.usage, result.costUsd);
 
   const article = normalizeArticle(result.data);
-  const slug = await uniqueSlug(article.slug || article.title, post.id);
+  const slugChoice = await uniqueSlug(article.slug || article.title, post.id);
   const batchId = randomUUID();
   await saveTranslation(
     post,
@@ -218,12 +252,14 @@ async function runWrite(job: JobRecord, post: EditorialPost): Promise<void> {
     "generated",
   );
   await resolveImagePlans(post, article.images, []);
+  const checks = await refreshSourceChecks(post.id, article.sources.map((source) => source.url));
   await updatePost(post.id, {
-    slug,
+    slug: slugChoice.slug,
     last_error: null,
     editor_notes: notesFor(article.editor_notes, [
+      ...slugWarning(slugChoice),
       ...article.warnings,
-      ...sourceWarnings(article.sources, result.citedUrls),
+      ...sourceWarnings(article.sources, result.citedUrls, checks),
     ]),
   });
   await chain(post.id, { locales: ["en"], batchId, notify: "card" });
@@ -288,12 +324,13 @@ async function runEdit(job: JobRecord, post: EditorialPost): Promise<void> {
     .map((t) => t.locale)
     .filter((locale): locale is Locale => locale !== "ru" && locale !== "en");
   await setTranslationStatus(post.id, outdated, "draft");
+  const checks = await refreshSourceChecks(post.id, article.sources.map((source) => source.url));
   await updatePost(post.id, {
     status: "review",
     last_error: null,
     editor_notes: notesFor(article.editor_notes, [
       ...article.warnings,
-      ...sourceWarnings(article.sources, result.citedUrls),
+      ...sourceWarnings(article.sources, result.citedUrls, checks),
     ]),
   });
   await chain(post.id, { locales: ["en"], batchId, notify: "card" });
@@ -367,8 +404,17 @@ async function runTranslate(job: JobRecord, post: EditorialPost): Promise<void> 
   }
 
   if (post.status === "generating") await updatePost(post.id, { status: "review", last_error: null });
-  const fresh = await loadPost({ id: post.id });
-  if (!fresh || !notifier) return;
+  let fresh = await loadPost({ id: post.id });
+  if (!fresh) return;
+  // Translations may cite a URL the Russian text does not; check only the new ones.
+  const known = new Set(fresh.sourceChecks.map((check) => check.url));
+  const newUrls = fresh.translations.flatMap((t) => t.sources.map((s) => s.url)).filter((url) => !known.has(url));
+  if (newUrls.length > 0) {
+    const added = await checkSourceLinks(newUrls);
+    await updatePost(post.id, { source_checks: [...fresh.sourceChecks, ...added] });
+    fresh = (await loadPost({ id: post.id })) ?? fresh;
+  }
+  if (!notifier) return;
   if (payload.notify === "translations") await notifier.translations(fresh);
   else await notifier.card(fresh);
 }

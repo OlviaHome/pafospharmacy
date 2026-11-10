@@ -11,6 +11,17 @@ import {
 } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/types";
 
+/**
+ * Query string to keep when the site language changes. The blog's article-language choice
+ * (?lang=) is dropped, so switching the site language also switches the article.
+ */
+function searchWithoutArticleLanguage(): string {
+  const params = new URLSearchParams(window.location.search);
+  params.delete("lang");
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
 export function LanguageSelector({
   locale,
   label,
@@ -25,7 +36,7 @@ export function LanguageSelector({
   const prefetchAlternateLocales = useCallback(() => {
     for (const nextLocale of Object.keys(LOCALE_NAMES) as Locale[]) {
       if (nextLocale === locale) continue;
-      const href = `${localizePath(pathname, nextLocale)}${window.location.search}`;
+      const href = `${localizePath(pathname, nextLocale)}${searchWithoutArticleLanguage()}`;
       if (prefetchedUrls.current.has(href)) continue;
       prefetchedUrls.current.add(href);
       router.prefetch(href);
@@ -48,7 +59,7 @@ export function LanguageSelector({
   function chooseLocale(nextLocale: Locale) {
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
     document.cookie = `${LOCALE_COOKIE_NAME}=${nextLocale}; Max-Age=${LOCALE_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secure}`;
-    router.push(`${localizePath(pathname, nextLocale)}${window.location.search}`);
+    router.push(`${localizePath(pathname, nextLocale)}${searchWithoutArticleLanguage()}`);
   }
 
   return (

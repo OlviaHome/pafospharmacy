@@ -54,12 +54,13 @@ interface PostRow {
   author_name: string;
   published_at: string | null;
   updated_at: string;
+  view_count?: number | string | null;
   translations: TranslationRow[] | null;
   images: ImageRow[] | null;
 }
 
 const POST_SELECT = `
-  id, slug, status, author_name, published_at, updated_at,
+  id, slug, status, author_name, published_at, updated_at, view_count,
   translations:blog_post_translations(locale, status, title, description, body_md, faq, sources, published_at, updated_at),
   images:blog_images(slot, url, width, height, alt, placeholder_note, source, credit_name, credit_url, source_page_url, license_name, license_url)
 `;
@@ -97,6 +98,7 @@ export function mapPostRow(row: PostRow): BlogPost {
     authorName: row.author_name,
     publishedAt: row.published_at,
     updatedAt: row.updated_at,
+    viewCount: Number(row.view_count ?? 0),
     translations: (row.translations ?? []).flatMap((t) =>
       isLocale(t.locale)
         ? [
