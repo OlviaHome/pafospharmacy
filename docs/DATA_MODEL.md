@@ -159,6 +159,17 @@ Only `accepted` records not subsequently quarantined by cross-provider reconcili
 
 `searchOrigin` and the selected district are transient application state, not database entities. GPS and selected manual-location coordinates are deliberately absent from the schema and are never stored as pharmacy coordinates. A GPS origin may remain useful across district changes, but a manual origin and its suggestions/errors are district-bound and are cleared when the selected district changes.
 
+## Blog
+
+Editorial articles live in four tables created by `20261110100000_create_blog_schema.sql`. Articles are written by an editorial agent and published only after a human approves them.
+
+- `blog_posts`: one row per article with a shared latin `slug` (`/{locale}/blog/{slug}`; `preview` is reserved), the editor's raw `topic`, `status` (`generating`, `review`, `paused`, `published`, `archived`, `failed`), an unguessable `preview_token`, `author_name`, and `published_at`. Any number of drafts may exist at once; rejecting a draft archives it instead of deleting it.
+- `blog_post_translations`: one row per `(post_id, locale)` with its own `status` (`draft`, `review`, `published`), `title`, `description`, Markdown `body_md`, `faq` (`[{question, answer}]`), and `sources` (`[{title, url}]`). Languages are approved and published independently, so RU/EN can go live before EL/AR.
+- `blog_images`: one row per `(post_id, slot)`. `cover` is the card/hero image; inline slots are placed by a body line containing only `[[image:<slot>]]`, so replacing an image never touches the text in any language. `url` is null only for a `placeholder` (for example a portal screenshot the editor must supply); placeholders render only in the preview. Stock images keep `credit_name`, `credit_url`, and `source_page_url` for attribution.
+- `blog_post_revisions`: append-only copies of a translation before each change, for rollback.
+- Anonymous roles read only published posts, published translations, and images of published posts. `preview_token` and `topic` are not granted, revisions are private, and all writes require the secret key. `get_blog_preview(token)` is a `security definer` function that returns one non-archived article in every status to whoever holds its token.
+- Images are stored in the public Supabase Storage bucket `blog-images`.
+
 ## Deferred concepts
 
 - An official per-pharmacy seasonal profile or trustworthy exceptional opening-hours intervals.

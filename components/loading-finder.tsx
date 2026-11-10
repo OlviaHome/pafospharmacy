@@ -7,6 +7,7 @@ export function LoadingFinder({ dictionary }: { dictionary: TranslationDictionar
       <FinderHeader
         locale={dictionary.locale}
         brandName={dictionary.finder.brandName}
+        blog={dictionary.finder.blog}
         about={dictionary.finder.about}
         dataSources={dictionary.finder.dataSources}
         languageLabel={dictionary.languageSelectorLabel}

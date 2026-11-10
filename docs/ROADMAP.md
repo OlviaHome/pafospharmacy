@@ -23,7 +23,11 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - Original English master copy with independent-service branding, concise homepage disclosure, and About, Privacy, Terms, and Data Sources pages.
 - Full EN/EL/RU/AR localization with locale-prefixed routes, browser-language detection, a saved manual language choice, localized finder/legal content, and Arabic right-to-left support.
 
+- Multilingual blog at `/{locale}/blog` backed by Supabase, with per-language publication, article-language badges, hidden draft previews, FAQ/sources/disclaimer, and Article/FAQ structured data.
+
 ## NOW — validate the official-data experience
+
+- Build the Telegram editorial agent: on-command article drafts (RU + EN first), parallel drafts, preview links, approve/edit/replace-image/pause/reject actions, then EL/AR translation after approval.
 
 - Verify the source refresh cadence and define behavior before the published duty coverage ends on 2027-04-30.
 - User-test the distinct mandatory duty-open, scheduled-gap, and overnight-call wording with residents, expats, and tourists.

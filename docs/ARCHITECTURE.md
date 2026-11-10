@@ -163,6 +163,14 @@ Typed locale resources live under `lib/i18n/locales`. Presentation components re
 
 Arabic requires an explicit right-to-left review rather than only setting `dir="rtl"`. The card label/time rows, icon-and-text controls, manual-search suggestions, legal-page list indentation, and left/right text-alignment utilities need logical start/end styling. Pharmacy names, official addresses, telephone numbers, registration identifiers, coordinates, clock ranges, and external provider names may mix scripts; those dynamic values need appropriate bidirectional isolation while telephone, coordinate, and URL values remain left-to-right. Status badges, narrow-screen wrapping, and Call/Directions action order also need visual and assistive-technology testing in RTL.
 
+## Blog
+
+- Routes: `/{locale}/blog` (list), `/{locale}/blog/{slug}` (article, optional `?lang=` for the article language), and `/{locale}/blog/preview/{token}` (hidden, `noindex`, uncached draft preview for the editor).
+- Data access lives in the server-only `lib/blog/repository.ts`. Published articles are read with the publishable key under RLS and cached with the `blog` tag (1-hour safety revalidation); call `revalidateTag("blog", "max")` after publishing or editing. Previews go through `get_blog_preview(token)` and are never cached. Outside production, with no Supabase configuration, a generic demo article is used.
+- Pure selection and parsing logic (`chooseTranslation`, `splitBody`, reading time) lives in `lib/blog/content.ts` and is unit tested.
+- Articles emit `Article` and `FAQPage` JSON-LD, hreflang alternates for published languages, and sitemap entries. Remote images are allowed only from the Supabase Storage `blog-images` bucket.
+- The editorial agent (Telegram bot) is a separate trusted writer using the secret key; it is not part of page rendering.
+
 ## Security and privacy
 
 - No consumer authentication or personal profile data exists in the first slice.

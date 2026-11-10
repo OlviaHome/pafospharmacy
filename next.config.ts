@@ -5,6 +5,16 @@ const PRODUCTION_ORIGIN = "https://healthguide.cy";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  images: {
+    // Blog images live in the public Supabase Storage bucket "blog-images".
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/blog-images/**",
+      },
+    ],
+  },
   async redirects() {
     return [
       {
