@@ -3,6 +3,7 @@ import { localePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/types";
 
 import { markerSlots, wordCount } from "./normalize";
+import { splitSections } from "./sections";
 import { formatChecks, type CheckResult } from "./checks";
 import { sourceKind } from "./prompts";
 import type { EditorialPost } from "./store";
@@ -106,19 +107,36 @@ export function renderCard(
   return { text: lines.join("\n"), keyboard: cardKeyboard(post, extras.canUndo) };
 }
 
+/** English is missing or no longer matches the Russian text. */
+export function englishOutdated(post: EditorialPost): boolean {
+  const english = post.translations.find((t) => t.locale === "en");
+  return post.translations.some((t) => t.locale === "ru") && (!english || english.status === "draft");
+}
+
+function editRows(n: number): InlineKeyboard {
+  return [
+    [
+      { text: "📝 Править самой", callback_data: `med:${n}` },
+      { text: "✏️ Правки через ИИ", callback_data: `edit:${n}` },
+    ],
+    [{ text: "🖼 Картинки", callback_data: `img:${n}` }],
+  ];
+}
+
 function cardKeyboard(post: EditorialPost, canUndo: boolean): InlineKeyboard {
   const n = post.number;
   const hasRu = post.translations.some((t) => t.locale === "ru");
+  const refreshEnglish = englishOutdated(post)
+    ? [[{ text: "🔁 Обновить EN по русскому тексту", callback_data: `tren:${n}` }]]
+    : [];
   switch (post.status) {
     case "generating":
       return [[{ text: "🔄 Обновить", callback_data: `open:${n}` }]];
     case "review":
       return [
         ...(hasRussianAndEnglish(post) ? [[{ text: "✅ Опубликовать RU + EN", callback_data: `pub:${n}` }]] : []),
-        [
-          { text: "✏️ Правки", callback_data: `edit:${n}` },
-          { text: "🖼 Картинки", callback_data: `img:${n}` },
-        ],
+        ...refreshEnglish,
+        ...editRows(n),
         ...(canUndo ? [[{ text: "↩️ Откатить последнюю правку", callback_data: `undo:${n}` }]] : []),
         [
           { text: "⏸ Отложить", callback_data: `pause:${n}` },
@@ -128,12 +146,7 @@ function cardKeyboard(post: EditorialPost, canUndo: boolean): InlineKeyboard {
     case "paused":
       return [
         [{ text: "▶️ Вернуть на проверку", callback_data: `resume:${n}` }],
-        ...(hasRu
-          ? [[
-              { text: "✏️ Правки", callback_data: `edit:${n}` },
-              { text: "🖼 Картинки", callback_data: `img:${n}` },
-            ]]
-          : []),
+        ...(hasRu ? [...refreshEnglish, ...editRows(n)] : []),
         [{ text: "🗄 В архив", callback_data: `arch:${n}` }],
       ];
     case "failed":
@@ -141,7 +154,7 @@ function cardKeyboard(post: EditorialPost, canUndo: boolean): InlineKeyboard {
         hasRu
           ? [{ text: "▶️ Вернуть на проверку", callback_data: `resume:${n}` }]
           : [{ text: "🔁 Написать заново", callback_data: `retry:${n}` }],
-        ...(hasRu ? [[{ text: "✏️ Правки", callback_data: `edit:${n}` }]] : []),
+        ...(hasRu ? [...refreshEnglish, ...editRows(n)] : []),
         [{ text: "🗄 В архив", callback_data: `arch:${n}` }],
       ];
     case "published": {
@@ -203,9 +216,61 @@ export function renderImagesMenu(post: EditorialPost): { text: string; keyboard:
     keyboard.push([
       ...(image.searchQuery ? [{ text: `🔄 ${name}: другое фото`, callback_data: `imgnext:${post.number}:${image.slot}` }] : []),
       { text: `📤 ${name}: своя / запрос`, callback_data: `imgup:${post.number}:${image.slot}` },
+      ...(image.slot !== "cover" ? [{ text: "🗑", callback_data: `imgdel:${post.number}:${image.slot}` }] : []),
     ]);
   }
-  lines.push("", "«Своя / запрос»: пришлите фото ответом на сообщение бота или напишите поисковый запрос (лучше по-английски).");
+  lines.push(
+    "",
+    "«Своя / запрос»: пришлите фото ответом на сообщение бота или напишите поисковый запрос (лучше по-английски).",
+    "🗑 убирает картинку из текста (её можно вернуть откатом).",
+  );
+  keyboard.push([{ text: "➕ Вставить новую картинку", callback_data: `imgadd:${post.number}` }]);
   keyboard.push([{ text: "⬅️ К статье", callback_data: `open:${post.number}` }]);
   return { text: lines.join("\n"), keyboard };
+}
+
+/** Menu for editing the article by hand: pick a language and a part. */
+export function renderManualMenu(post: EditorialPost, locale: Locale): { text: string; keyboard: InlineKeyboard } {
+  const n = post.number;
+  const translation = post.translations.find((t) => t.locale === locale);
+  const languages = post.translations
+    .filter((t) => t.locale === "ru" || t.locale === "en")
+    .map((t) => ({
+      text: t.locale === locale ? `• ${LOCALE_SHORT[t.locale]} •` : LOCALE_SHORT[t.locale],
+      callback_data: `med:${n}:${t.locale}`,
+    }));
+  if (!translation) {
+    return { text: "Этого языка у статьи пока нет.", keyboard: [languages] };
+  }
+  const sections = splitSections(translation.bodyMd);
+  const lines = [
+    `📝 <b>#${n} · правка вручную (${LOCALE_SHORT[locale]})</b>`,
+    "Нажмите, что править: я пришлю текущий текст, вы отвечаете исправленным.",
+    ...(locale === "ru" ? ["После правок RU английский перевод нужно будет обновить (кнопка в карточке)."] : []),
+    "",
+    ...sections.map((section, index) => `§${index + 1} ${escapeHtml(section.heading ?? "(вступление)")}`),
+  ];
+  const sectionButtons = sections.map((section, index) => ({
+    text: `§${index + 1} ${(section.heading ?? "вступление").slice(0, 28)}`,
+    callback_data: `mt:${n}:${locale}:s${index}`,
+  }));
+  const rows: InlineKeyboard = [];
+  for (let i = 0; i < sectionButtons.length; i += 2) rows.push(sectionButtons.slice(i, i + 2));
+  return {
+    text: lines.join("\n"),
+    keyboard: [
+      ...(languages.length > 1 ? [languages] : []),
+      [
+        { text: "Заголовок", callback_data: `mt:${n}:${locale}:title` },
+        { text: "Описание", callback_data: `mt:${n}:${locale}:desc` },
+      ],
+      ...rows,
+      [
+        { text: "FAQ", callback_data: `mt:${n}:${locale}:faq` },
+        { text: "Источники", callback_data: `mt:${n}:${locale}:src` },
+      ],
+      [{ text: "📄 Весь текст файлом", callback_data: `mt:${n}:${locale}:file` }],
+      [{ text: "⬅️ К статье", callback_data: `open:${n}` }],
+    ],
+  };
 }

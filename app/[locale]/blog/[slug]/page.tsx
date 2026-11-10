@@ -31,7 +31,7 @@ export async function generateMetadata({
   if (!post) return {};
   const chosen = chooseTranslation(post, locale, requestedLang((await searchParams).lang));
   if (!chosen) return {};
-  return blogArticleMetadata(post, chosen.translation, getDictionary(locale));
+  return blogArticleMetadata(post, chosen.translation);
 }
 
 export default async function BlogPostPage({

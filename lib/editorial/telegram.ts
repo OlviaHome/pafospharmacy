@@ -53,6 +53,35 @@ export async function sendMessage(
   });
 }
 
+/** Sends a text file (e.g. the article as Markdown) with an optional force-reply prompt. */
+export async function sendDocument(
+  chatId: number,
+  fileName: string,
+  content: string,
+  caption: string,
+  options: { forceReply?: boolean } = {},
+): Promise<{ message_id: number }> {
+  const { botToken } = telegramConfig();
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  form.append("caption", fit(caption).slice(0, 1000));
+  form.append("parse_mode", "HTML");
+  if (options.forceReply) form.append("reply_markup", JSON.stringify({ force_reply: true, selective: true }));
+  form.append("document", new Blob([content], { type: "text/markdown; charset=utf-8" }), fileName);
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendDocument`, {
+    method: "POST",
+    body: form,
+    signal: AbortSignal.timeout(20_000),
+  });
+  const json = (await response.json().catch(() => ({}))) as {
+    ok?: boolean;
+    result?: { message_id: number };
+    description?: string;
+  };
+  if (!json.ok || !json.result) throw new TelegramError(`Telegram sendDocument: ${json.description ?? response.status}`);
+  return json.result;
+}
+
 export async function editMessage(
   chatId: number,
   messageId: number,

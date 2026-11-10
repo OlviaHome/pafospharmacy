@@ -11,6 +11,8 @@
   --brand: #0f3d3e;
   --brand-strong: #092e2f;
   --brand-soft: #dff1ec;
+  /* Hover underline for text switches: the brand teal, brighter so it reads as green. */
+  --link-hover: #13895f;
   --hero-dark: #100f0f;
   --stone: #e2dcc8;
   --stone-soft: #f5f0e4;

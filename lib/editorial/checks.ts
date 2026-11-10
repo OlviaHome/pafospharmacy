@@ -1,4 +1,4 @@
-import { SEO_TITLE_MAX, seoTitle } from "@/lib/blog/content";
+import { SEO_TITLE_MAX } from "@/lib/blog/content";
 import type { BlogFaqItem, BlogSource } from "@/lib/blog/types";
 import type { Locale } from "@/lib/i18n/types";
 
@@ -19,6 +19,8 @@ export interface CheckableTranslation {
   bodyMd: string;
   faq: BlogFaqItem[];
   sources: BlogSource[];
+  /** "draft" marks a translation that no longer matches the Russian text. */
+  status?: "draft" | "review" | "published";
 }
 
 export interface CheckResult {
@@ -72,7 +74,6 @@ export function prePublishChecks(
   translations: CheckableTranslation[],
   locales: Locale[],
   sourceChecks: SourceCheck[],
-  siteTitles: Record<Locale, string>,
 ): CheckResult[] {
   const results: CheckResult[] = [];
   const russian = translations.find((t) => t.locale === "ru");
@@ -95,12 +96,19 @@ export function prePublishChecks(
 
   for (const t of selected) {
     const tag = SHORT[t.locale];
-    const title = seoTitle(t.title.trim(), siteTitles[t.locale]);
+    const title = t.title.trim();
     results.push({
       id: `title-${t.locale}`,
-      ok: t.title.trim().length > 0 && title.length <= SEO_TITLE_MAX,
-      label: `Заголовок ${tag} в поиске: ${title.length} симв. (до ${SEO_TITLE_MAX})`,
+      ok: title.length > 0 && title.length <= SEO_TITLE_MAX,
+      label: `Заголовок ${tag}: ${title.length} симв. (до ${SEO_TITLE_MAX})`,
     });
+    if (t.status === "draft") {
+      results.push({
+        id: `outdated-${t.locale}`,
+        ok: false,
+        label: `${tag} устарел после правок RU — обновите перевод`,
+      });
+    }
     const description = t.description.trim().length;
     results.push({
       id: `description-${t.locale}`,

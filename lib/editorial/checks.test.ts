@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { failedChecks, prePublishChecks, scriptShare, type CheckableTranslation, type SourceCheck } from "./checks";
 
-const SITE = { ru: "Cyprus Pharmacy", en: "Cyprus Pharmacy", el: "Cyprus Pharmacy", ar: "Cyprus Pharmacy" };
 const OFFICIAL = "https://www.gesy.org.cy/en-us/";
 const BLOG = "https://example-blog.com/gesy";
 
@@ -35,48 +34,53 @@ const ids = (results: ReturnType<typeof prePublishChecks>) => failedChecks(resul
 
 describe("prePublishChecks", () => {
   it("passes a complete RU + EN article", () => {
-    const results = prePublishChecks([ru(), translated("en", "слово".replace(/./g, "w"))], ["ru", "en"], ok, SITE);
+    const results = prePublishChecks([ru(), translated("en", "слово".replace(/./g, "w"))], ["ru", "en"], ok);
     expect(ids(results)).toEqual([]);
   });
 
   it("flags a short Russian text, few FAQ items and description length", () => {
     const short = { ...ru(300), faq: faq(2), description: "коротко" };
-    expect(ids(prePublishChecks([short], ["ru"], ok, SITE))).toEqual(["ru-words", "description-ru", "faq-ru"]);
+    expect(ids(prePublishChecks([short], ["ru"], ok))).toEqual(["ru-words", "description-ru", "faq-ru"]);
   });
 
-  it("measures the title as shown in search, with the site name only when it fits", () => {
+  it("limits the search title to 60 characters", () => {
     const long = { ...ru(), title: "Очень длинный заголовок статьи про ГеСИ, который точно не помещается в поиске" };
-    expect(ids(prePublishChecks([long], ["ru"], ok, SITE))).toContain("title-ru");
-    const medium = { ...ru(), title: "Заголовок на пятьдесят символов ровно для проверки" };
-    expect(ids(prePublishChecks([medium], ["ru"], ok, SITE))).not.toContain("title-ru");
+    expect(ids(prePublishChecks([long], ["ru"], ok))).toContain("title-ru");
+    const fits = { ...ru(), title: "Что такое ГеСИ на Кипре и кто может им пользоваться" };
+    expect(ids(prePublishChecks([fits], ["ru"], ok))).not.toContain("title-ru");
+  });
+
+  it("flags a translation outdated by Russian edits", () => {
+    const outdated = { ...translated("en", "word"), status: "draft" as const };
+    expect(ids(prePublishChecks([ru(), outdated], ["ru", "en"], ok))).toContain("outdated-en");
   });
 
   it("requires an official source and working links", () => {
     const unofficial = { ...ru(), sources: [{ title: "Blog", url: BLOG }] };
     const checks: SourceCheck[] = [{ url: BLOG, state: "broken", status: 404, checkedAt: "x" }];
-    const failed = ids(prePublishChecks([unofficial], ["ru"], checks, SITE));
+    const failed = ids(prePublishChecks([unofficial], ["ru"], checks));
     expect(failed).toEqual(expect.arrayContaining(["official-source", "links"]));
   });
 
   it("treats unchecked and refused links as problems the editor must confirm", () => {
     const refused: SourceCheck[] = [{ url: OFFICIAL, state: "unverified", status: 403, checkedAt: "x" }];
-    expect(ids(prePublishChecks([ru()], ["ru"], refused, SITE))).toEqual(["links"]);
-    expect(ids(prePublishChecks([ru()], ["ru"], [], SITE))).toEqual(["links"]);
+    expect(ids(prePublishChecks([ru()], ["ru"], refused))).toEqual(["links"]);
+    expect(ids(prePublishChecks([ru()], ["ru"], []))).toEqual(["links"]);
   });
 
   it("catches a translation left in Russian, a truncated one and moved images", () => {
     const leftInRussian = { ...translated("el", "слово"), locale: "el" as const };
-    expect(ids(prePublishChecks([ru(), leftInRussian], ["el"], ok, SITE))).toContain("script-el");
+    expect(ids(prePublishChecks([ru(), leftInRussian], ["el"], ok))).toContain("script-el");
 
     const truncated = translated("ar", "كلمة", 100);
-    expect(ids(prePublishChecks([ru(), truncated], ["ar"], ok, SITE))).toContain("length-ar");
+    expect(ids(prePublishChecks([ru(), truncated], ["ar"], ok))).toContain("length-ar");
 
     const moved = { ...translated("en", "word"), bodyMd: "word ".repeat(900) };
-    expect(ids(prePublishChecks([ru(), moved], ["en"], ok, SITE))).toContain("markers-en");
+    expect(ids(prePublishChecks([ru(), moved], ["en"], ok))).toContain("markers-en");
   });
 
   it("reports a missing language", () => {
-    expect(ids(prePublishChecks([ru()], ["ru", "en"], ok, SITE))).toContain("missing-en");
+    expect(ids(prePublishChecks([ru()], ["ru", "en"], ok))).toContain("missing-en");
   });
 });
 

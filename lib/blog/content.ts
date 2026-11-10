@@ -82,13 +82,8 @@ export function readingMinutes(translation: BlogTranslation): number {
   return Math.max(1, Math.round(words / 200));
 }
 
-/** Search results show about 60 characters, so the site name is added only when it still fits. */
+/** Search results show about 60 characters of a title. */
 export const SEO_TITLE_MAX = 60;
-
-export function seoTitle(title: string, siteTitle: string): string {
-  const withSite = `${title} | ${siteTitle}`;
-  return withSite.length <= SEO_TITLE_MAX ? withSite : title;
-}
 
 /** Picks the plural form for the locale and inserts the localized number. */
 export function pluralize(forms: PluralForms, count: number, locale: Locale): string {

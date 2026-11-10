@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 
 import { localePath } from "@/lib/i18n/config";
 import { metadataBase } from "@/lib/i18n/metadata";
-import type { TranslationDictionary } from "@/lib/i18n/types";
 
-import { findImage, imageAlt, seoTitle, translationLocales } from "./content";
+import { findImage, imageAlt, translationLocales } from "./content";
 import type { BlogPost, BlogTranslation } from "./types";
 
 export function blogPostPath(locale: BlogTranslation["locale"], slug: string): string {
@@ -18,14 +17,14 @@ export function blogPostPath(locale: BlogTranslation["locale"], slug: string): s
 export function blogArticleMetadata(
   post: BlogPost,
   translation: BlogTranslation,
-  siteDictionary: TranslationDictionary,
 ): Metadata {
   const locales = translationLocales(post);
   const cover = findImage(post, "cover");
   const xDefault = locales.includes("en") ? "en" : locales[0];
   return {
     metadataBase,
-    title: seoTitle(translation.title, siteDictionary.siteTitle),
+    // The article title alone: the site name is left out while the site is being renamed.
+    title: translation.title,
     description: translation.description,
     alternates: {
       canonical: blogPostPath(translation.locale, post.slug),

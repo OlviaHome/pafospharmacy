@@ -12,7 +12,8 @@ const STATUS_KEY = {
 } as const;
 
 /**
- * Compact "EN | ΕΛ | РУ | عربي" switch, each label in its own language.
+ * Plain "EN | ΕΛ | РУ | عربي" text switch, each label in its own language: the current one
+ * is bolder and darker, others get a green underline on hover.
  * It changes only the article language (?lang=xx); the site language stays as it is.
  */
 export function ArticleLanguageBadges({
@@ -32,19 +33,16 @@ export function ArticleLanguageBadges({
 }) {
   if (translations.length < 2 && !showStatus) return null;
   return (
-    <nav aria-label={messages.articleLanguages} className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className="text-xs font-semibold text-[var(--ink-muted)]">{messages.articleLanguages}</span>
-      <span
-        dir="ltr"
-        className="inline-flex items-center rounded-full border border-[var(--line-strong)] bg-white p-0.5 text-sm"
-      >
+    <nav aria-label={messages.articleLanguages} className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <span className="text-xs font-semibold text-[var(--ink-muted)]">{messages.articleLanguages}:</span>
+      <span dir="ltr" className="inline-flex flex-wrap items-baseline text-sm">
         {translations.map(({ locale, status }, index) => {
           const active = locale === currentLocale;
           const href = locale === siteLocale ? basePath : `${basePath}?lang=${locale}`;
           return (
             <Fragment key={locale}>
               {index > 0 && (
-                <span aria-hidden="true" className="px-0.5 text-[var(--line-strong)]">
+                <span aria-hidden="true" className="mx-2.5 text-[var(--line-strong)]">
                   |
                 </span>
               )}
@@ -56,16 +54,16 @@ export function ArticleLanguageBadges({
                 aria-label={LOCALE_NAMES[locale]}
                 aria-current={active ? "true" : undefined}
                 scroll={false}
-                className={`inline-flex min-h-9 min-w-11 items-center justify-center gap-1 rounded-full px-3 font-bold transition-colors ${
+                className={`inline-block py-2 underline-offset-[6px] decoration-2 ${
                   active
-                    ? "bg-[var(--brand)] text-white"
-                    : "text-[var(--brand-strong)] hover:bg-[var(--surface-muted)]"
+                    ? "font-extrabold text-[var(--ink)]"
+                    : "font-normal text-[var(--ink-muted)] hover:text-[var(--ink)] hover:underline hover:decoration-[var(--link-hover)] focus-visible:underline focus-visible:decoration-[var(--link-hover)]"
                 }`}
               >
                 {LOCALE_SHORT_NAMES[locale]}
                 {showStatus && (
-                  <span className={`text-[0.65rem] font-semibold ${active ? "text-white/75" : "text-[var(--ink-muted)]"}`}>
-                    {messages[STATUS_KEY[status]]}
+                  <span className="ms-1 inline-block text-[0.65rem] font-semibold text-[var(--ink-muted)]">
+                    ({messages[STATUS_KEY[status]]})
                   </span>
                 )}
               </Link>

@@ -3,8 +3,6 @@ import "server-only";
 import { revalidateTag } from "next/cache";
 
 import { BLOG_CACHE_TAG } from "@/lib/blog/repository";
-import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
-import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Locale } from "@/lib/i18n/types";
 
 import type { TelegramCallbackQuery, TelegramMessage, TelegramUpdate } from "./auth";
@@ -16,11 +14,14 @@ import {
   publicUrl,
   renderCard,
   renderImagesMenu,
+  renderManualMenu,
   renderTranslationsCard,
 } from "./cards";
 import { failedChecks, formatChecks, prePublishChecks, type CheckResult } from "./checks";
 import { editorialLimits, openAiModel, siteOrigin, telegramConfig, unsplashKey } from "./config";
 import { removeStoredImage, storeImageBytes } from "./images";
+import { addInlineImage, applyManualEdit, isManualPart, partLabel, partText, removeInlineImage, type ManualPart } from "./manual";
+import { splitSections } from "./sections";
 import type { JobKind } from "./limits";
 import { nextStockImage, refreshSourceChecks, setNotifier, startJob, type StartResult } from "./pipeline";
 import { findSimilar } from "./similar";
@@ -41,7 +42,15 @@ import {
   usageSnapshot,
   type EditorialPost,
 } from "./store";
-import { answerCallback, downloadFile, editMessage, escapeHtml, sendMessage, sendTyping } from "./telegram";
+import {
+  answerCallback,
+  downloadFile,
+  editMessage,
+  escapeHtml,
+  sendDocument,
+  sendMessage,
+  sendTyping,
+} from "./telegram";
 
 const MAX_TOPIC_LENGTH = 500;
 const MAX_INSTRUCTION_LENGTH = 2000;
@@ -52,15 +61,8 @@ function adminChatId(): number {
 
 /* ---------- checks and cards ---------- */
 
-function siteTitles(): Record<Locale, string> {
-  return Object.fromEntries(SUPPORTED_LOCALES.map((locale) => [locale, getDictionary(locale).siteTitle])) as Record<
-    Locale,
-    string
-  >;
-}
-
 function checksFor(post: EditorialPost, locales: Locale[]): CheckResult[] {
-  return prePublishChecks(post.translations, locales, post.sourceChecks, siteTitles());
+  return prePublishChecks(post.translations, locales, post.sourceChecks);
 }
 
 const TRANSLATION_LOCALES: Locale[] = ["el", "ar"];
@@ -138,8 +140,9 @@ const HELP = `Я пишу статьи для блога HealthGuide Cyprus. Н�
 <b>Как проходит работа</b>
 1. Я ищу официальные источники и пишу статью на русском, потом перевожу на английский.
 2. Присылаю карточку со ссылками на превью и кнопками.
-3. ✏️ Правки: ответьте текстом, что исправить. ↩️ Откатить вернёт предыдущую версию.
-4. 🖼 Картинки: другое стоковое фото, своя картинка или свой поисковый запрос.
+3. 📝 Править самой: заголовок, описание, любой раздел, FAQ, источники или весь текст файлом. Я присылаю текущий текст, вы отвечаете исправленным.
+   ✏️ Правки через ИИ: напишите, что изменить, и я перепишу сама. ↩️ Откатить вернёт предыдущую версию.
+4. 🖼 Картинки: другое стоковое фото, своя картинка, свой поисковый запрос, ➕ новая картинка в нужный раздел, 🗑 убрать.
 5. ✅ Опубликовать RU + EN. После этого переведу на греческий и арабский и тоже покажу перед публикацией.
 
 <b>Команды</b>
@@ -317,8 +320,19 @@ async function handleReply(
     return;
   }
 
+  if (context.purpose === "image_prompt" && context.slot?.startsWith("add:")) {
+    await handleAddImageReply(message, post, Number(context.slot.slice(4)));
+    return;
+  }
+
   if (context.purpose === "image_prompt" && context.slot) {
     await handleImageReply(message, post, context.slot, text);
+    return;
+  }
+
+  // A reply to "send me the corrected text" carries the part in slot as "ru|s2".
+  if (context.purpose === "edit_prompt" && context.slot) {
+    await handleManualReply(message, post, context.slot);
     return;
   }
 
@@ -331,6 +345,134 @@ async function handleReply(
 
   if ((context.purpose === "edit_prompt" || context.purpose === "card") && text) {
     await requestEdit(chatId, post, text);
+  }
+}
+
+/** Published or busy articles can't be edited; returns the reason, or null when editing is fine. */
+function editBlocker(post: EditorialPost): string | null {
+  if (post.status === "published") {
+    return `#${post.number} опубликована. Чтобы править, сначала снимите её с публикации (⏸), потом опубликуйте снова.`;
+  }
+  if (post.status === "generating") return `#${post.number} сейчас обновляется. Подождите карточку.`;
+  if (post.status === "archived") return `#${post.number} в архиве. Сначала восстановите её.`;
+  if (!post.translations.some((t) => t.locale === "ru")) return `У #${post.number} ещё нет текста.`;
+  return null;
+}
+
+const MAX_INLINE_EDIT_CHARS = 3500;
+
+async function sendPartForEditing(chatId: number, post: EditorialPost, locale: Locale, part: ManualPart): Promise<void> {
+  const translation = post.translations.find((t) => t.locale === locale);
+  if (!translation) {
+    await sendMessage(chatId, "Этого языка у статьи пока нет.");
+    return;
+  }
+  const current = partText(translation, part);
+  const label = partLabel(part, translation);
+  const hints: Partial<Record<ManualPart, string>> = {
+    faq: "Формат: «В: вопрос» и на следующей строке «О: ответ», пары через пустую строку.",
+    src: "Формат: по одной строке «Название | https://…».",
+    file: "Отредактируйте файл и пришлите его обратно ответом на это сообщение (можно и текстом).",
+  };
+  const hint =
+    hints[part] ??
+    `Нажмите на текст, чтобы скопировать, исправьте и пришлите ответом на это сообщение.${
+      part.startsWith("s") ? " Ответ «-» удаляет раздел." : ""
+    }`;
+  const slot = `${locale}|${part}`;
+  if (part === "file" || current.length > MAX_INLINE_EDIT_CHARS) {
+    const sent = await sendDocument(
+      chatId,
+      `article-${post.number}-${locale}${part === "file" ? "" : `-${part}`}.md`,
+      current,
+      `📝 #${post.number} ${locale.toUpperCase()}: ${escapeHtml(label)}\n${escapeHtml(hints.file!)}`,
+      { forceReply: true },
+    );
+    await rememberMessage(chatId, sent.message_id, "edit_prompt", post.id, { slot });
+    return;
+  }
+  const sent = await sendMessage(
+    chatId,
+    `📝 #${post.number} ${locale.toUpperCase()}: <b>${escapeHtml(label)}</b>\n${escapeHtml(hint)}\n\n<pre>${escapeHtml(current)}</pre>`,
+    { forceReply: true },
+  );
+  await rememberMessage(chatId, sent.message_id, "edit_prompt", post.id, { slot });
+}
+
+async function readReplyText(message: TelegramMessage): Promise<string> {
+  const document = message.document;
+  if (document) {
+    const name = document.file_name ?? "";
+    const isText = /\.(md|txt|markdown)$/i.test(name) || (document.mime_type ?? "").startsWith("text/");
+    if (!isText) throw new Error("Нужен текстовый файл .md или .txt.");
+    if ((document.file_size ?? 0) > 300_000) throw new Error("Файл слишком большой.");
+    const { bytes } = await downloadFile(document.file_id);
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+  return message.text ?? "";
+}
+
+async function handleManualReply(message: TelegramMessage, post: EditorialPost, slot: string): Promise<void> {
+  const chatId = message.chat.id;
+  const [locale, part] = slot.split("|");
+  if ((locale !== "ru" && locale !== "en") || !part || !isManualPart(part)) return;
+  const blocked = editBlocker(post);
+  if (blocked) {
+    await sendMessage(chatId, blocked);
+    return;
+  }
+  let text: string;
+  try {
+    text = await readReplyText(message);
+  } catch (error) {
+    await sendMessage(chatId, `⚠️ ${escapeHtml(error instanceof Error ? error.message : "Не удалось прочитать файл.")}`);
+    return;
+  }
+  // "-" as the whole reply removes a section.
+  const value = part.startsWith("s") && text.trim() === "-" ? "" : text;
+  try {
+    const result = await applyManualEdit(post, locale, part, value);
+    let fresh = (await loadPost({ id: post.id }))!;
+    if (result.sourcesChanged) {
+      await refreshSourceChecks(
+        post.id,
+        fresh.translations.flatMap((t) => t.sources.map((s) => s.url)),
+      );
+      fresh = (await loadPost({ id: post.id }))!;
+    }
+    await sendMessage(
+      chatId,
+      `✅ Сохранено: ${escapeHtml(partLabel(part, post.translations.find((t) => t.locale === locale)))} (${locale.toUpperCase()}).${
+        result.outdated.length ? ` ${result.outdated.map((l) => l.toUpperCase()).join(", ")} помечены как устаревшие.` : ""
+      } ↩️ Откат вернёт прошлую версию.`,
+    );
+    await sendCard(chatId, fresh);
+  } catch (error) {
+    await sendMessage(chatId, `⚠️ ${escapeHtml(error instanceof Error ? error.message : "Не удалось сохранить.")}`);
+  }
+}
+
+async function handleAddImageReply(message: TelegramMessage, post: EditorialPost, sectionIndex: number): Promise<void> {
+  const chatId = message.chat.id;
+  const blocked = editBlocker(post);
+  if (blocked) {
+    await sendMessage(chatId, blocked);
+    return;
+  }
+  const fileId = message.photo?.at(-1)?.file_id ?? (message.document?.mime_type?.startsWith("image/") ? message.document.file_id : null);
+  if (!fileId) {
+    await sendMessage(chatId, "Пришлите фото ответом на сообщение бота.");
+    return;
+  }
+  await sendTyping(chatId);
+  try {
+    const { bytes } = await downloadFile(fileId);
+    const stored = await storeImageBytes(post.id, "inline", bytes);
+    const slot = await addInlineImage(post, sectionIndex, stored, message.caption?.trim() ?? "");
+    await sendMessage(chatId, `✅ Картинка ${slot} вставлена в конец раздела §${sectionIndex + 1} во всех языках.`);
+    await sendCard(chatId, (await loadPost({ id: post.id }))!);
+  } catch (error) {
+    await sendMessage(chatId, `⚠️ ${escapeHtml(error instanceof Error ? error.message : "Не удалось сохранить картинку.")}`);
   }
 }
 
@@ -588,6 +730,104 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         return;
       }
       await revalidateIfLive(post);
+      const menu = renderImagesMenu((await loadPost({ id: post.id }))!);
+      await editMessage(chatId, messageId, menu.text, menu.keyboard);
+      return;
+    }
+
+    case "med": {
+      await answerCallback(query.id);
+      const blocked = editBlocker(post);
+      if (blocked) {
+        await sendMessage(chatId, blocked);
+        return;
+      }
+      const locale: Locale = slot === "en" ? "en" : "ru";
+      const menu = renderManualMenu(post, locale);
+      // Switching the language edits the same menu message.
+      if (slot) await editMessage(chatId, messageId, menu.text, menu.keyboard);
+      else await sendMessage(chatId, menu.text, { keyboard: menu.keyboard });
+      return;
+    }
+
+    case "mt": {
+      await answerCallback(query.id);
+      const [, , locale, part] = (query.data ?? "").split(":");
+      const blocked = editBlocker(post);
+      if (blocked) {
+        await sendMessage(chatId, blocked);
+        return;
+      }
+      if ((locale !== "ru" && locale !== "en") || !part || !isManualPart(part)) return;
+      await sendPartForEditing(chatId, post, locale, part);
+      return;
+    }
+
+    case "tren": {
+      const blocked = editBlocker(post);
+      if (blocked) {
+        await answerCallback(query.id);
+        await sendMessage(chatId, blocked);
+        return;
+      }
+      await updatePost(post.id, { status: "generating" });
+      const result = await startJob(post.id, "translate", { locales: ["en"], notify: "card" });
+      await answerCallback(query.id);
+      const limit = limitMessage(result);
+      if (limit) {
+        await updatePost(post.id, { status: post.status });
+        await sendMessage(chatId, limit);
+        return;
+      }
+      await sendMessage(chatId, `🔁 Обновляю английский перевод #${post.number} по русскому тексту.`);
+      return;
+    }
+
+    case "imgadd": {
+      await answerCallback(query.id);
+      const blocked = editBlocker(post);
+      if (blocked) {
+        await sendMessage(chatId, blocked);
+        return;
+      }
+      const ru = post.translations.find((t) => t.locale === "ru")!;
+      const sections = splitSections(ru.bodyMd);
+      await sendMessage(chatId, `➕ В какой раздел #${post.number} вставить картинку? Она встанет в конец раздела.`, {
+        keyboard: sections.map((section, index) => [
+          { text: `§${index + 1} ${(section.heading ?? "вступление").slice(0, 40)}`, callback_data: `imgsec:${post.number}:${index}` },
+        ]),
+      });
+      return;
+    }
+
+    case "imgsec": {
+      await answerCallback(query.id);
+      const index = Number(slot);
+      if (!Number.isInteger(index) || index < 0) return;
+      const sent = await sendMessage(
+        chatId,
+        `📤 Пришлите фото для раздела §${index + 1} в #${post.number} ответом на это сообщение. Подпись к фото станет описанием картинки (alt).`,
+        { forceReply: true },
+      );
+      await rememberMessage(chatId, sent.message_id, "image_prompt", post.id, { slot: `add:${index}` });
+      return;
+    }
+
+    case "imgdel": {
+      if (!slot) return;
+      const blocked = editBlocker(post);
+      if (blocked) {
+        await answerCallback(query.id);
+        await sendMessage(chatId, blocked);
+        return;
+      }
+      try {
+        await removeInlineImage(post, slot);
+      } catch (error) {
+        await answerCallback(query.id, error instanceof Error ? error.message : "Ошибка");
+        return;
+      }
+      await answerCallback(query.id, `Картинка ${slot} убрана`);
       const menu = renderImagesMenu((await loadPost({ id: post.id }))!);
       await editMessage(chatId, messageId, menu.text, menu.keyboard);
       return;
