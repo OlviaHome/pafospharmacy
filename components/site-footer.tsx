@@ -6,6 +6,7 @@ import type { FooterMessages, Locale } from "@/lib/i18n/types";
 
 export function SiteFooter({ locale, messages }: { locale: Locale; messages: FooterMessages }) {
   const footerLinks = [
+    { href: "/blog", label: messages.blog },
     { href: "/about", label: messages.about },
     { href: "/privacy", label: messages.privacy },
     { href: "/terms", label: messages.terms },

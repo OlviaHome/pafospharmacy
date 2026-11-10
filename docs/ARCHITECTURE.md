@@ -163,6 +163,44 @@ Typed locale resources live under `lib/i18n/locales`. Presentation components re
 
 Arabic requires an explicit right-to-left review rather than only setting `dir="rtl"`. The card label/time rows, icon-and-text controls, manual-search suggestions, legal-page list indentation, and left/right text-alignment utilities need logical start/end styling. Pharmacy names, official addresses, telephone numbers, registration identifiers, coordinates, clock ranges, and external provider names may mix scripts; those dynamic values need appropriate bidirectional isolation while telephone, coordinate, and URL values remain left-to-right. Status badges, narrow-screen wrapping, and Call/Directions action order also need visual and assistive-technology testing in RTL.
 
+## Blog
+
+- Routes: `/{locale}/blog` (list), `/{locale}/blog/{slug}` (article, optional `?lang=` for the article language), and `/{locale}/blog/preview/{token}` (hidden, `noindex`, uncached draft preview for the editor).
+- Data access lives in the server-only `lib/blog/repository.ts`. Published articles are read with the publishable key under RLS and cached with the `blog` tag (1-hour safety revalidation); call `revalidateTag("blog", "max")` after publishing or editing. Previews go through `get_blog_preview(token)` and are never cached. Outside production, with no Supabase configuration, a generic demo article is used.
+- Pure selection and parsing logic (`chooseTranslation`, `splitBody`, reading time) lives in `lib/blog/content.ts` and is unit tested.
+- Articles emit `Article` and `FAQPage` JSON-LD, hreflang alternates for published languages, and sitemap entries. Remote images are allowed only from the Supabase Storage `blog-images` bucket.
+- The editorial agent (Telegram bot) is a separate trusted writer using the secret key; it is not part of page rendering.
+
+- **Manual editing in Telegram** (`lib/editorial/manual.ts`, `sections.ts`): the editor picks RU or EN and a part — title, description, one `##` section, FAQ (`В:`/`О:` lines), sources (`Title | https://…` lines) or the whole body as a `.md` file — receives the current text and replies with the corrected one. Every change is saved through the revision history, so ↩️ undo works. A Russian change marks other languages as outdated (`draft`); the card offers "refresh EN", and the pre-publish checks flag outdated translations. Photos can be inserted at the end of any section (the marker goes into every language) or removed from the text. No OpenAI call is made for manual edits.
+- **Titles:** article and blog-index `<title>` tags carry no site name while the site is being renamed; the search-title check is the article title itself (≤ 60 characters).
+- **Language switching:** the article language switch (plain text `EN | ΕΛ | РУ | عربي`, each label in its own language; current one bold, green underline on hover) sets only `?lang=`; the site language selector drops `?lang=`, so the article follows the new site language, falling back to English when that translation is not published yet.
+- **Views:** the public article page reports one view per browser tab session to `POST /api/blog/view` (same-origin only, bots ignored), which calls `increment_blog_view(slug)`; counts show in the article language once the blog cache refreshes. The preview page never counts.
+- `robots.txt` is a route handler so it can carry `Content-Signal: ai-train=no, search=yes, ai-input=yes`.
+
+## Editorial agent
+
+```text
+Editor (Telegram, admin only) ──► POST /api/telegram/webhook ──► lib/editorial/bot.ts
+                                                     │ (button actions, publish, images: inline)
+                                                     ▼
+                               blog_agent_jobs (queued) ──► POST /api/editorial/run ──► after(): runJob
+                                                                   │ write → translate(en) → card
+                                                                   │ edit  → translate(en) → card
+                                                                   │ translate(el, ar) → card
+                                                                   ▼
+                                         OpenAI Responses API (web_search, strict JSON) · Unsplash/Openverse
+```
+
+- **Webhook trust:** every request must carry `X-Telegram-Bot-Api-Secret-Token` equal to `TELEGRAM_WEBHOOK_SECRET` (constant-time compare, else 401). Only updates from `TELEGRAM_ADMIN_ID` in its private chat are handled; others get no reply. Missing or malformed config fails closed (503). Update ids are deduplicated in `blog_bot_updates`.
+- **Runner:** long work runs in `/api/editorial/run`, one job per invocation (`maxDuration` 300 s), authenticated with the same secret in `x-editorial-secret`. `claim_blog_agent_job` claims a job atomically so a job never runs twice; jobs older than 7 minutes are marked failed. If the runner cannot be reached, the job runs with `after()` in the current invocation.
+- **Limits before any OpenAI call:** monthly estimated spend (`BLOG_MONTHLY_BUDGET_USD`, default $10, including a per-job reservation), new articles per Cyprus day (5), all jobs per day (40), parallel jobs (3), web searches per article (8), and output-token caps per call. Usage and estimated cost of every call are stored in `blog_ai_usage`; prices live in `lib/editorial/pricing.ts`, and unknown models are priced at the highest rate. Follow-up jobs of an article already started (its translations) only check the monthly budget. The OpenAI dashboard limit remains the hard ceiling.
+- **Human approval:** drafts are never visible until the editor presses Publish. RU and EN are published together; EL and AR are translated afterwards and published separately. Published articles must be unpublished before editing. Every change is saved to revisions first, so the last edit can be rolled back; image slots an edit drops are kept for that reason.
+- **Images:** Unsplash when `UNSPLASH_ACCESS_KEY` is set (hotlinked and rendered unoptimized, download tracked, photographer + Unsplash credited), otherwise Openverse CC0/PDM/BY/BY-SA images copied to the `blog-images` bucket with creator and licence credited. Portal screenshots are placeholders the editor fills by replying with a photo; placeholders appear only in previews.
+- **Sources:** official means Cyprus government and public bodies (`gov.cy` and subdomains, `gesy.org.cy`, `hio.org.cy`, `shso.org.cy`), the EU and the WHO; `cylaw.org` is trusted but not official. Every source URL is requested after writing, after an edit, after translation (new URLs only) and again when Publish is pressed; results (`ok` / `broken` / `unverified` when a site refuses automated checks or times out) are stored in `blog_posts.source_checks`.
+- **Pre-publish checks** (`lib/editorial/checks.ts`, pure and unit tested): Russian body from 700 words; search title (with the site name only when it fits) up to 60 characters; description 120–160; FAQ from 4; at least one official source and every link working; each translation mostly in its own alphabet, at least 60% of the Russian length, with the same image markers. Results show in the draft and translation cards; any failure (or an empty image slot) turns Publish into an explicit confirmation, for RU + EN and for EL + AR.
+- **Duplicates:** before a new article starts, its topic is compared with existing topics and titles (`lib/editorial/similar.ts`, stem overlap across RU/EN with GeSY/registration aliases). A match asks "write anyway / open #N". A slug already taken is reported in the card instead of silently adding `-2`.
+- **Health check:** `GET`/`POST /api/telegram/setup` is for the editor only: it needs `Authorization: Bearer` with `TELEGRAM_SETUP_KEY` or `TELEGRAM_WEBHOOK_SECRET`, or `?key=TELEGRAM_SETUP_KEY` in a browser link (the webhook secret is never accepted in a URL); anyone else gets an empty 404. It registers the webhook (idempotent) and reports whether each setting, the OpenAI model, the blog tables, the bucket and the webhook work, without revealing any secret.
+
 ## Security and privacy
 
 - No consumer authentication or personal profile data exists in the first slice.

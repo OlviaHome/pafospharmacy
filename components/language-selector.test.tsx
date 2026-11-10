@@ -33,6 +33,17 @@ describe("LanguageSelector", () => {
     expect(document.cookie).toContain(`${LOCALE_COOKIE_NAME}=ar`);
   });
 
+  it("drops the article-language choice so the article follows the new site language", () => {
+    window.history.replaceState({}, "", "/en/privacy?lang=ru&from=finder");
+    render(<LanguageSelector locale="en" label="Language" />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Language" }), {
+      target: { value: "el" },
+    });
+
+    expect(navigation.push).toHaveBeenCalledWith("/el/privacy?from=finder");
+  });
+
   it("offers all four supported language names", () => {
     render(<LanguageSelector locale="en" label="Language" />);
     expect(screen.getByRole("option", { name: "English" })).toBeTruthy();

@@ -35,6 +35,7 @@ export interface ContentPageMessages {
 
 export interface FinderMessages {
   brandName: string;
+  blog: string;
   about: string;
   heroTitle: string;
   heroSchedulePeriod: string;
@@ -156,8 +157,40 @@ export interface FinderMessages {
   directions: string;
 }
 
+/** Message per plural category of the locale ("{count}" is replaced); "other" is the fallback. */
+export type PluralForms = Partial<Record<Intl.LDMLPluralRule, string>> & { other: string };
+
+export interface BlogMessages {
+  title: string;
+  description: string;
+  introduction: string;
+  empty: string;
+  readArticle: string;
+  backToBlog: string;
+  minutesRead: PluralForms;
+  views: PluralForms;
+  publishedOn: string;
+  updatedOn: string;
+  articleLanguages: string;
+  /** "{language}" is replaced with the language name of the shown version. */
+  fallbackNotice: string;
+  faqHeading: string;
+  sourcesHeading: string;
+  disclaimerTitle: string;
+  disclaimer: string;
+  /** "{name}" is the photographer, "{source}" the stock library. */
+  photoCredit: string;
+  previewBanner: string;
+  /** "{note}" describes the missing image. */
+  imagePlaceholder: string;
+  statusDraft: string;
+  statusReview: string;
+  statusPublished: string;
+}
+
 export interface FooterMessages {
   navigation: string;
+  blog: string;
   about: string;
   privacy: string;
   terms: string;
@@ -178,6 +211,7 @@ export interface TranslationDictionary {
   googlePrivacyPolicyLabel: string;
   finder: FinderMessages;
   footer: FooterMessages;
+  blog: BlogMessages;
   pages: {
     about: ContentPageMessages;
     privacy: ContentPageMessages;

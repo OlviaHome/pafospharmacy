@@ -10,12 +10,14 @@ import type { Locale } from "@/lib/i18n/types";
 export function FinderHeader({
   locale,
   brandName,
+  blog,
   about,
   dataSources,
   languageLabel,
 }: {
   locale: Locale;
   brandName: string;
+  blog: string;
   about: string;
   dataSources: string;
   languageLabel: string;
@@ -35,6 +37,12 @@ export function FinderHeader({
           </span>
         </Link>
         <Link
+          href={localePath(locale, "/blog")}
+          className="hidden min-h-11 min-w-11 items-center justify-center text-sm font-bold text-[var(--ink-muted)] hover:text-[var(--brand)] sm:inline-flex"
+        >
+          {blog}
+        </Link>
+        <Link
           href={localePath(locale, "/about")}
           className="hidden min-h-11 min-w-11 items-center justify-center text-sm font-bold text-[var(--ink-muted)] hover:text-[var(--brand)] sm:inline-flex"
         >
@@ -49,9 +57,15 @@ export function FinderHeader({
         <LanguageSelector locale={locale} label={languageLabel} />
       </div>
       <nav
-        aria-label={`${about} / ${dataSources}`}
+        aria-label={`${blog} / ${about} / ${dataSources}`}
         className="mx-auto flex min-h-11 w-full max-w-7xl items-center gap-5 border-t border-[var(--line)] px-4 text-xs font-bold text-[var(--ink-muted)] sm:px-6 md:hidden"
       >
+        <Link
+          href={localePath(locale, "/blog")}
+          className="inline-flex min-h-11 min-w-11 items-center justify-center sm:hidden"
+        >
+          {blog}
+        </Link>
         <Link
           href={localePath(locale, "/about")}
           className="inline-flex min-h-11 min-w-11 items-center justify-center sm:hidden"

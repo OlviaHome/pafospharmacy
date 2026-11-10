@@ -23,7 +23,12 @@ The roadmap stays narrow. Availability claims expand only when a trustworthy sou
 - Original English master copy with independent-service branding, concise homepage disclosure, and About, Privacy, Terms, and Data Sources pages.
 - Full EN/EL/RU/AR localization with locale-prefixed routes, browser-language detection, a saved manual language choice, localized finder/legal content, and Arabic right-to-left support.
 
+- Multilingual blog at `/{locale}/blog` backed by Supabase, with per-language publication, article-language badges, hidden draft previews, FAQ/sources/disclaimer, and Article/FAQ structured data.
+
 ## NOW — validate the official-data experience
+
+- Launch the Telegram editorial agent: apply the three blog migrations, deploy, open `/api/telegram/setup`, and run the first article (GeSY) end to end.
+- Apply for Unsplash production access if the photo volume grows beyond demo limits.
 
 - Verify the source refresh cadence and define behavior before the published duty coverage ends on 2027-04-30.
 - User-test the distinct mandatory duty-open, scheduled-gap, and overnight-call wording with residents, expats, and tourists.

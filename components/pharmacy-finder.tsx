@@ -988,6 +988,7 @@ export function PharmacyFinder({
       <FinderHeader
         locale={locale}
         brandName={messages.brandName}
+        blog={messages.blog}
         about={messages.about}
         dataSources={messages.dataSources}
         languageLabel={languageLabel}

@@ -11,6 +11,7 @@ export const en = {
   googlePrivacyPolicyLabel: "Google Privacy Policy",
   finder: {
     brandName: "Cyprus Pharmacy",
+    blog: "Blog",
     about: "About",
     heroTitle: "Find an open pharmacy now",
     heroSchedulePeriod: "Official duty schedule across Cyprus · 1 Oct 2026 — 30 Apr 2027",
@@ -143,6 +144,7 @@ export const en = {
   },
   footer: {
     navigation: "Legal and information",
+    blog: "Blog",
     about: "About",
     privacy: "Privacy",
     terms: "Terms",
@@ -153,6 +155,30 @@ export const en = {
       "Cyprus Pharmacy is not an emergency service. In a serious or life-threatening emergency in Cyprus, call",
     emergencyAfter:
       "This website does not replace a doctor, pharmacist, or emergency medical service.",
+  },
+  blog: {
+    title: "Blog",
+    description: "Practical guides to healthcare in Cyprus: GeSY, pharmacies, doctors and hospitals, explained in plain language.",
+    introduction: "Practical guides to healthcare in Cyprus, explained in plain language with links to official sources.",
+    empty: "No articles yet. The first ones are on their way.",
+    readArticle: "Read article",
+    backToBlog: "All articles",
+    minutesRead: { one: "{count} min read", other: "{count} min read" },
+    views: { one: "{count} view", other: "{count} views" },
+    publishedOn: "Published {date}",
+    updatedOn: "Updated {date}",
+    articleLanguages: "Article language",
+    fallbackNotice: "This article is not available in English yet. Showing the {language} version.",
+    faqHeading: "Frequently asked questions",
+    sourcesHeading: "Sources",
+    disclaimerTitle: "Please note",
+    disclaimer: "This article is for general information only and is not medical advice. Rules, fees and deadlines can change, so check the official sources before acting. For health questions, ask a doctor or pharmacist. In an emergency, call 112.",
+    photoCredit: "Photo: {name} / {source}",
+    previewBanner: "Draft preview. This article is not published and visitors cannot see it.",
+    imagePlaceholder: "Image needed: {note}",
+    statusDraft: "draft",
+    statusReview: "in review",
+    statusPublished: "published",
   },
   pages: {
     about: {
