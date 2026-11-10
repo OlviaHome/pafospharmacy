@@ -41,10 +41,12 @@ export interface BlogImage {
   height: number | null;
   alt: Partial<Record<Locale, string>>;
   placeholderNote: string | null;
-  source: "pexels" | "upload" | "placeholder";
+  source: "pexels" | "unsplash" | "openverse" | "upload" | "placeholder";
   creditName: string | null;
   creditUrl: string | null;
   sourcePageUrl: string | null;
+  licenseName: string | null;
+  licenseUrl: string | null;
 }
 
 export interface BlogPost {

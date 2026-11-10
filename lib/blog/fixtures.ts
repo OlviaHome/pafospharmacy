@@ -106,6 +106,8 @@ export const DEV_BLOG_POSTS: BlogPost[] = [
         creditName: null,
         creditUrl: null,
         sourcePageUrl: null,
+        licenseName: null,
+        licenseUrl: null,
       },
     ],
   },

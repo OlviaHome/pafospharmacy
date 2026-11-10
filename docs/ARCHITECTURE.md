@@ -171,6 +171,27 @@ Arabic requires an explicit right-to-left review rather than only setting `dir="
 - Articles emit `Article` and `FAQPage` JSON-LD, hreflang alternates for published languages, and sitemap entries. Remote images are allowed only from the Supabase Storage `blog-images` bucket.
 - The editorial agent (Telegram bot) is a separate trusted writer using the secret key; it is not part of page rendering.
 
+## Editorial agent
+
+```text
+Editor (Telegram, admin only) ──► POST /api/telegram/webhook ──► lib/editorial/bot.ts
+                                                     │ (button actions, publish, images: inline)
+                                                     ▼
+                               blog_agent_jobs (queued) ──► POST /api/editorial/run ──► after(): runJob
+                                                                   │ write → translate(en) → card
+                                                                   │ edit  → translate(en) → card
+                                                                   │ translate(el, ar) → card
+                                                                   ▼
+                                         OpenAI Responses API (web_search, strict JSON) · Unsplash/Openverse
+```
+
+- **Webhook trust:** every request must carry `X-Telegram-Bot-Api-Secret-Token` equal to `TELEGRAM_WEBHOOK_SECRET` (constant-time compare, else 401). Only updates from `TELEGRAM_ADMIN_ID` in its private chat are handled; others get no reply. Missing or malformed config fails closed (503). Update ids are deduplicated in `blog_bot_updates`.
+- **Runner:** long work runs in `/api/editorial/run`, one job per invocation (`maxDuration` 300 s), authenticated with the same secret in `x-editorial-secret`. `claim_blog_agent_job` claims a job atomically so a job never runs twice; jobs older than 7 minutes are marked failed. If the runner cannot be reached, the job runs with `after()` in the current invocation.
+- **Limits before any OpenAI call:** monthly estimated spend (`BLOG_MONTHLY_BUDGET_USD`, default $10, including a per-job reservation), new articles per Cyprus day (5), all jobs per day (40), parallel jobs (3), web searches per article (8), and output-token caps per call. Usage and estimated cost of every call are stored in `blog_ai_usage`; prices live in `lib/editorial/pricing.ts`, and unknown models are priced at the highest rate. Follow-up jobs of an article already started (its translations) only check the monthly budget. The OpenAI dashboard limit remains the hard ceiling.
+- **Human approval:** drafts are never visible until the editor presses Publish. RU and EN are published together; EL and AR are translated afterwards and published separately. Published articles must be unpublished before editing. Every change is saved to revisions first, so the last edit can be rolled back; image slots an edit drops are kept for that reason.
+- **Images:** Unsplash when `UNSPLASH_ACCESS_KEY` is set (hotlinked and rendered unoptimized, download tracked, photographer + Unsplash credited), otherwise Openverse CC0/PDM/BY/BY-SA images copied to the `blog-images` bucket with creator and licence credited. Portal screenshots are placeholders the editor fills by replying with a photo; placeholders appear only in previews.
+- **Health check:** `GET /api/telegram/setup` registers the webhook (idempotent) and reports whether each setting, the OpenAI model, the blog tables, the bucket and the webhook work, without revealing any secret.
+
 ## Security and privacy
 
 - No consumer authentication or personal profile data exists in the first slice.

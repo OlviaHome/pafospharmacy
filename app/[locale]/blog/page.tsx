@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
+import { isHotlinked } from "@/components/blog/blog-figure";
 import { BlogShell } from "@/components/blog/blog-shell";
 import { chooseTranslation, findImage, imageAlt, readingMinutes, fillTemplate, translationLocales } from "@/lib/blog/content";
 import { formatBlogDate } from "@/lib/blog/format";
@@ -72,6 +73,7 @@ export default async function BlogIndexPage({ params }: { params: Promise<{ loca
                           src={cover.url}
                           alt={imageAlt(cover, translation.locale)}
                           fill
+                          unoptimized={isHotlinked(cover)}
                           sizes="(max-width: 640px) 100vw, 480px"
                           className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                         />

@@ -43,6 +43,8 @@ interface ImageRow {
   credit_name: string | null;
   credit_url: string | null;
   source_page_url: string | null;
+  license_name?: string | null;
+  license_url?: string | null;
 }
 
 interface PostRow {
@@ -59,7 +61,7 @@ interface PostRow {
 const POST_SELECT = `
   id, slug, status, author_name, published_at, updated_at,
   translations:blog_post_translations(locale, status, title, description, body_md, faq, sources, published_at, updated_at),
-  images:blog_images(slot, url, width, height, alt, placeholder_note, source, credit_name, credit_url, source_page_url)
+  images:blog_images(slot, url, width, height, alt, placeholder_note, source, credit_name, credit_url, source_page_url, license_name, license_url)
 `;
 
 function asFaq(value: unknown): BlogFaqItem[] {
@@ -123,6 +125,8 @@ export function mapPostRow(row: PostRow): BlogPost {
       creditName: image.credit_name,
       creditUrl: image.credit_url,
       sourcePageUrl: image.source_page_url,
+      licenseName: image.license_name ?? null,
+      licenseUrl: image.license_url ?? null,
     })),
   };
 }

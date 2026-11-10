@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/blog-images/**",
       },
+      // Unsplash photos are hotlinked (required by its API) and rendered unoptimized.
+      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
   async redirects() {
