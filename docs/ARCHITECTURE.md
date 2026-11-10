@@ -175,7 +175,7 @@ Arabic requires an explicit right-to-left review rather than only setting `dir="
 - **Titles:** article and blog-index `<title>` tags carry no site name while the site is being renamed; the search-title check is the article title itself (≤ 60 characters).
 - **Language switching:** the article language switch (plain text `EN | ΕΛ | РУ | عربي`, each label in its own language; current one bold, green underline on hover) sets only `?lang=`; the site language selector drops `?lang=`, so the article follows the new site language, falling back to English when that translation is not published yet.
 - **Views:** the public article page reports one view per browser tab session to `POST /api/blog/view` (same-origin only, bots ignored), which calls `increment_blog_view(slug)`; counts show in the article language once the blog cache refreshes. The preview page never counts.
-- `robots.txt` is a route handler so it can carry `Content-Signal: ai-train=yes, search=yes, ai-input=yes`.
+- `robots.txt` is a route handler so it can carry `Content-Signal: ai-train=no, search=yes, ai-input=yes`.
 
 ## Editorial agent
 
@@ -199,7 +199,7 @@ Editor (Telegram, admin only) ──► POST /api/telegram/webhook ──► lib
 - **Sources:** official means Cyprus government and public bodies (`gov.cy` and subdomains, `gesy.org.cy`, `hio.org.cy`, `shso.org.cy`), the EU and the WHO; `cylaw.org` is trusted but not official. Every source URL is requested after writing, after an edit, after translation (new URLs only) and again when Publish is pressed; results (`ok` / `broken` / `unverified` when a site refuses automated checks or times out) are stored in `blog_posts.source_checks`.
 - **Pre-publish checks** (`lib/editorial/checks.ts`, pure and unit tested): Russian body from 700 words; search title (with the site name only when it fits) up to 60 characters; description 120–160; FAQ from 4; at least one official source and every link working; each translation mostly in its own alphabet, at least 60% of the Russian length, with the same image markers. Results show in the draft and translation cards; any failure (or an empty image slot) turns Publish into an explicit confirmation, for RU + EN and for EL + AR.
 - **Duplicates:** before a new article starts, its topic is compared with existing topics and titles (`lib/editorial/similar.ts`, stem overlap across RU/EN with GeSY/registration aliases). A match asks "write anyway / open #N". A slug already taken is reported in the card instead of silently adding `-2`.
-- **Health check:** `GET /api/telegram/setup` registers the webhook (idempotent) and reports whether each setting, the OpenAI model, the blog tables, the bucket and the webhook work, without revealing any secret.
+- **Health check:** `GET`/`POST /api/telegram/setup` is for the editor only: it needs `Authorization: Bearer` with `TELEGRAM_SETUP_KEY` or `TELEGRAM_WEBHOOK_SECRET`, or `?key=TELEGRAM_SETUP_KEY` in a browser link (the webhook secret is never accepted in a URL); anyone else gets an empty 404. It registers the webhook (idempotent) and reports whether each setting, the OpenAI model, the blog tables, the bucket and the webhook work, without revealing any secret.
 
 ## Security and privacy
 

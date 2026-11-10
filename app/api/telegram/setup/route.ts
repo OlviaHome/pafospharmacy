@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { isAuthorizedSetupRequest } from "@/lib/editorial/setup-auth";
+
 import {
   EditorialConfigError,
   openAiKey,
@@ -23,12 +25,28 @@ function configCheck(read: () => unknown): Check {
   }
 }
 
+const NO_STORE = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
+
+/** Same answer for a missing route and a wrong key, so strangers learn nothing. */
+function notFound() {
+  return new Response(null, { status: 404, headers: NO_STORE });
+}
+
+export async function GET(request: Request) {
+  return runSetup(request);
+}
+
+export async function POST(request: Request) {
+  return runSetup(request);
+}
+
 /**
- * Opening this URL (re)registers the bot webhook at {SITE_URL}/api/telegram/webhook with the
- * configured secret and reports a health check. It is idempotent and reveals no secret values:
- * only whether each setting is present and working.
+ * For the editor only: (re)registers the bot webhook at {SITE_URL}/api/telegram/webhook with the
+ * configured secret and reports a health check. Idempotent; reveals no secret values.
  */
-export async function GET() {
+async function runSetup(request: Request) {
+  if (!isAuthorizedSetupRequest(request)) return notFound();
+
   const checks: Record<string, Check> = {
     telegram_config: configCheck(telegramConfig),
     openai_key: configCheck(openAiKey),
@@ -76,5 +94,5 @@ export async function GET() {
   }
 
   const ok = Object.values(checks).every((check) => check.ok);
-  return NextResponse.json({ ok, checks }, { status: ok ? 200 : 500, headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ ok, checks }, { status: ok ? 200 : 500, headers: NO_STORE });
 }
