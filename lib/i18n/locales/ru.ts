@@ -12,7 +12,7 @@ export const ru = {
     brandName: "Cyprus Pharmacy",
     blog: "Блог",
     about: "О сервисе",
-    heroTitle: "Найдите открытую аптеку прямо сейчас",
+    heroTitle: "Дежурные и открытые аптеки на Кипре",
     heroSchedulePeriod: "Официальное расписание дежурств по Кипру · 1 окт. 2026 — 30 апр. 2027",
     installApp: "Установить приложение",
     installIosInstruction: "В Safari нажмите «Поделиться» → «На экран Домой».",

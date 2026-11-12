@@ -13,7 +13,7 @@ export const el = {
     brandName: "Cyprus Pharmacy",
     blog: "Blog",
     about: "Σχετικά",
-    heroTitle: "Βρείτε ανοιχτό φαρμακείο τώρα",
+    heroTitle: "Εφημερεύοντα και ανοιχτά φαρμακεία στην Κύπρο",
     heroSchedulePeriod: "Επίσημο πρόγραμμα εφημεριών σε όλη την Κύπρο · 1 Οκτ 2026 — 30 Απρ 2027",
     installApp: "Εγκατάσταση εφαρμογής",
     installIosInstruction: "Στο Safari, πατήστε Κοινοποίηση → Προσθήκη στην οθόνη Αφετηρίας.",

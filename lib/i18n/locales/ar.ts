@@ -12,7 +12,7 @@ export const ar = {
     brandName: "Cyprus Pharmacy",
     blog: "المدونة",
     about: "عن الخدمة",
-    heroTitle: "اعثر على صيدلية مفتوحة الآن",
+    heroTitle: "الصيدليات المناوبة والمفتوحة الآن في قبرص",
     heroSchedulePeriod: "جدول المناوبات الرسمي في جميع أنحاء قبرص · 1 أكتوبر 2026 — 30 أبريل 2027",
     installApp: "تثبيت التطبيق",
     installIosInstruction: "في Safari، اضغط على مشاركة، ثم إضافة إلى الشاشة الرئيسية.",

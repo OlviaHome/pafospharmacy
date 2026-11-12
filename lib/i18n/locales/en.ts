@@ -13,7 +13,7 @@ export const en = {
     brandName: "Cyprus Pharmacy",
     blog: "Blog",
     about: "About",
-    heroTitle: "Find an open pharmacy now",
+    heroTitle: "Pharmacies on Duty and Open Now in Cyprus",
     heroSchedulePeriod: "Official duty schedule across Cyprus · 1 Oct 2026 — 30 Apr 2027",
     installApp: "Install app",
     installIosInstruction: "In Safari, tap Share → Add to Home Screen.",
