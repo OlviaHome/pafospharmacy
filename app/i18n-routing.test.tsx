@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { renderToStaticMarkup } from "react-dom/server";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/font/google", () => ({
@@ -9,6 +8,10 @@ vi.mock("next/font/google", () => ({
     variable: "instrument-sans-variable",
   })),
 }));
+vi.mock("next/server", () => ({ connection: vi.fn(async () => undefined) }));
+vi.mock("@/lib/data/pharmacies", () => ({
+  getPharmacyDataset: vi.fn(async () => ({ pharmacies: [], source: "fixtures" })),
+}));
 vi.mock("next/navigation", () => ({
   notFound: vi.fn(),
   usePathname: () => "/en",
@@ -16,8 +19,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 import LocaleLayout, { generateStaticParams } from "@/app/[locale]/layout";
-import { LoadingFinder } from "@/components/loading-finder";
-import { en } from "@/lib/i18n/locales/en";
+import Home from "@/app/[locale]/page";
+import { PharmacyFinder } from "@/components/pharmacy-finder";
+import { localizePath } from "@/lib/i18n/config";
 import { localizedAlternates } from "@/lib/i18n/metadata";
 
 describe("localized route documents and metadata", () => {
@@ -54,15 +58,20 @@ describe("localized route documents and metadata", () => {
     });
   });
 
-  it("keeps the complete live header contract while finder data is loading", () => {
-    const markup = renderToStaticMarkup(<LoadingFinder dictionary={en} />);
+  it("renders the home finder without a loading placeholder so language switches stay coherent", async () => {
+    for (const locale of ["en", "el", "ru", "ar"] as const) {
+      const page = await Home({ params: Promise.resolve({ locale }) });
 
-    expect(markup).toContain("Cyprus Pharmacy");
-    expect(markup).toContain('href="/en/about"');
-    expect(markup).toContain('href="/en/data-sources"');
-    expect(markup).toContain('aria-label="Language"');
-    expect(markup).toContain("Official duty schedule across Cyprus · 1 Oct 2026 — 30 Apr 2027");
-    expect(markup).toContain("Loading pharmacy information…");
-    expect(markup).not.toContain("pharmacies ·");
+      // A Suspense wrapper here would flash a blank placeholder on every language switch.
+      expect(page.type).toBe(PharmacyFinder);
+      expect(page.props.locale).toBe(locale);
+      expect(page.props.fallback).toBeUndefined();
+    }
+  });
+
+  it("keeps the same page when only the language changes", () => {
+    expect(localizePath("/en", "ru")).toBe("/ru");
+    expect(localizePath("/en/limassol", "ar")).toBe("/ar/limassol");
+    expect(localizePath("/ar/paphos", "el")).toBe("/el/paphos");
   });
 });

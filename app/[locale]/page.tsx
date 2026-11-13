@@ -1,15 +1,13 @@
 import type { Metadata, ResolvingMetadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { Suspense } from "react";
 
-import { LoadingFinder } from "@/components/loading-finder";
 import { PharmacyFinder } from "@/components/pharmacy-finder";
 import { getPharmacyDataset } from "@/lib/data/pharmacies";
 import { isLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { localizedAlternates, metadataBase } from "@/lib/i18n/metadata";
-import type { Locale, TranslationDictionary } from "@/lib/i18n/types";
+import type { Locale } from "@/lib/i18n/types";
 
 const HOME_METADATA: Record<Locale, { title: string; description: string }> = {
   en: {
@@ -53,15 +51,16 @@ export async function generateMetadata({
   };
 }
 
-async function PharmacyFinderData({
-  locale,
-  dictionary,
-}: {
-  locale: Locale;
-  dictionary: TranslationDictionary;
-}) {
+export default async function Home({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  if (!isLocale(locale)) notFound();
+  const dictionary = getDictionary(locale);
   await connection();
   const dataset = await getPharmacyDataset(new Date());
+  // Deliberately no Suspense fallback here (same as the district pages): a
+  // fallback replaces the whole finder with a placeholder on every language
+  // switch. Without it the router keeps the previous language on screen until
+  // the new one is complete, so header, hero, tabs and cards change together.
   return (
     <PharmacyFinder
       {...dataset}
@@ -69,16 +68,5 @@ async function PharmacyFinderData({
       messages={dictionary.finder}
       languageLabel={dictionary.languageSelectorLabel}
     />
-  );
-}
-
-export default async function Home({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params;
-  if (!isLocale(locale)) notFound();
-  const dictionary = getDictionary(locale);
-  return (
-    <Suspense fallback={<LoadingFinder dictionary={dictionary} />}>
-      <PharmacyFinderData locale={locale} dictionary={dictionary} />
-    </Suspense>
   );
 }
