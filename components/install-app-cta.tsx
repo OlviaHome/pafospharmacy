@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { FinderMessages } from "@/lib/i18n/types";
 
@@ -53,6 +53,91 @@ function isIosSafari(): boolean {
   return isIosDevice && isSafari;
 }
 
+interface InstallState {
+  mode: InstallMode;
+  prompt: BeforeInstallPromptEvent | null;
+}
+
+const EMPTY_INSTALL_STATE: InstallState = { mode: null, prompt: null };
+
+// Install availability is a fact about the browser tab, not about one React
+// component instance. Client navigation between district URLs remounts the
+// page subtree, so the state lives at module level: a remounted CTA reads the
+// already-known answer on its first render instead of starting from "hidden".
+let installState: InstallState = EMPTY_INSTALL_STATE;
+let installDetectionStarted = false;
+const installStateListeners = new Set<() => void>();
+let removeInstallWindowListeners: (() => void) | null = null;
+
+function setInstallState(next: InstallState): void {
+  if (next.mode === installState.mode && next.prompt === installState.prompt) return;
+  installState = next;
+  installStateListeners.forEach((listener) => listener());
+}
+
+function startInstallDetection(): void {
+  if (installDetectionStarted) return;
+  installDetectionStarted = true;
+
+  if (isStandalone() || hasInstalledMarker()) {
+    window.__pharmacyBeforeInstallPrompt = undefined;
+    return;
+  }
+
+  const handleBeforeInstallPrompt = (event: Event) => {
+    event.preventDefault();
+    window.__pharmacyBeforeInstallPrompt = undefined;
+    setInstallState({
+      mode: "browser-prompt",
+      prompt: event as BeforeInstallPromptEvent,
+    });
+  };
+  const handleAppInstalled = () => {
+    saveInstalledMarker();
+    setInstallState(EMPTY_INSTALL_STATE);
+  };
+
+  window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+  window.addEventListener("appinstalled", handleAppInstalled);
+  removeInstallWindowListeners = () => {
+    window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.removeEventListener("appinstalled", handleAppInstalled);
+  };
+
+  const capturedPrompt = window.__pharmacyBeforeInstallPrompt;
+  window.__pharmacyBeforeInstallPrompt = undefined;
+  if (capturedPrompt) {
+    setInstallState({ mode: "browser-prompt", prompt: capturedPrompt });
+  } else if (isIosSafari()) {
+    setInstallState({ mode: "ios-instructions", prompt: null });
+  }
+}
+
+function subscribeToInstallState(listener: () => void): () => void {
+  installStateListeners.add(listener);
+  startInstallDetection();
+  return () => {
+    installStateListeners.delete(listener);
+  };
+}
+
+function getInstallState(): InstallState {
+  return installState;
+}
+
+function getServerInstallState(): InstallState {
+  return EMPTY_INSTALL_STATE;
+}
+
+/** Test-only: forget the detected state so each test starts from a fresh tab. */
+export function resetInstallStateForTests(): void {
+  removeInstallWindowListeners?.();
+  removeInstallWindowListeners = null;
+  installDetectionStarted = false;
+  installState = EMPTY_INSTALL_STATE;
+  installStateListeners.clear();
+}
+
 export function InstallAppCta({
   messages,
   reserveSpace = false,
@@ -63,56 +148,15 @@ export function InstallAppCta({
   >;
   reserveSpace?: boolean;
 }) {
-  const [installMode, setInstallMode] = useState<InstallMode>(null);
-  const [installPrompt, setInstallPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
+  const { mode: installMode, prompt: installPrompt } = useSyncExternalStore(
+    subscribeToInstallState,
+    getInstallState,
+    getServerInstallState,
+  );
   const [showIosInstructions, setShowIosInstructions] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const ctaRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (isStandalone() || hasInstalledMarker()) {
-      window.__pharmacyBeforeInstallPrompt = undefined;
-      return;
-    }
-
-    let cancelled = false;
-    const initialMode: InstallMode = isIosSafari() ? "ios-instructions" : null;
-
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      window.__pharmacyBeforeInstallPrompt = undefined;
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-      setInstallMode("browser-prompt");
-    };
-    const handleAppInstalled = () => {
-      saveInstalledMarker();
-      setInstallPrompt(null);
-      setInstallMode(null);
-    };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
-
-    const capturedPrompt = window.__pharmacyBeforeInstallPrompt;
-    window.__pharmacyBeforeInstallPrompt = undefined;
-    window.queueMicrotask(() => {
-      if (cancelled) return;
-      if (capturedPrompt) {
-        setInstallPrompt(capturedPrompt);
-        setInstallMode("browser-prompt");
-        return;
-      }
-      setInstallMode((current) => current ?? initialMode);
-    });
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", handleAppInstalled);
-    };
-  }, []);
 
   useEffect(() => {
     if (!showIosInstructions) return;
@@ -140,15 +184,11 @@ export function InstallAppCta({
     if (!installPrompt) return;
 
     const prompt = installPrompt;
-    setInstallPrompt(null);
+    setInstallState({ mode: installMode, prompt: null });
     await prompt.prompt();
     const choice = await prompt.userChoice;
-    if (choice.outcome === "accepted") {
-      saveInstalledMarker();
-      setInstallMode(null);
-      return;
-    }
-    setInstallMode(null);
+    if (choice.outcome === "accepted") saveInstalledMarker();
+    setInstallState(EMPTY_INSTALL_STATE);
   };
 
   return (

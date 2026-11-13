@@ -9,7 +9,7 @@ import { el } from "@/lib/i18n/locales/el";
 import { en } from "@/lib/i18n/locales/en";
 import { ru } from "@/lib/i18n/locales/ru";
 
-import { InstallAppCta } from "./install-app-cta";
+import { InstallAppCta, resetInstallStateForTests } from "./install-app-cta";
 
 function setNavigatorValue(name: string, value: unknown) {
   Object.defineProperty(window.navigator, name, {
@@ -53,6 +53,7 @@ function setLocalStorageMock() {
 }
 
 beforeEach(() => {
+  resetInstallStateForTests();
   window.__pharmacyBeforeInstallPrompt = undefined;
   setLocalStorageMock();
   setStandaloneMatch(false);
@@ -84,6 +85,57 @@ describe("InstallAppCta", () => {
     const { container } = render(<InstallAppCta messages={en.finder} reserveSpace />);
     await screen.findByRole("button", { name: en.finder.installApp });
     expect(container.querySelectorAll("span.h-16")).toHaveLength(1);
+  });
+
+  it("keeps the iOS CTA visible from the first render after a district-navigation remount", async () => {
+    setNavigatorValue(
+      "userAgent",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
+    );
+    setNavigatorValue("platform", "iPhone");
+
+    // The district route remounts the page subtree: a changed key reproduces it.
+    const { rerender, container } = render(
+      <InstallAppCta key="limassol" messages={en.finder} reserveSpace />,
+    );
+    await screen.findByRole("button", { name: en.finder.installApp });
+
+    const framesWithoutButton: string[] = [];
+    const observer = new MutationObserver(() => {
+      if (!container.querySelector("button")) framesWithoutButton.push("missing");
+    });
+    observer.observe(container, { childList: true, subtree: true });
+
+    for (const district of ["paphos", "nicosia", "limassol"]) {
+      rerender(<InstallAppCta key={district} messages={en.finder} reserveSpace />);
+      // Synchronously after the commit, before any effect or microtask can run.
+      expect(container.querySelector("button")?.textContent).toBe(en.finder.installApp);
+    }
+    await Promise.resolve();
+    observer.disconnect();
+    expect(framesWithoutButton).toEqual([]);
+  });
+
+  it("keeps the captured browser install prompt usable after a remount", async () => {
+    const prompt = vi.fn().mockResolvedValue(undefined);
+    window.__pharmacyBeforeInstallPrompt = Object.assign(
+      new Event("beforeinstallprompt"),
+      {
+        prompt,
+        userChoice: Promise.resolve({ outcome: "dismissed" as const, platform: "web" }),
+      },
+    );
+
+    const { rerender, container } = render(
+      <InstallAppCta key="limassol" messages={en.finder} reserveSpace />,
+    );
+    await screen.findByRole("button", { name: en.finder.installApp });
+
+    rerender(<InstallAppCta key="paphos" messages={en.finder} reserveSpace />);
+    expect(container.querySelector("button")?.textContent).toBe(en.finder.installApp);
+
+    fireEvent.click(screen.getByRole("button", { name: en.finder.installApp }));
+    expect(prompt).toHaveBeenCalledTimes(1);
   });
 
   it("uses an install prompt captured before hydration", async () => {
