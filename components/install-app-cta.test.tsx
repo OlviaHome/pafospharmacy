@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ar } from "@/lib/i18n/locales/ar";
@@ -67,6 +68,24 @@ afterEach(() => {
 });
 
 describe("InstallAppCta", () => {
+  it("reserves district-page hero space before and after iOS installation detection", async () => {
+    setNavigatorValue(
+      "userAgent",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
+    );
+    setNavigatorValue("platform", "iPhone");
+
+    const serverHtml = renderToStaticMarkup(
+      <InstallAppCta messages={en.finder} reserveSpace />,
+    );
+    expect(serverHtml).toContain("h-16");
+    expect(serverHtml).not.toContain("<button");
+
+    const { container } = render(<InstallAppCta messages={en.finder} reserveSpace />);
+    await screen.findByRole("button", { name: en.finder.installApp });
+    expect(container.querySelectorAll("span.h-16")).toHaveLength(1);
+  });
+
   it("uses an install prompt captured before hydration", async () => {
     const prompt = vi.fn().mockResolvedValue(undefined);
     window.__pharmacyBeforeInstallPrompt = Object.assign(

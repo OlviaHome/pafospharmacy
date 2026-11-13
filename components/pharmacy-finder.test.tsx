@@ -399,7 +399,7 @@ describe("PharmacyFinder location controls", () => {
       />,
     );
 
-    expect(markup).toContain("Find an open pharmacy now");
+    expect(markup).toContain(en.finder.heroTitle);
     expect(markup).toContain("Use my location");
     expect(markup).toContain("District, address, or pharmacy name");
     expect(markup).not.toContain("You can also browse all pharmacies without sharing your location.");

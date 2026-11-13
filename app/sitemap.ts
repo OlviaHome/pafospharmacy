@@ -5,6 +5,7 @@ import { blogPostPath } from "@/lib/blog/metadata";
 import { getPublishedPosts } from "@/lib/blog/repository";
 import type { BlogPost } from "@/lib/blog/types";
 import { localePath, SUPPORTED_LOCALES } from "@/lib/i18n/config";
+import { DISTRICT_SLUGS } from "@/lib/i18n/district-pages";
 import { metadataBase } from "@/lib/i18n/metadata";
 
 export const revalidate = 3600;
@@ -51,6 +52,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   });
 
+  const districtPages = DISTRICT_SLUGS.flatMap((district) => {
+    const pathname = `/${district}`;
+    const languages = Object.fromEntries(
+      SUPPORTED_LOCALES.map((locale) => [locale, absolute(localePath(locale, pathname))]),
+    );
+    return SUPPORTED_LOCALES.map((locale) => ({
+      url: absolute(localePath(locale, pathname)),
+      changeFrequency: "daily" as const,
+      priority: 0.8,
+      alternates: { languages },
+    }));
+  });
+
   let posts: BlogPost[] = [];
   try {
     posts = await getPublishedPosts();
@@ -58,5 +72,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // The static pages must stay discoverable even if the blog query fails.
     console.error("sitemap: could not load blog posts", error);
   }
-  return [...pages, ...blogEntries(posts)];
+  return [...pages, ...districtPages, ...blogEntries(posts)];
 }

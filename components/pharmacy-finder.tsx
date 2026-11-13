@@ -12,6 +12,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { FinderHeader } from "@/components/finder-header";
@@ -56,6 +57,8 @@ import type {
 } from "@/lib/domain/types";
 import type { ManualLocationSuggestion } from "@/lib/geocoding/geoapify";
 import { LOCALE_FORMAT_IDS } from "@/lib/i18n/config";
+import { SLUG_BY_DISTRICT } from "@/lib/i18n/district-pages";
+import { localePath } from "@/lib/i18n/config";
 import {
   canonicalPharmacyAddress,
   localizedPharmacyAddress,
@@ -134,6 +137,9 @@ interface PharmacyFinderProps {
   locale: Locale;
   messages: FinderMessages;
   languageLabel: string;
+  initialDistrict?: PharmacyDistrict;
+  districtPage?: boolean;
+  heroTitle?: string;
 }
 
 const filters: Record<SelectedDay, AvailabilityFilter[]> = {
@@ -589,10 +595,13 @@ export function PharmacyFinder({
   locale,
   messages,
   languageLabel,
+  initialDistrict = "Paphos",
+  districtPage = false,
+  heroTitle,
 }: PharmacyFinderProps) {
   const [selectedDay, setSelectedDay] = useState<SelectedDay>("today");
   const [selectedDistrict, setSelectedDistrict] =
-    useState<PharmacyDistrict>("Paphos");
+    useState<PharmacyDistrict>(initialDistrict);
   const [filter, setFilter] = useState<AvailabilityFilter>("all");
   const [now, setNow] = useState(() => new Date(generatedAt));
   const [searchOrigin, setSearchOrigin] = useState<SearchOrigin | null>(null);
@@ -642,8 +651,21 @@ export function PharmacyFinder({
     const activeTab = document.querySelector<HTMLElement>(
       `[data-district-tab="${selectedDistrict}"]`,
     );
-    activeTab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-  }, [selectedDistrict]);
+    if (!districtPage) {
+      activeTab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      return;
+    }
+    const tabStrip = activeTab?.closest<HTMLElement>("#finder-top");
+    if (!activeTab || !tabStrip) return;
+    const tabBounds = activeTab.getBoundingClientRect();
+    const stripBounds = tabStrip.getBoundingClientRect();
+    const horizontalOffset = tabBounds.left < stripBounds.left
+      ? tabBounds.left - stripBounds.left
+      : tabBounds.right > stripBounds.right
+        ? tabBounds.right - stripBounds.right
+        : 0;
+    if (horizontalOffset !== 0) tabStrip.scrollBy?.({ left: horizontalOffset });
+  }, [districtPage, selectedDistrict]);
 
   useEffect(() => {
     const updateBackToFinderVisibility = () => {
@@ -1048,15 +1070,15 @@ export function PharmacyFinder({
         </dialog>
       )}
 
-      <section className="relative bg-[linear-gradient(120deg,var(--hero-dark),var(--brand-strong))] text-white">
+      <section className={`relative bg-[linear-gradient(120deg,var(--hero-dark),var(--brand-strong))] text-white ${districtPage && locale === "en" ? "max-[21rem]:min-h-[23.5rem]" : ""}`}>
         <div className="mx-auto flex w-full max-w-7xl flex-col justify-center px-4 py-12 sm:px-6 sm:py-16 lg:min-h-[22rem] lg:px-8 lg:py-16">
           <h1 className="max-w-5xl text-balance text-[clamp(2.5rem,5vw,4rem)] font-medium leading-[0.98] tracking-[-0.035em]">
-            {messages.heroTitle}
+            {heroTitle ?? messages.heroTitle}
           </h1>
           <h2 className="mt-4 max-w-6xl text-balance text-[clamp(1.125rem,2vw,1.5rem)] font-normal leading-[1.2] text-white/65 lg:whitespace-nowrap">
             {messages.heroSchedulePeriod}
           </h2>
-          <InstallAppCta messages={messages} />
+          <InstallAppCta messages={messages} reserveSpace={districtPage} />
         </div>
       </section>
 
@@ -1074,22 +1096,35 @@ export function PharmacyFinder({
         className="scroll-mt-28 overflow-x-auto border-b border-[var(--line)] bg-white min-[24rem]:max-sm:overflow-x-hidden sm:scroll-mt-20"
       >
         <div className="mx-auto flex min-w-max justify-between gap-8 min-[24rem]:max-sm:grid min-[24rem]:max-sm:w-full min-[24rem]:max-sm:min-w-0 min-[24rem]:max-sm:grid-cols-5 min-[24rem]:max-sm:gap-0 sm:gap-12 lg:min-w-0 lg:max-w-5xl">
-          {districts.map((district) => (
-            <button
-              key={district}
-              type="button"
-              data-district-tab={district}
-              aria-pressed={selectedDistrict === district}
-              onClick={() => chooseDistrict(district)}
-              className={`relative min-h-16 min-w-11 shrink-0 whitespace-nowrap px-1 text-sm font-bold transition-colors min-[24rem]:max-sm:w-full min-[24rem]:max-sm:min-w-0 min-[24rem]:max-sm:px-0 min-[24rem]:max-sm:text-[0.8125rem] sm:text-base ${
-                selectedDistrict === district
-                  ? "text-[var(--ink)] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[var(--brand)]"
-                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
-              }`}
-            >
-              {districtNames[district]}
-            </button>
-          ))}
+          {districts.map((district) => {
+            const className = `relative flex min-h-16 min-w-11 shrink-0 items-center justify-center whitespace-nowrap px-1 text-sm font-bold transition-colors min-[24rem]:max-sm:w-full min-[24rem]:max-sm:min-w-0 min-[24rem]:max-sm:px-0 min-[24rem]:max-sm:text-[0.8125rem] sm:text-base ${
+              selectedDistrict === district
+                ? "text-[var(--ink)] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[var(--brand)]"
+                : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+            }`;
+            return districtPage ? (
+              <Link
+                key={district}
+                href={localePath(locale, `/${SLUG_BY_DISTRICT[district]}`)}
+                data-district-tab={district}
+                aria-current={selectedDistrict === district ? "page" : undefined}
+                className={className}
+              >
+                {districtNames[district]}
+              </Link>
+            ) : (
+              <button
+                key={district}
+                type="button"
+                data-district-tab={district}
+                aria-pressed={selectedDistrict === district}
+                onClick={() => chooseDistrict(district)}
+                className={className}
+              >
+                {districtNames[district]}
+              </button>
+            );
+          })}
         </div>
       </nav>
 
@@ -1254,6 +1289,11 @@ export function PharmacyFinder({
       <section aria-labelledby="results-heading">
         <h2 id="results-heading" className="mb-4 text-sm font-semibold text-[var(--ink-muted)] sm:text-base">
           {districtNames[selectedDistrict]} · {formatCyprusDate(dayWindow.start, LOCALE_FORMAT_IDS[locale])} · {pharmacyCountLabel} · {dutyCountLabel}
+          {!districtPage && (
+            <Link href={localePath(locale, `/${SLUG_BY_DISTRICT[selectedDistrict]}`)} className="ms-2 underline underline-offset-2">
+              {districtNames[selectedDistrict]} ↗
+            </Link>
+          )}
         </h2>
 
         {results.length > 0 ? (

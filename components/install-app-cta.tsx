@@ -55,11 +55,13 @@ function isIosSafari(): boolean {
 
 export function InstallAppCta({
   messages,
+  reserveSpace = false,
 }: {
   messages: Pick<
     FinderMessages,
     "installApp" | "installIosInstruction" | "installDialogClose"
   >;
+  reserveSpace?: boolean;
 }) {
   const [installMode, setInstallMode] = useState<InstallMode>(null);
   const [installPrompt, setInstallPrompt] =
@@ -123,7 +125,7 @@ export function InstallAppCta({
     closeRef.current?.focus();
   }, [showIosInstructions]);
 
-  if (!installMode) return null;
+  if (!installMode && !reserveSpace) return null;
 
   const closeInstructions = () => {
     setShowIosInstructions(false);
@@ -152,14 +154,16 @@ export function InstallAppCta({
   return (
     <>
       <span aria-hidden="true" className="block h-16 lg:hidden" />
-      <button
-        ref={ctaRef}
-        type="button"
-        onClick={handleInstall}
-        className="absolute bottom-6 right-4 min-h-11 rounded-xl bg-[#FF956A] px-4 py-2 text-sm font-medium text-[#32150a] transition-colors duration-200 hover:bg-[rgb(190,255,80)] focus-visible:bg-[rgb(190,255,80)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:bottom-8 sm:right-6 lg:right-8"
-      >
-        {messages.installApp}
-      </button>
+      {installMode && (
+        <button
+          ref={ctaRef}
+          type="button"
+          onClick={handleInstall}
+          className="absolute bottom-6 right-4 min-h-11 rounded-xl bg-[#FF956A] px-4 py-2 text-sm font-medium text-[#32150a] transition-colors duration-200 hover:bg-[rgb(190,255,80)] focus-visible:bg-[rgb(190,255,80)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:bottom-8 sm:right-6 lg:right-8"
+        >
+          {messages.installApp}
+        </button>
+      )}
 
       {showIosInstructions && (
         <dialog
