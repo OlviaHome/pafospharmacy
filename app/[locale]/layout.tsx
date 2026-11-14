@@ -41,6 +41,7 @@ export async function generateMetadata({
     title: dictionary.siteTitle,
     description: dictionary.metadataDescription,
     applicationName: "Cyprus Pharmacy",
+    other: { "google-adsense-account": "ca-pub-9987102190291938" },
     manifest: "/manifest.webmanifest",
     icons: {
       icon: "/icon.svg",
