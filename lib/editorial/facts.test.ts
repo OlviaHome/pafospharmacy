@@ -83,6 +83,65 @@ describe("coverage of figures", () => {
     expect(uncoveredSentences(body, [claim()])).toEqual(["Взнос 2,65% от зарплаты."]);
   });
 
+  it("does not treat step numbers or a year on its own as figures", () => {
+    for (const sentence of [
+      "В 2026 году график опубликован на сайте ведомства.",
+      "ГеСИ работает с 2019 года.",
+      "В 2025–2026 годах правила не менялись.",
+      "Шаг 2 занимает около минуты.",
+      "На шаге 3 выберите врача.",
+      "Step 2: откройте портал.",
+    ]) {
+      expect([sentence, factSentences(sentence)]).toEqual([sentence, []]);
+      expect(factItems([], sentence).filter((i) => i.kind === "sentence")).toEqual([]);
+    }
+  });
+
+  it("still controls real figures: hours, amounts, phones, deadlines, ages, full dates", () => {
+    for (const sentence of [
+      "Ночью аптека работает до 23:00, после этого по телефону 1410.",
+      "Штраф 2000 евро.",
+      "Позвоните по номеру 17000.",
+      "Подайте заявление до 31 марта 2026 года.",
+      "Срок — до 31.03.2026 года.",
+      "С января 2027 доплата изменится.",
+      "Регистрация доступна с 18 лет.",
+      "Ответ придёт в течение 30 дней.",
+      "В 2026 году взнос составляет 2,65%.",
+    ]) {
+      expect([sentence, factSentences(sentence)]).toEqual([sentence, [sentence]]);
+      expect(factItems([], sentence).some((i) => i.kind === "sentence" && i.blocking)).toBe(true);
+    }
+  });
+
+  it("a step number or a year does not cover a real figure in the same sentence", () => {
+    const body = "Шаг 2: оплатите 15 евро в 2026 году.";
+    const stepOnly = claim({ claim: "Шаг 2 портала в 2026 году", quote: "Step 2 of the portal registration in 2026" });
+    expect(uncoveredSentences(body, [stepOnly])).toEqual([body]);
+    expect(uncoveredSentences(body, [claim({ claim: "Оплата 15 евро", quote: "a fee of 15 euro is paid online" })])).toEqual([]);
+  });
+
+  it("an unavailable official source keeps its link, needs a manual check and blocks only until confirmed", () => {
+    const url = "https://www.gov.cy/moh-phs";
+    const body = "Текст без цифр.";
+    const entries = evaluateClaims(
+      [claim({ source_url: url })],
+      new Map([[url, { ok: false as const, state: "source_unavailable" as const, detail: "сайт не пускает автоматическую проверку (HTTP 403)" }]]),
+      [],
+    );
+    const [item] = factItems(entries, body);
+    expect(item).toMatchObject({ status: "source_unavailable", sourceUrl: url, blocking: true });
+    const confirmed = confirmFact(entries, item, url, new Date("2026-11-14T10:00:00Z"));
+    expect(factItems(confirmed, body)[0]).toMatchObject({
+      status: "manual",
+      blocking: false,
+      manual: { at: "2026-11-14T10:00:00.000Z", sourceUrl: url },
+    });
+    // The same claim moved to another source loses the confirmation.
+    const moved = evaluateClaims([claim({ source_url: "https://www.gesy.org.cy/other" })], new Map(), confirmed);
+    expect(moved[0].manual).toBeNull();
+  });
+
   it("makes uncovered sentences blocking until the editor confirms them; changing the sentence resets", () => {
     const body = "Взнос 2,65% от зарплаты.";
     const [item] = factItems([], body).filter((i) => i.kind === "sentence");

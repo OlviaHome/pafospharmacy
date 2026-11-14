@@ -290,6 +290,17 @@ const FACT_STATUS: Record<FactItem["status"], string> = {
   no_claims: "факты не выделены",
 };
 
+/** The automatic check could not be completed (the source did not open or gave no text): only the editor can check. */
+const NEEDS_MANUAL_CHECK: ReadonlySet<FactItem["status"]> = new Set(["source_unavailable", "no_text", "no_quote"]);
+
+function hostLabel(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "источник";
+  }
+}
+
 /** Facts that need attention first (blocking, then weak), then the rest as a short count. */
 export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: InlineKeyboard; items: FactItem[] } {
   const ru = post.translations.find((t) => t.locale === "ru");
@@ -301,22 +312,25 @@ export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: 
   const shown = open.slice(0, 8);
   const found = items.filter((item) => item.status === "quote_found").length;
   const manual = items.filter((item) => item.status === "manual").length;
+  const byHand = open.filter((item) => NEEDS_MANUAL_CHECK.has(item.status)).length;
   const lines = [
     `🔎 <b>#${post.number} · факты</b>`,
-    `Цитата найдена: ${found} · проверено вручную: ${manual} · требуют внимания: ${open.length}`,
-    "Найденная цитата значит только, что текст есть на странице источника, — смысл проверяете вы.",
+    `Цитата найдена: ${found} · проверено вручную: ${manual} · требуют внимания: ${open.length}${byHand ? ` (из них проверить вручную: ${byHand})` : ""}`,
+    "«Цитата найдена» значит только, что этот текст есть в источнике, а не что вывод статьи доказан, — смысл проверяете вы.",
     "",
   ];
   shown.forEach((item, index) => {
     const mark = item.blocking ? "🔴" : "⚠️";
+    const status = `${FACT_STATUS[item.status]}${item.detail ? `: ${escapeHtml(item.detail)}` : ""}`;
     lines.push(`${mark} <b>${index + 1}.</b> ${escapeHtml(item.claim.slice(0, 300))}`);
-    lines.push(`   ${FACT_STATUS[item.status]}${item.detail ? ` (${escapeHtml(item.detail)})` : ""}`);
-    if (item.sourceUrl) lines.push(`   ${link(item.sourceUrl, "источник")}`);
+    lines.push(NEEDS_MANUAL_CHECK.has(item.status) ? `   🔎 Проверить вручную — ${status}` : `   ${status}`);
+    if (item.sourceUrl) lines.push(`   Источник: ${link(item.sourceUrl, hostLabel(item.sourceUrl))}`);
     if (item.quote) lines.push(`   «${escapeHtml(item.quote.slice(0, 200))}»`);
   });
   if (open.length > shown.length) lines.push("", `…и ещё ${open.length - shown.length}. Исправьте текст или подтвердите эти, затем откройте меню снова.`);
   if (open.length === 0) lines.push("Всё, что требовало внимания, подтверждено.");
-  lines.push("", "✅ — проверила сама: бот спросит, по какому источнику. 📝 Править самой — исправить текст.");
+  if (byHand > 0) lines.push("", "🔎 Проверить вручную — бот не смог открыть или прочитать источник (например, сайт не пускает автоматические запросы). Ссылка сохранена: откройте её сами.");
+  lines.push("", "✅ — проверила сама: бот спросит, по какому источнику, и сохранит ссылку и дату. 📝 Править самой — исправить текст.");
   const keyboard: InlineKeyboard = [];
   for (let i = 0; i < shown.length; i += 4) {
     keyboard.push(shown.slice(i, i + 4).map((item, j) => ({ text: `✅ ${i + j + 1}`, callback_data: `fok:${post.number}:${item.id}` })));

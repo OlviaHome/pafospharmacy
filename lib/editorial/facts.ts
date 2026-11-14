@@ -134,8 +134,23 @@ export function asFactEntries(raw: unknown): FactEntry[] {
 
 const NUMBER = /\d+(?:[.,]\d+)?/g;
 const CURRENT_AS_OF = /по состоянию на|актуальн|as of|current as/i;
+/** "Шаг 2", "шаге 3", "Step 2": a reference to a step of the article, not a fact. */
+const STEP_REFERENCE = /(?<![\p{L}\d])(?:шаг(?:а|е|у|ом|и|ов|ам|ами|ах)?|steps?)\s*(?:№\s*)?\d{1,2}(?![\d.,:]?\d)/giu;
+/**
+ * A year on its own: "в 2026 году", "2025–2026 годах", "2026 г.". A year inside a full date
+ * ("до 31 марта 2026 года", "31.03.2026") stays with its date, and "2000 евро" is not a year.
+ */
+const LONE_YEAR = /(?<![\d.,:/-])(?:19|20)\d{2}(?:\s*[–—-]\s*(?:19|20)\d{2})?(?=\s*(?:г\.|год(?:а|у|ом|е|ы|ов|ам|ами|ах)?(?!\p{L})))/giu;
 
-/** Sentences of the Russian body that state figures: amounts, percentages, dates, phone numbers. */
+/** The sentence without step references and lone years: what is left may hold real figures. */
+function figureText(sentence: string): string {
+  return sentence.replace(STEP_REFERENCE, " ").replace(LONE_YEAR, " ");
+}
+
+/**
+ * Sentences of the Russian body that state figures: amounts, percentages, dates, deadlines,
+ * opening hours, ages, phone numbers. Step numbers and a year on its own are not figures.
+ */
 export function factSentences(bodyMd: string): string[] {
   const text = bodyMd
     .replace(/\[\[image:[^\]]+\]\]/g, " ")
@@ -147,17 +162,17 @@ export function factSentences(bodyMd: string): string[] {
     .split(/(?<=[.!?…])\s+|\n+/)
     .map((sentence) => sentence.replace(/[*_|]/g, "").replace(/\s+/g, " ").trim())
     .filter(Boolean);
-  return [...new Set(sentences.filter((sentence) => /\d/.test(sentence) && !CURRENT_AS_OF.test(sentence)))];
+  return [...new Set(sentences.filter((sentence) => /\d/.test(figureText(sentence)) && !CURRENT_AS_OF.test(sentence)))];
 }
 
 function numbersIn(text: string): Set<string> {
   return new Set((text.match(NUMBER) ?? []).map((n) => n.replace(",", ".")));
 }
 
-/** Figure-bearing sentences that no claim (statement or quote) shares a number with. */
+/** Figure-bearing sentences that no claim (statement or quote) shares a real figure with. */
 export function uncoveredSentences(bodyMd: string, claims: Claim[]): string[] {
   const claimNumbers = new Set(claims.flatMap((claim) => [...numbersIn(`${claim.claim} ${claim.quote}`)]));
-  return factSentences(bodyMd).filter((sentence) => ![...numbersIn(sentence)].some((n) => claimNumbers.has(n)));
+  return factSentences(bodyMd).filter((sentence) => ![...numbersIn(figureText(sentence))].some((n) => claimNumbers.has(n)));
 }
 
 /* ---------- what still needs attention ---------- */
