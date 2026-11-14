@@ -8,6 +8,7 @@ import { isLocale } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/types";
 
 import type { SourceCheck } from "./checks";
+import { asFactEntries, type FactEntry } from "./facts";
 import { supabaseAdminConfig } from "./config";
 import { cyprusDayStart, cyprusMonthStart, STALE_JOB_MS, type JobKind, type UsageSnapshot } from "./limits";
 import type { UsageNumbers } from "./pricing";
@@ -70,6 +71,8 @@ export interface EditorialPost {
   lastError: string | null;
   editorNotes: string | null;
   sourceChecks: SourceCheck[];
+  /** Fact entries; [] for drafts created before fact checking. */
+  factChecks: FactEntry[];
   viewCount: number;
   publishedAt: string | null;
   createdAt: string;
@@ -79,7 +82,7 @@ export interface EditorialPost {
 }
 
 const POST_COLUMNS = `
-  id, number, slug, topic, status, preview_token, last_error, editor_notes, source_checks, view_count,
+  id, number, slug, topic, status, preview_token, last_error, editor_notes, source_checks, fact_checks, view_count,
   published_at, created_at, updated_at,
   translations:blog_post_translations(locale, status, title, description, body_md, faq, sources, published_at, updated_at),
   images:blog_images(id, slot, url, width, height, alt, placeholder_note, source, credit_name, credit_url, source_page_url,
@@ -98,6 +101,7 @@ function mapPost(row: any): EditorialPost {
     lastError: row.last_error,
     editorNotes: row.editor_notes,
     sourceChecks: Array.isArray(row.source_checks) ? row.source_checks : [],
+    factChecks: asFactEntries(row.fact_checks),
     viewCount: Number(row.view_count ?? 0),
     publishedAt: row.published_at,
     createdAt: row.created_at,
@@ -183,6 +187,7 @@ export async function updatePost(
     last_error: string | null;
     editor_notes: string | null;
     source_checks: SourceCheck[];
+    fact_checks: FactEntry[];
     published_at: string | null;
   }>,
 ): Promise<void> {

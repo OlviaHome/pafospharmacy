@@ -15,9 +15,12 @@ import {
   renderCard,
   renderImagesMenu,
   renderManualMenu,
+  renderFactsMenu,
   renderTranslationsCard,
 } from "./cards";
-import { failedChecks, formatChecks, prePublishChecks, type CheckResult } from "./checks";
+import { blockingFailures, failedChecks, formatChecks, prePublishChecks, type CheckResult } from "./checks";
+import { claimsFromEntries, confirmFact } from "./facts";
+import { verifyClaims } from "./source-text";
 import { editorialLimits, openAiModel, siteOrigin, telegramConfig, unsplashKey } from "./config";
 import { removeStoredImage, storeImageBytes } from "./images";
 import { addInlineImage, applyManualEdit, isManualPart, partLabel, partText, removeInlineImage, type ManualPart } from "./manual";
@@ -62,7 +65,7 @@ function adminChatId(): number {
 /* ---------- checks and cards ---------- */
 
 function checksFor(post: EditorialPost, locales: Locale[]): CheckResult[] {
-  return prePublishChecks(post.translations, locales, post.sourceChecks);
+  return prePublishChecks(post.translations, locales, post.sourceChecks, post.factChecks);
 }
 
 const TRANSLATION_LOCALES: Locale[] = ["el", "ar"];
@@ -82,6 +85,29 @@ async function recheckLinks(post: EditorialPost, locales: Locale[]): Promise<Edi
   const merged = [...post.sourceChecks.filter((check) => !fresh.some((f) => f.url === check.url)), ...fresh];
   await updatePost(post.id, { source_checks: merged });
   return { ...post, sourceChecks: merged };
+}
+
+/** Re-reads the claims' sources (no OpenAI call); manual confirmations of unchanged facts survive. */
+async function recheckFacts(post: EditorialPost): Promise<EditorialPost> {
+  const claims = claimsFromEntries(post.factChecks);
+  if (claims.length === 0) return post;
+  const factChecks = await verifyClaims(claims, post.factChecks);
+  await updatePost(post.id, { fact_checks: factChecks });
+  return { ...post, factChecks };
+}
+
+async function sendFactsMenu(chatId: number, post: EditorialPost, editMessageId?: number): Promise<void> {
+  const menu = renderFactsMenu(post);
+  if (editMessageId) await editMessage(chatId, editMessageId, menu.text, menu.keyboard);
+  else await sendMessage(chatId, menu.text, { keyboard: menu.keyboard });
+}
+
+async function sendBlocked(chatId: number, post: EditorialPost, blocking: CheckResult[]): Promise<void> {
+  await sendMessage(
+    chatId,
+    `🔴 Публикация #${post.number} заблокирована:\n${escapeHtml(formatChecks(blocking))}\n\nИсправьте текст или подтвердите важные факты вручную.`,
+    { keyboard: [[{ text: "🔎 Факты", callback_data: `facts:${post.number}` }, { text: "📝 Править самой", callback_data: `med:${post.number}` }]] },
+  );
 }
 
 async function cardFor(post: EditorialPost) {
@@ -330,6 +356,11 @@ async function handleReply(
     return;
   }
 
+  if (context.purpose === "edit_prompt" && context.slot?.startsWith("fact|")) {
+    await handleFactConfirmation(message, post, context.slot.slice(5));
+    return;
+  }
+
   // A reply to "send me the corrected text" carries the part in slot as "ru|s2".
   if (context.purpose === "edit_prompt" && context.slot) {
     await handleManualReply(message, post, context.slot);
@@ -450,6 +481,31 @@ async function handleManualReply(message: TelegramMessage, post: EditorialPost, 
   } catch (error) {
     await sendMessage(chatId, `⚠️ ${escapeHtml(error instanceof Error ? error.message : "Не удалось сохранить.")}`);
   }
+}
+
+/** The editor confirmed a fact by hand: store the date and the source they checked. */
+async function handleFactConfirmation(message: TelegramMessage, post: EditorialPost, factId: string): Promise<void> {
+  const chatId = message.chat.id;
+  const ru = post.translations.find((t) => t.locale === "ru");
+  const item = renderFactsMenu(post).items.find((candidate) => candidate.id === factId);
+  if (!ru || !item) {
+    await sendMessage(chatId, "Этот факт уже изменился. Откройте «🔎 Факты» заново.");
+    return;
+  }
+  const answer = (message.text ?? "").trim();
+  const sourceUrl = answer === "+" && item.sourceUrl ? item.sourceUrl : (/https:\/\/\S+/.exec(answer)?.[0] ?? "");
+  if (!sourceUrl) {
+    await sendMessage(
+      chatId,
+      item.sourceUrl
+        ? "Нужна ссылка https://… на источник, где вы проверили факт, или «+», если по указанному источнику."
+        : "Нужна ссылка https://… на источник, где вы проверили факт.",
+    );
+    return;
+  }
+  await updatePost(post.id, { fact_checks: confirmFact(post.factChecks, item, sourceUrl) });
+  await sendMessage(chatId, `✅ Факт отмечен как проверенный вручную (${new Date().toLocaleDateString("ru-RU")}, источник сохранён).`);
+  await sendFactsMenu(chatId, (await loadPost({ id: post.id }))!);
 }
 
 async function handleAddImageReply(message: TelegramMessage, post: EditorialPost, sectionIndex: number): Promise<void> {
@@ -603,9 +659,15 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         return;
       }
       if (action === "pub") {
-        await answerCallback(query.id, "Проверяю ссылки…");
-        const checked = await recheckLinks(post, ["ru", "en"]);
-        const problems = failedChecks(checksFor(checked, ["ru", "en"]));
+        await answerCallback(query.id, "Проверяю ссылки и факты…");
+        const checked = await recheckFacts(await recheckLinks(post, ["ru", "en"]));
+        const all = checksFor(checked, ["ru", "en"]);
+        const blocking = blockingFailures(all);
+        if (blocking.length > 0) {
+          await sendBlocked(chatId, checked, blocking);
+          return;
+        }
+        const problems = failedChecks(all);
         const missing = activeImages(checked).filter((image) => !image.url);
         if (problems.length > 0 || missing.length > 0) {
           await sendMessage(
@@ -632,7 +694,16 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
           return;
         }
       }
-      if (action === "pubok") await answerCallback(query.id, "Публикую…");
+      if (action === "pubok") {
+        // Confirmation never overrides blocking facts.
+        const blocking = blockingFailures(checksFor(post, ["ru", "en"]));
+        if (blocking.length > 0) {
+          await answerCallback(query.id, "Заблокировано");
+          await sendBlocked(chatId, post, blocking);
+          return;
+        }
+        await answerCallback(query.id, "Публикую…");
+      }
       await setTranslationStatus(post.id, ["ru", "en"], "published");
       await updatePost(post.id, {
         status: "published",
@@ -830,6 +901,49 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
       await answerCallback(query.id, `Картинка ${slot} убрана`);
       const menu = renderImagesMenu((await loadPost({ id: post.id }))!);
       await editMessage(chatId, messageId, menu.text, menu.keyboard);
+      return;
+    }
+
+    case "facts": {
+      await answerCallback(query.id);
+      await sendFactsMenu(chatId, post);
+      return;
+    }
+
+    case "frc": {
+      await answerCallback(query.id, "Перепроверяю цитаты…");
+      const fresh = await recheckFacts(post);
+      await sendFactsMenu(chatId, fresh, messageId);
+      return;
+    }
+
+    case "fok": {
+      await answerCallback(query.id);
+      const blocked = editBlocker(post);
+      if (blocked) {
+        await sendMessage(chatId, blocked);
+        return;
+      }
+      const item = renderFactsMenu(post).items.find((candidate) => candidate.id === slot);
+      if (!item) {
+        await sendMessage(chatId, "Этот факт уже изменился. Откройте «🔎 Факты» заново.");
+        return;
+      }
+      const sent = await sendMessage(
+        chatId,
+        [
+          "✅ Ручная проверка факта:",
+          `<i>${escapeHtml(item.claim.slice(0, 500))}</i>`,
+          ...(item.sourceUrl ? [`Указанный источник: ${escapeHtml(item.sourceUrl)}`] : []),
+          "",
+          item.sourceUrl
+            ? "Проверьте и ответьте на это сообщение ссылкой https://… на источник, где вы это подтвердили, или «+», если по указанному источнику."
+            : "Проверьте и ответьте на это сообщение ссылкой https://… на источник, где вы это подтвердили.",
+          "Отметка сохранится с датой и сбросится, если факт, цитата или источник изменятся.",
+        ].join("\n"),
+        { forceReply: true },
+      );
+      await rememberMessage(chatId, sent.message_id, "edit_prompt", post.id, { slot: `fact|${item.id}` });
       return;
     }
 
