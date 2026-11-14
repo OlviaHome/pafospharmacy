@@ -8,7 +8,9 @@ import type { Locale } from "@/lib/i18n/types";
 import { editorialLimits, openAiModel, siteOrigin, telegramConfig } from "./config";
 import type { SourceCheck } from "./checks";
 import { materializeStock, removeStoredImage, searchStock } from "./images";
+import { claimsFromEntries } from "./facts";
 import { checkSourceLinks } from "./links";
+import { verifyClaims } from "./source-text";
 import { evaluateLimits, type JobKind, type LimitDecision } from "./limits";
 import { normalizeArticle, normalizeTranslation } from "./normalize";
 import { callResponses, OpenAiError } from "./openai";
@@ -253,6 +255,8 @@ async function runWrite(job: JobRecord, post: EditorialPost): Promise<void> {
   );
   await resolveImagePlans(post, article.images, []);
   const checks = await refreshSourceChecks(post.id, article.sources.map((source) => source.url));
+  // Fact check by source content (no OpenAI call): quotes are looked up on the source pages.
+  await updatePost(post.id, { fact_checks: await verifyClaims(article.claims ?? [], post.factChecks) });
   await updatePost(post.id, {
     slug: slugChoice.slug,
     last_error: null,
@@ -286,6 +290,7 @@ async function runEdit(job: JobRecord, post: EditorialPost): Promise<void> {
       alt: image.alt.ru ?? "",
       note: image.placeholderNote ?? "",
     })),
+    claims: claimsFromEntries(post.factChecks),
     editor_notes: "",
   };
   const result = await callResponses<ArticleDraft>({
@@ -325,6 +330,8 @@ async function runEdit(job: JobRecord, post: EditorialPost): Promise<void> {
     .filter((locale): locale is Locale => locale !== "ru" && locale !== "en");
   await setTranslationStatus(post.id, outdated, "draft");
   const checks = await refreshSourceChecks(post.id, article.sources.map((source) => source.url));
+  // Fact check by source content (no OpenAI call): quotes are looked up on the source pages.
+  await updatePost(post.id, { fact_checks: await verifyClaims(article.claims ?? [], post.factChecks) });
   await updatePost(post.id, {
     status: "review",
     last_error: null,
@@ -375,7 +382,7 @@ async function runTranslate(job: JobRecord, post: EditorialPost): Promise<void> 
         timeoutMs: TRANSLATE_TIMEOUT_MS,
       });
       await recordUsage(job.id, model, result.usage, result.costUsd);
-      const translation = normalizeTranslation(result.data, source.bodyMd);
+      const translation = normalizeTranslation(result.data, source.bodyMd, locale);
       await saveTranslation(
         post,
         locale,

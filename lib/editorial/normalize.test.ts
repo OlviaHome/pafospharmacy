@@ -74,3 +74,37 @@ describe("normalizeTranslation", () => {
     expect(markerSlots(result.body_md)).toEqual(["inline-1"]);
   });
 });
+
+describe("internal links", () => {
+  it("keeps links to existing HealthGuide pages and removes invented ones", async () => {
+    const { checkInternalLinks } = await import("./normalize");
+    const result = checkInternalLinks(
+      "Найдите [дежурную аптеку в Пафосе](/ru/paphos) или [на карте](https://healthguide.cy/ru/map) и [здесь](https://healthguide.cy/ru).",
+    );
+    expect(result.body).toBe("Найдите [дежурную аптеку в Пафосе](/ru/paphos) или на карте и [здесь](https://healthguide.cy/ru).");
+    expect(result.removed).toEqual(["https://healthguide.cy/ru/map"]);
+  });
+
+  it("points translated internal links to the same page in their language", async () => {
+    const { localizeInternalLinks } = await import("./normalize");
+    expect(localizeInternalLinks("[Pharmacies](/ru/paphos) and [home](https://healthguide.cy/ru) [gov](https://www.gov.cy/ru/x)", "en")).toBe(
+      "[Pharmacies](/en/paphos) and [home](https://healthguide.cy/en) [gov](https://www.gov.cy/ru/x)",
+    );
+  });
+
+  it("no longer asks for inline images beyond the cover", async () => {
+    const { normalizeArticle } = await import("./normalize");
+    const result = normalizeArticle({
+      slug: "x",
+      title: "T",
+      description: "D",
+      body_md: "## Коротко\n\n- Один пункт",
+      faq: [],
+      sources: [{ title: "GeSY", url: "https://www.gesy.org.cy/" }],
+      images: [{ slot: "cover", kind: "stock", search_query: "clinic", alt: "", note: "" }],
+      editor_notes: "",
+    });
+    expect(result.warnings).toEqual([]);
+    expect(result.claims).toEqual([]);
+  });
+});

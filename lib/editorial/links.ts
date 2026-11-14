@@ -1,17 +1,18 @@
 import "server-only";
 
 import type { SourceCheck } from "./checks";
+import { safeFetch, SafeFetchError } from "./safe-fetch";
 
 const USER_AGENT =
   "Mozilla/5.0 (compatible; HealthGuideCyprusLinkCheck/1.0; +https://healthguide.cy)";
 const TIMEOUT_MS = 8_000;
 
 async function probe(url: string, method: "HEAD" | "GET"): Promise<number> {
-  const response = await fetch(url, {
+  // Source URLs come from the model or the editor: public https addresses only, checked redirects.
+  const response = await safeFetch(url, {
     method,
-    redirect: "follow",
     headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/pdf,*/*" },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    timeoutMs: TIMEOUT_MS,
   });
   // Don't download whole pages or PDFs: the status is enough.
   await response.body?.cancel().catch(() => undefined);
@@ -36,7 +37,7 @@ export async function checkSourceLinks(urls: string[]): Promise<SourceCheck[]> {
         return { url, state: "broken", status, checkedAt };
       } catch (error) {
         // A slow site is not proof of a broken link; DNS or TLS failures are.
-        const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+        const timedOut = error instanceof SafeFetchError && error.reason === "timeout";
         return { url, state: timedOut ? "unverified" : "broken", status: null, checkedAt };
       }
     }),
