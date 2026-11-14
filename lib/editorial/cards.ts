@@ -5,6 +5,7 @@ import type { Locale } from "@/lib/i18n/types";
 import { markerSlots, wordCount } from "./normalize";
 import { splitSections } from "./sections";
 import { formatChecks, type CheckResult } from "./checks";
+import { factItems, type FactItem } from "./facts";
 import { sourceKind } from "./prompts";
 import type { EditorialPost } from "./store";
 import { escapeHtml, type InlineKeyboard } from "./telegram";
@@ -119,7 +120,10 @@ function editRows(n: number): InlineKeyboard {
       { text: "📝 Править самой", callback_data: `med:${n}` },
       { text: "✏️ Правки через ИИ", callback_data: `edit:${n}` },
     ],
-    [{ text: "🖼 Картинки", callback_data: `img:${n}` }],
+    [
+      { text: "🖼 Картинки", callback_data: `img:${n}` },
+      { text: "🔎 Факты", callback_data: `facts:${n}` },
+    ],
   ];
 }
 
@@ -273,4 +277,54 @@ export function renderManualMenu(post: EditorialPost, locale: Locale): { text: s
       [{ text: "⬅️ К статье", callback_data: `open:${n}` }],
     ],
   };
+}
+
+const FACT_STATUS: Record<FactItem["status"], string> = {
+  quote_found: "цитата найдена в источнике",
+  quote_not_found: "цитаты нет в источнике",
+  source_unavailable: "источник не открылся",
+  no_text: "текст источника не прочитать",
+  no_quote: "нет цитаты",
+  manual: "проверено вручную",
+  unlisted: "цифры без источника",
+  no_claims: "факты не выделены",
+};
+
+/** Facts that need attention first (blocking, then weak), then the rest as a short count. */
+export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: InlineKeyboard; items: FactItem[] } {
+  const ru = post.translations.find((t) => t.locale === "ru");
+  const items = ru ? factItems(post.factChecks, ru.bodyMd) : [];
+  const open = items.filter(
+    (item) => item.blocking || (item.importance === "normal" && item.status !== "quote_found" && item.status !== "manual"),
+  );
+  open.sort((a, b) => Number(b.blocking) - Number(a.blocking));
+  const shown = open.slice(0, 8);
+  const found = items.filter((item) => item.status === "quote_found").length;
+  const manual = items.filter((item) => item.status === "manual").length;
+  const lines = [
+    `🔎 <b>#${post.number} · факты</b>`,
+    `Цитата найдена: ${found} · проверено вручную: ${manual} · требуют внимания: ${open.length}`,
+    "Найденная цитата значит только, что текст есть на странице источника, — смысл проверяете вы.",
+    "",
+  ];
+  shown.forEach((item, index) => {
+    const mark = item.blocking ? "🔴" : "⚠️";
+    lines.push(`${mark} <b>${index + 1}.</b> ${escapeHtml(item.claim.slice(0, 300))}`);
+    lines.push(`   ${FACT_STATUS[item.status]}${item.detail ? ` (${escapeHtml(item.detail)})` : ""}`);
+    if (item.sourceUrl) lines.push(`   ${link(item.sourceUrl, "источник")}`);
+    if (item.quote) lines.push(`   «${escapeHtml(item.quote.slice(0, 200))}»`);
+  });
+  if (open.length > shown.length) lines.push("", `…и ещё ${open.length - shown.length}. Исправьте текст или подтвердите эти, затем откройте меню снова.`);
+  if (open.length === 0) lines.push("Всё, что требовало внимания, подтверждено.");
+  lines.push("", "✅ — проверила сама: бот спросит, по какому источнику. 📝 Править самой — исправить текст.");
+  const keyboard: InlineKeyboard = [];
+  for (let i = 0; i < shown.length; i += 4) {
+    keyboard.push(shown.slice(i, i + 4).map((item, j) => ({ text: `✅ ${i + j + 1}`, callback_data: `fok:${post.number}:${item.id}` })));
+  }
+  keyboard.push([
+    { text: "🔁 Перепроверить цитаты", callback_data: `frc:${post.number}` },
+    { text: "📝 Править самой", callback_data: `med:${post.number}` },
+  ]);
+  keyboard.push([{ text: "⬅️ К статье", callback_data: `open:${post.number}` }]);
+  return { text: lines.join("\n"), keyboard, items };
 }
