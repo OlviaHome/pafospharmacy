@@ -370,7 +370,7 @@ describe("PharmacyFinder location controls", () => {
     expect(
       screen.getAllByRole("link", { name: "Info" }).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByRole("combobox", { name: "Language" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Language/ })).toBeTruthy();
     expect(screen.queryByText(/Official directory/)).toBeNull();
     expect(screen.getByText(/Published schedules may not reflect exceptional same-day closures/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "CC BY 4.0" })).toBeTruthy();

@@ -287,3 +287,23 @@ bdi,
   border: 0;
   border-top: 1px solid var(--line);
 }
+
+/* Hospitals catalog: a one-time, very light entrance (fade + 8px rise). Only for users
+   who have not asked for reduced motion; transform/opacity only, so no layout shift. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes hospital-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .hospital-reveal {
+    animation: hospital-reveal 240ms ease-out both;
+  }
+}

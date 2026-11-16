@@ -179,3 +179,12 @@ Editorial articles live in four tables created by `20261110100000_create_blog_sc
 - Persisted timed duty/open or duty/on-call facts from a pharmacy-specific timed source; the current notice-derived schedule remains transient.
 - Import-run history and field-level provenance if reconciliation needs justify them.
 - Pharmacy accounts, services, profiles, PostGIS, and national coordinate enrichment beyond the current separately sourced Paphos artifacts.
+
+## Hospitals preview registry
+
+Hospitals are checked-in read-only records, not database rows. Each has a stable ID,
+name, district, ownership, address, source and source-review date, specialty, labelled
+reception/emergency phones and optional explicit emergency evidence. Registry row
+numbers preserve the supplied private workbook identity. `reviewRequired` marks
+source discrepancies and is not a closed/invalid licence claim. No coordinates,
+GeSY coverage or calculated availability are stored.

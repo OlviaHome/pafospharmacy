@@ -54,3 +54,9 @@ Supporting data work remains deliberately source-led: integrate an official per-
 - Evaluate map view and server-side geospatial search only when user testing or national scale justifies them.
 
 Paid placement, if ever introduced, must remain separate from safety-critical availability and proximity results.
+
+## Awaiting design approval — Hospitals
+
+Localized Hospitals preview: approved 9 public and 26 private candidates, combined
+filters, sourced A&E claims and address-based Directions. Confirm source discrepancies
+and mobile design before authorizing production release.

@@ -1,5 +1,8 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import { hospitalMessages } from "@/lib/hospitals/messages";
+import { DISTRICT_SLUGS } from "@/lib/i18n/district-pages";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
@@ -22,6 +25,9 @@ export function FinderHeader({
   dataSources: string;
   languageLabel: string;
 }) {
+  const pathname = usePathname();
+  const district = pathname.split("/")[2];
+  const hospitalsHref = localePath(locale, "/hospitals") + (DISTRICT_SLUGS.includes(district as typeof DISTRICT_SLUGS[number]) ? `?district=${district}` : "");
   return (
     <header className="sticky top-0 z-50 border-b border-black/5 bg-white/85 shadow-[0_1px_12px_rgba(16,15,15,0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-white/75">
       <div className="mx-auto flex min-h-14 w-full max-w-7xl items-center gap-3 px-4 sm:min-h-16 sm:px-6 lg:px-8">
@@ -54,12 +60,14 @@ export function FinderHeader({
         >
           {dataSources}
         </Link>
+        <Link href={hospitalsHref} className="hidden min-h-11 items-center text-sm font-bold text-[var(--ink-muted)] sm:inline-flex">{hospitalMessages[locale].menu}</Link>
         <LanguageSelector locale={locale} label={languageLabel} />
       </div>
       <nav
         aria-label={`${blog} / ${about} / ${dataSources}`}
-        className="mx-auto flex min-h-11 w-full max-w-7xl items-center gap-5 border-t border-[var(--line)] px-4 text-xs font-bold text-[var(--ink-muted)] sm:px-6 md:hidden"
+        className="mx-auto flex flex-wrap min-h-11 w-full max-w-7xl items-center gap-5 border-t border-[var(--line)] px-4 text-xs font-bold text-[var(--ink-muted)] sm:px-6 md:hidden"
       >
+        <Link href={hospitalsHref} className="inline-flex min-h-11 items-center sm:hidden">{hospitalMessages[locale].menu}</Link>
         <Link
           href={localePath(locale, "/blog")}
           className="inline-flex min-h-11 min-w-11 items-center justify-center sm:hidden"

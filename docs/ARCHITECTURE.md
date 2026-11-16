@@ -229,3 +229,15 @@ Editor (Telegram, admin only) ──► POST /api/telegram/webhook ──► lib
 ## Deferred architecture
 
 Do not introduce a map SDK, PostGIS, authentication, a CMS/admin portal, queues, realtime subscriptions, analytics, cloud refresh scheduling, notification infrastructure, or a generalized rule engine in the first slice. Add a boundary only when an accepted requirement needs it.
+
+## Hospitals directory (preview)
+
+The approved Hospitals section uses a separate versioned, read-only JSON registry in
+`lib/hospitals/registry.json`: 9 public institutions and 26 approved private candidates.
+It has no Supabase tables, importer, pharmacy availability rules, or inferred opening
+states. Source URLs, review date, private-registry row, specialties and unresolved
+source discrepancies accompany each record. The supplied Ministry workbook is the
+identity/address baseline; institution sites and SHSO provide contact corrections.
+Emergency 24/7 is an explicitly sourced department claim, never inferred from an
+inpatient ward. No coordinates are asserted; Directions hands the documented address
+to Google Maps. Filter query URLs canonicalize to the locale Hospitals landing page.
