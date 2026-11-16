@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { FinderHeader } from "@/components/finder-header";
+import { DirectoryHero } from "@/components/directory-hero";
 import { InstallAppCta } from "@/components/install-app-cta";
 
 import {
@@ -1081,17 +1082,15 @@ export function PharmacyFinder({
         </dialog>
       )}
 
-      <section className={`relative bg-[linear-gradient(120deg,var(--hero-dark),var(--brand-strong))] text-white ${districtPage && locale === "en" ? "max-[21rem]:min-h-[23.5rem]" : ""}`}>
-        <div className="mx-auto flex w-full max-w-7xl flex-col justify-center px-4 py-12 sm:px-6 sm:py-16 lg:min-h-[22rem] lg:px-8 lg:py-16">
-          <h1 className="max-w-5xl text-balance text-[clamp(2.5rem,5vw,4rem)] font-medium leading-[0.98] tracking-[-0.035em]">
-            {heroTitle ?? messages.heroTitle}
-          </h1>
-          <h2 className="mt-4 max-w-6xl text-balance text-[clamp(1.125rem,2vw,1.5rem)] font-normal leading-[1.2] text-white/65 lg:whitespace-nowrap">
-            {messages.heroSchedulePeriod}
-          </h2>
-          <InstallAppCta messages={messages} reserveSpace={districtPage} />
-        </div>
-      </section>
+      <DirectoryHero
+        title={heroTitle ?? messages.heroTitle}
+        subtitle={messages.heroSchedulePeriod}
+        subtitleAs="h2"
+        subtitleNoWrapOnDesktop
+        className={districtPage && locale === "en" ? "max-[21rem]:min-h-[23.5rem]" : ""}
+      >
+        <InstallAppCta messages={messages} reserveSpace={districtPage} />
+      </DirectoryHero>
 
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
 
