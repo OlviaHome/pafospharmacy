@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { HospitalFilterSelect } from '@/components/hospital-filter-select';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { filterHospitals } from '@/lib/hospitals/catalog';
@@ -11,14 +12,13 @@ export function HospitalCatalog({locale, initialDistrict, names}: {locale: Local
  const [district,setDistrict]=useState(initialDistrict); const [type,setType]=useState(''); const [emergency,setEmergency]=useState(false); const [query,setQuery]=useState('');
  const router=useRouter(); const pathname=usePathname(); const params=useSearchParams();
  const results=filterHospitals(district,type,emergency,query);
- const field='min-h-11 w-full min-w-0 rounded-xl border border-[var(--line-strong)] bg-white px-3 py-2 text-[var(--ink)]';
  return <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
  <Link href={`/${locale}`} className="inline-flex min-h-11 items-center font-bold text-[var(--brand)]">← {m.back}</Link>
  <section aria-label={m.search} className="grid gap-3 rounded-2xl bg-[var(--surface-muted)] p-4 sm:grid-cols-2 lg:grid-cols-4">
- <label>{m.district}<select className={field} value={district} onChange={e=>{setDistrict(e.target.value);const p=new URLSearchParams(params);if(e.target.value)p.set('district',e.target.value);else p.delete('district');router.replace(`${pathname}${p.size?'?'+p:''}`,{scroll:false});}}><option value="">{m.all}</option>{DISTRICT_SLUGS.map(d=><option key={d} value={d}>{names[d]}</option>)}</select></label>
- <label>{m.type}<select className={field} value={type} onChange={e=>setType(e.target.value)}><option value="">{m.any}</option><option value="public">{m.public}</option><option value="private">{m.private}</option></select></label>
- <label>{m.emergencyFilter}<select className={field} value={emergency?'emergency':''} onChange={e=>setEmergency(Boolean(e.target.value))}><option value="">{m.allHospitals}</option><option value="emergency">{m.emergency}</option></select></label>
- <label>{m.search}<input type="search" className={field} value={query} onChange={e=>setQuery(e.target.value)}/></label>
+ <HospitalFilterSelect label={m.district} value={district} options={[{value:'',label:m.all},...DISTRICT_SLUGS.map(d=>({value:d,label:names[d]}))]} onChange={next=>{setDistrict(next);const p=new URLSearchParams(params);if(next)p.set('district',next);else p.delete('district');router.replace(`${pathname}${p.size?'?'+p:''}`,{scroll:false});}} />
+ <HospitalFilterSelect label={m.type} value={type} options={[{value:'',label:m.any},{value:'public',label:m.public},{value:'private',label:m.private}]} onChange={setType} />
+ <HospitalFilterSelect label={m.emergencyFilter} value={emergency?'emergency':''} options={[{value:'',label:m.allHospitals},{value:'emergency',label:m.emergency}]} onChange={next=>setEmergency(Boolean(next))} />
+ <label className="block min-w-0"><span className="mb-2 block text-sm font-medium text-[var(--ink)]">{m.search}</span><input type="search" className="h-12 w-full min-w-0 rounded-xl border border-[var(--line-strong)] bg-white px-4 text-sm text-[var(--ink)] outline-none focus-visible:border-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--brand)]/30" value={query} onChange={e=>setQuery(e.target.value)}/></label>
  </section>
  <p role="status" className="py-5 text-sm text-[var(--ink-muted)]">{m.results}: {results.length}</p>
  {results.length===0?<p className="py-8">{m.empty}</p>:<ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{results.map(h=><li key={h.id} className="min-w-0 rounded-2xl border border-[var(--line)] bg-white p-5 shadow-sm">
