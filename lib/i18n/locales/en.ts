@@ -3,14 +3,14 @@ import type { TranslationDictionary } from "../types";
 export const en = {
   locale: "en",
   languageSelectorLabel: "Language",
-  siteTitle: "Cyprus Pharmacy",
+  siteTitle: "Health Guide Cyprus",
   metadataDescription:
     "Find open and on-duty pharmacies across Cyprus using official pharmacy and duty data.",
   backToFinder: "Back to pharmacy finder",
   lastUpdated: "Last updated 12 September 2026",
   googlePrivacyPolicyLabel: "Google Privacy Policy",
   finder: {
-    brandName: "Cyprus Pharmacy",
+    brandName: "Health Guide Cyprus",
     blog: "Blog",
     about: "About",
     heroTitle: "Pharmacies on Duty and Open Now in Cyprus",
@@ -152,7 +152,7 @@ export const en = {
     independent: "Independent service using official Cyprus pharmacy data.",
     corrections: "Questions or corrections:",
     emergencyBefore:
-      "Cyprus Pharmacy is not an emergency service. In a serious or life-threatening emergency in Cyprus, call",
+      "Health Guide Cyprus is not an emergency service. In a serious or life-threatening emergency in Cyprus, call",
     emergencyAfter:
       "This website does not replace a doctor, pharmacist, or emergency medical service.",
   },
@@ -186,13 +186,13 @@ export const en = {
   pages: {
     about: {
       title: "About",
-      description: "Why Cyprus Pharmacy exists and how the independent service works.",
+      description: "Why Health Guide Cyprus exists and how the independent service works.",
       introduction:
-        "Cyprus Pharmacy is a simple way to find a pharmacy across Cyprus that should be open now or is listed on the official duty rota.",
+        "Health Guide Cyprus is a simple way to find a pharmacy across Cyprus that should be open now or is listed on the official duty rota.",
       sections: [
         {
           heading: "Why this service exists",
-          blocks: [{ type: "paragraphs", items: ["Finding a pharmacy can be harder when ordinary business hours have ended, a pharmacy is closed for an afternoon break, or duty cover continues by telephone overnight. The information exists, but the useful answer is often spread across addresses, schedules, and rota records. Cyprus Pharmacy brings those facts into one clear district-based view."] }],
+          blocks: [{ type: "paragraphs", items: ["Finding a pharmacy can be harder when ordinary business hours have ended, a pharmacy is closed for an afternoon break, or duty cover continues by telephone overnight. The information exists, but the useful answer is often spread across addresses, schedules, and rota records. Health Guide Cyprus brings those facts into one clear district-based view."] }],
         },
         {
           heading: "What it does",
@@ -201,13 +201,13 @@ export const en = {
         {
           heading: "How to use it",
           blocks: [
-            { type: "steps", items: ["Choose a district, then browse its pharmacies or filter by Open Now or On Duty.", "Search by pharmacy name or address, or use your device location to see approximate distance where verified coordinates are available.", "Use Call to contact the pharmacy or Directions to open Google Maps.", "You can use Cyprus Pharmacy directly in your browser or add it to your home screen for quick access like an app."] },
+            { type: "steps", items: ["Choose a district, then browse its pharmacies or filter by Open Now or On Duty.", "Search by pharmacy name or address, or use your device location to see approximate distance where verified coordinates are available.", "Use Call to contact the pharmacy or Directions to open Google Maps.", "You can use Health Guide Cyprus directly in your browser or add it to your home screen for quick access like an app."] },
             { type: "paragraphs", items: ["No account is required."] },
           ],
         },
         {
           heading: "Web-first and multilingual",
-          blocks: [{ type: "paragraphs", items: ["Cyprus Pharmacy is a mobile-first website that also works on desktop. The interface is available in English, Greek, Russian, and Arabic, and you can change language at any time."] }],
+          blocks: [{ type: "paragraphs", items: ["Health Guide Cyprus is a mobile-first website that also works on desktop. The interface is available in English, Greek, Russian, and Arabic, and you can change language at any time."] }],
         },
         {
           heading: "Independent and informational",
@@ -221,9 +221,9 @@ export const en = {
     },
     privacy: {
       title: "Privacy",
-      description: "How Paphos Pharmacy handles location searches, aggregate usage analytics, and technical data.",
+      description: "How Health Guide Cyprus handles location searches, aggregate usage analytics, and technical data.",
       introduction:
-        "This page explains the limited information used by the current Paphos Pharmacy website, including its location tools and aggregate usage analytics.",
+        "This page explains the limited information used by the current Health Guide Cyprus website, including its location tools and aggregate usage analytics.",
       lastUpdated: "Last updated 14 September 2026",
       sections: [
         {
@@ -240,7 +240,7 @@ export const en = {
         },
         {
           heading: "Manual area or address search",
-          blocks: [{ type: "paragraphs", items: ["If you enter an area, landmark, hotel, street, or address, the search text and selected district are sent to the Cyprus Pharmacy server. The server checks a short shared cache and, when a lookup is needed, sends them to Geoapify to find possible locations in that district. Successful normalized searches and their short result lists may be cached in Vercel's shared runtime cache for up to five minutes. The selected result is then kept only in the current browser tab.", "Geoapify and Vercel may process request and network information under their own policies. Do not enter medical details or other sensitive personal information in the location box."] }],
+          blocks: [{ type: "paragraphs", items: ["If you enter an area, landmark, hotel, street, or address, the search text and selected district are sent to the Health Guide Cyprus server. The server checks a short shared cache and, when a lookup is needed, sends them to Geoapify to find possible locations in that district. Successful normalized searches and their short result lists may be cached in Vercel's shared runtime cache for up to five minutes. The selected result is then kept only in the current browser tab.", "Geoapify and Vercel may process request and network information under their own policies. Do not enter medical details or other sensitive personal information in the location box."] }],
         },
         {
           heading: "Language preference",
@@ -286,10 +286,10 @@ export const en = {
     },
     terms: {
       title: "Terms",
-      description: "Important terms for using the independent Paphos Pharmacy service.",
-      introduction: "Paphos Pharmacy is an independent informational service designed to help people find pharmacies in Paphos. Please use its information with the limits below in mind.",
+      description: "Important terms for using the independent Health Guide Cyprus service.",
+      introduction: "Health Guide Cyprus is an independent informational service designed to help people find pharmacies in Paphos. Please use its information with the limits below in mind.",
       sections: [
-        { heading: "Independent service", blocks: [{ type: "paragraphs", items: ["Paphos Pharmacy is not a government website and is not affiliated with or endorsed by the Cyprus Ministry of Health or Cyprus Pharmaceutical Services. It uses data published by Cyprus Pharmaceutical Services and identifies those sources separately."] }] },
+        { heading: "Independent service", blocks: [{ type: "paragraphs", items: ["Health Guide Cyprus is not a government website and is not affiliated with or endorsed by the Cyprus Ministry of Health or Cyprus Pharmaceutical Services. It uses data published by Cyprus Pharmaceutical Services and identifies those sources separately."] }] },
         { heading: "What the service provides", blocks: [{ type: "paragraphs", items: ["The website presents pharmacy contact details, schedule-based availability, official duty assignments, approximate distance where trusted coordinates exist, and links for calling or directions. It is provided as practical information and may change or be temporarily unavailable."] }] },
         { heading: "Information, not medical advice", blocks: [{ type: "paragraphs", items: ["The website helps you locate and contact pharmacies. It does not diagnose a condition, recommend treatment, replace a doctor or pharmacist, or provide medical advice."] }] },
         { heading: "Not an emergency service", blocks: [{ type: "paragraphs", items: ["Do not rely on this website for emergency assistance. In a serious or life-threatening emergency in Cyprus, call {{emergency}} or seek appropriate professional medical care."] }] },
@@ -302,8 +302,8 @@ export const en = {
     },
     dataSources: {
       title: "Data Sources & Disclaimer",
-      description: "Sources, freshness, and limitations of Paphos Pharmacy data.",
-      introduction: "Paphos Pharmacy combines official Cyprus pharmacy records with separately attributed schedule and location information. The website itself is independent and is not an official government service.",
+      description: "Sources, freshness, and limitations of Health Guide Cyprus data.",
+      introduction: "Health Guide Cyprus combines official Cyprus pharmacy records with separately attributed schedule and location information. The website itself is independent and is not an official government service.",
       sections: [
         { heading: "Pharmacy directory and duty rota", blocks: [{ type: "paragraphs", items: ["Pharmacy identities, published addresses, public pharmacy telephone numbers, registration numbers, and date-only duty assignments come from the {{openData}}. The current source snapshot contains duty assignments from 1 May 2026 through 30 April 2027. Source data is attributed under {{ccBy}}."] }] },
         { heading: "Regular pharmacy schedule", blocks: [{ type: "paragraphs", items: ["Regular hours are calculated from the {{regularRules}}. The service supports the versioned 2026 summer/winter schedule and verified 2026 pharmacy-closure holidays in Asia/Nicosia time. It describes when a pharmacy should be open under the general schedule; it cannot detect an exceptional same-day closure."] }] },

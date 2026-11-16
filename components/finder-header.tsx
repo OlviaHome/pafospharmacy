@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { hospitalMessages } from "@/lib/hospitals/messages";
 import { DISTRICT_SLUGS } from "@/lib/i18n/district-pages";
-import { Plus } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { LanguageSelector } from "@/components/language-selector";
@@ -35,10 +35,15 @@ export function FinderHeader({
           href={localePath(locale)}
           className="flex min-w-0 flex-1 items-center gap-3"
         >
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[var(--brand)] text-white">
-            <Plus className="size-6 stroke-[3]" aria-hidden="true" />
-          </span>
-          <span className="min-w-0 text-lg font-extrabold tracking-[-0.025em] text-[var(--ink)] sm:text-xl">
+          <Image
+            src="/logo-pin.png"
+            alt=""
+            width={121}
+            height={160}
+            priority
+            className="h-9 w-auto shrink-0 sm:h-10"
+          />
+          <span className="min-w-0 text-base font-extrabold leading-tight tracking-[-0.025em] text-[var(--ink)] sm:text-xl">
             {brandName}
           </span>
         </Link>
