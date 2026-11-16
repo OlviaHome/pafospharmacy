@@ -6,7 +6,7 @@ import { RevealItem, RevealScope, useRevealScope } from '@/components/reveal-on-
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { filterHospitals } from '@/lib/hospitals/catalog';
 import { hospitalMessages } from '@/lib/hospitals/messages';
-import { DISTRICT_SLUGS } from '@/lib/i18n/district-pages';
+import { DISTRICT_SLUGS, DISTRICT_TAB_ORDER } from '@/lib/i18n/district-pages';
 import type { Locale } from '@/lib/i18n/types';
 export function HospitalCatalog({locale, initialDistrict, names}: {locale: Locale; initialDistrict:string; names:Record<typeof DISTRICT_SLUGS[number],string>}) {
  const m = hospitalMessages[locale];
@@ -18,7 +18,7 @@ export function HospitalCatalog({locale, initialDistrict, names}: {locale: Local
  return <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
  <nav aria-label={m.district} className="overflow-x-auto border-b border-[var(--line)] bg-white">
    <div className="mx-auto flex min-w-max justify-between gap-6 sm:gap-10 lg:max-w-5xl">
-     {[{value:'',label:m.all},...DISTRICT_SLUGS.map(d=>({value:d,label:names[d]}))].map(option=><button key={option.value} type="button" aria-pressed={district===option.value} onClick={()=>chooseDistrict(option.value)} className={`relative flex min-h-16 min-w-11 shrink-0 items-center justify-center whitespace-nowrap px-1 text-sm font-bold transition-colors sm:text-base ${district===option.value ? 'text-[var(--ink)] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[var(--brand)]' : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'}`}>{option.label}</button>)}
+     {[{value:'',label:m.all},...DISTRICT_TAB_ORDER.map(d=>({value:d,label:names[d]}))].map(option=><button key={option.value} type="button" aria-pressed={district===option.value} onClick={()=>chooseDistrict(option.value)} className={`relative flex min-h-16 min-w-11 shrink-0 items-center justify-center whitespace-nowrap px-1 text-sm font-bold transition-colors sm:text-base ${district===option.value ? 'text-[var(--ink)] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[var(--brand)]' : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'}`}>{option.label}</button>)}
    </div>
  </nav>
  <section aria-label={m.search} className="relative z-10 -mx-1 -mt-px mb-8 grid gap-3 bg-white px-1 py-4 sm:mx-0 sm:grid-cols-2 sm:rounded-b-2xl sm:px-5 sm:shadow-[var(--shadow)] lg:grid-cols-[15rem_15rem_minmax(0,1fr)] lg:items-end">

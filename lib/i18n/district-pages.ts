@@ -2,6 +2,7 @@ import type { LocationSearchDistrict } from "@/lib/location/manual-search";
 import type { Locale } from "./types";
 
 export const DISTRICT_SLUGS = ["nicosia", "limassol", "larnaca", "famagusta", "paphos"] as const;
+export const DISTRICT_TAB_ORDER = ["nicosia", "limassol", "larnaca", "paphos", "famagusta"] as const satisfies readonly DistrictSlug[];
 export type DistrictSlug = (typeof DISTRICT_SLUGS)[number];
 
 export const DISTRICT_BY_SLUG: Record<DistrictSlug, LocationSearchDistrict> = {
