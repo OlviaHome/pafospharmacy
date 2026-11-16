@@ -164,6 +164,10 @@ export interface BlogMessages {
   title: string;
   description: string;
   introduction: string;
+  /** Index page masthead: small label, H1 and one-line topics description. */
+  eyebrow: string;
+  heading: string;
+  lead: string;
   empty: string;
   readArticle: string;
   backToBlog: string;
