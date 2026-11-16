@@ -58,7 +58,7 @@ import type {
 } from "@/lib/domain/types";
 import type { ManualLocationSuggestion } from "@/lib/geocoding/geoapify";
 import { LOCALE_FORMAT_IDS } from "@/lib/i18n/config";
-import { SLUG_BY_DISTRICT } from "@/lib/i18n/district-pages";
+import { DISTRICT_BY_SLUG, DISTRICT_TAB_ORDER, SLUG_BY_DISTRICT } from "@/lib/i18n/district-pages";
 import { localePath } from "@/lib/i18n/config";
 import {
   canonicalPharmacyAddress,
@@ -90,13 +90,7 @@ type SelectedDay = "today" | "tomorrow";
 type ManualSearchStatus = "idle" | "searching" | "error";
 type PharmacyDistrict = LocationSearchDistrict;
 
-const districts: PharmacyDistrict[] = [
-  "Nicosia",
-  "Larnaca",
-  "Limassol",
-  "Paphos",
-  "Famagusta",
-];
+const districts: PharmacyDistrict[] = DISTRICT_TAB_ORDER.map((slug) => DISTRICT_BY_SLUG[slug]);
 
 const backToFinderLabels: Record<Locale, string> = {
   en: "Back to finder controls",
