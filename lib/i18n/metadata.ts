@@ -26,7 +26,7 @@ export function contentPageMetadata(
 ): Metadata {
   return {
     metadataBase,
-    title: `${page.title} | Paphos Pharmacy`,
+    title: `${page.title} | Health Guide Cyprus`,
     description: page.description,
     alternates: localizedAlternates(locale, pathname),
   };

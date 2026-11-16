@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Cyprus Pharmacy",
-    short_name: "Pharmacy",
+    name: "Health Guide Cyprus",
+    short_name: "Health Guide",
     description:
       "Find open and on-duty pharmacies across Cyprus using official pharmacy and duty data.",
     start_url: "/",

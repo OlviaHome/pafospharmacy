@@ -37,7 +37,7 @@ describe("locale configuration", () => {
       expect(values.every((value) => typeof value === "string" && value.length > 0)).toBe(
         true,
       );
-      expect(dictionary.finder.brandName).toBe("Cyprus Pharmacy");
+      expect(dictionary.finder.brandName).toBe("Health Guide Cyprus");
       expect(dictionary.finder.distanceMethod.length).toBeGreaterThan(0);
       expect(dictionary.finder.onCallBadge.length).toBeGreaterThan(0);
     },

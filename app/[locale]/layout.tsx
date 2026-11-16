@@ -40,11 +40,15 @@ export async function generateMetadata({
     metadataBase,
     title: dictionary.siteTitle,
     description: dictionary.metadataDescription,
-    applicationName: "Cyprus Pharmacy",
+    applicationName: "Health Guide Cyprus",
     other: { "google-adsense-account": "ca-pub-9987102190291938" },
     manifest: "/manifest.webmanifest",
     icons: {
-      icon: "/icon.svg",
+      icon: [
+        { url: "/favicon.ico", sizes: "48x48" },
+        { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+        { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      ],
       apple: {
         url: "/apple-touch-icon.png",
         sizes: "180x180",
@@ -56,13 +60,13 @@ export async function generateMetadata({
       description: dictionary.metadataDescription,
       type: "website",
       locale,
-      images: [{ url: "/og.png", width: 512, height: 512, alt: "Cyprus Pharmacy" }],
+      images: [{ url: "/og.png", width: 512, height: 512, alt: "Health Guide Cyprus" }],
     },
     twitter: {
       card: "summary",
       title: dictionary.siteTitle,
       description: dictionary.metadataDescription,
-      images: [{ url: "/og.png", alt: "Cyprus Pharmacy" }],
+      images: [{ url: "/og.png", alt: "Health Guide Cyprus" }],
     },
   };
 }
