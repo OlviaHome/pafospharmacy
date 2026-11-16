@@ -288,22 +288,19 @@ bdi,
   border-top: 1px solid var(--line);
 }
 
-/* Hospitals catalog: a one-time, very light entrance (fade + 8px rise). Only for users
-   who have not asked for reduced motion; transform/opacity only, so no layout shift. */
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes hospital-reveal {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
 
-    to {
-      opacity: 1;
-      transform: none;
-    }
+/* Catalog cards: one-time entrance (fade + 8px rise, ~280ms ease-out) applied by
+   components/reveal-on-scroll.tsx. Transform/opacity only, so no layout shift; the hidden
+   state exists only when JS has marked a below-the-fold card, and never under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal="pending"] {
+    opacity: 0;
+    transform: translateY(8px);
   }
 
-  .hospital-reveal {
-    animation: hospital-reveal 240ms ease-out both;
+  [data-reveal="shown"] {
+    transition:
+      opacity 280ms ease-out var(--reveal-delay, 0ms),
+      transform 280ms ease-out var(--reveal-delay, 0ms);
   }
 }

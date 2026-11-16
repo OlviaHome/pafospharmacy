@@ -67,6 +67,11 @@ import {
 import { formatLocalizedNumber, message } from "@/lib/i18n/messages";
 import type { FinderMessages, Locale } from "@/lib/i18n/types";
 import {
+  RevealScope,
+  useRevealOnScroll,
+  useRevealScope,
+} from "@/components/reveal-on-scroll";
+import {
   gpsSearchOrigin,
   manualSearchOrigin,
   type GeolocationStatus,
@@ -342,6 +347,7 @@ function PharmacyCard({
   locale: Locale;
   messages: FinderMessages;
 }) {
+  const revealRef = useRevealOnScroll<HTMLElement>();
   const intlLocale = LOCALE_FORMAT_IDS[locale];
   const { pharmacy, distanceKm } = result;
   const dayWindow = useMemo(
@@ -391,6 +397,7 @@ function PharmacyCard({
 
   return (
     <article
+      ref={revealRef}
       data-pharmacy-card
       className="pharmacy-card flex h-full flex-col rounded-[1.25rem] bg-[var(--surface)] p-5 shadow-[var(--shadow)] sm:p-6"
     >
@@ -817,6 +824,10 @@ export function PharmacyFinder({
         expanded: resultsExpanded,
       }),
     [filter, results, resultsExpanded, searchOrigin],
+  );
+
+  const revealScope = useRevealScope(
+    useMemo(() => results.map((result) => result.pharmacy.id).join("|"), [results]),
   );
 
   function chooseDay(day: SelectedDay) {
@@ -1297,6 +1308,7 @@ export function PharmacyFinder({
         </h2>
 
         {results.length > 0 ? (
+          <RevealScope scope={revealScope}>
           <div className="space-y-4">
             {Array.from(
               { length: Math.ceil(visibleResults.length / 2) },
@@ -1340,6 +1352,7 @@ export function PharmacyFinder({
               </button>
             )}
           </div>
+          </RevealScope>
         ) : (
           <div className="rounded-3xl border border-dashed border-[var(--line-strong)] bg-[var(--surface)] px-5 py-10 text-center">
             <h3 className="font-extrabold text-[var(--ink)]">{messages.noMatches}</h3>
