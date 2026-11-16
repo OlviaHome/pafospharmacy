@@ -11,6 +11,7 @@ import { metadataBase } from "@/lib/i18n/metadata";
 export const revalidate = 3600;
 
 const PAGES = [
+  { pathname: "/hospitals", changeFrequency: "monthly", priority: 0.7 },
   { pathname: "", changeFrequency: "daily", priority: 1 },
   { pathname: "/blog", changeFrequency: "weekly", priority: 0.7 },
   { pathname: "/about", changeFrequency: "monthly", priority: 0.5 },

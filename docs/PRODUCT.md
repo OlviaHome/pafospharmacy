@@ -100,3 +100,12 @@ The basic consumer experience is expected to remain free. Potential monetization
 - Does official on-call data use the pharmacy's public number or a separate contact mechanism?
 - What ranking best answers the urgent question without implying that “on duty” means “open”?
 - Which directions provider or neutral handoff gives the best experience across common Cyprus devices?
+
+## Approved Hospitals preview
+
+The Hospitals directory lists the approved 35 public/private institutions, including
+clearly labelled specialist maternity, psychiatric, oncology and palliative facilities.
+District, ownership, confirmed emergency department and text filters combine without
+using pharmacy Open Now/On Duty semantics. Seven SHSO A&E departments and Napa Olympic
+have explicit 24/7 emergency evidence. Contact discrepancies are visible and retained
+for review. Production release awaits user design approval.

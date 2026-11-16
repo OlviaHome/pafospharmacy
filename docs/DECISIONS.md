@@ -100,3 +100,11 @@ Accepted decisions are recorded here so later implementation sessions do not sil
 - [Places UI Kit Place Details](https://developers.google.com/maps/documentation/javascript/places-ui-kit/place-details)
 - [Cyprus Pharmaceutical Services 2026 duty-hours notice](https://www.moh.gov.cy/MOH/phs/phs.nsf/All/091BC51661367EE1C225857B002F972D)
 - [Cyprus pharmacy-hours order, KDP 210/2022 (Official Gazette)](https://www.mof.gov.cy/mof/gpo/gazette.nsf/B8F7312559CEBBDBC2258856001F84D8/%24file/5706%203%206%202022%20PARARTIMA%203o%20MEROS%20I.pdf)
+
+### Hospitals preview — 2026-11-16
+
+Use the user-approved cohort (9 state institutions and 26 category-A private
+candidates) in an independent read-only registry. Do not infer emergency availability
+from hospital ownership or inpatient care. Display confirmed SHSO department phones
+separately from reception. Keep source discrepancies flagged and release only after
+user design review; no production database changes are needed.
