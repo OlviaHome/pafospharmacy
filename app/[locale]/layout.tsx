@@ -98,6 +98,13 @@ export default async function LocaleLayout({
   window.__pharmacyBeforeInstallPrompt = event;
 });`}
         </Script>
+        <Script
+          id="adsense-script"
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9987102190291938"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
         {children}
         <SiteFooter locale={locale} messages={dictionary.footer} />
         <Analytics />
