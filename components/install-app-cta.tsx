@@ -126,7 +126,7 @@ export function InstallAppCta({
 }: {
   messages: Pick<
     FinderMessages,
-    "installApp" | "installIosInstruction" | "installManualInstruction" | "installDialogClose"
+    "installApp" | "installIosInstruction" | "installBrowserInstruction" | "installDialogClose"
   >;
   reserveSpace?: boolean;
 }) {
@@ -201,7 +201,7 @@ export function InstallAppCta({
         >
           <div className="p-5 sm:p-6">
             <p className="text-base font-medium leading-6">
-              {installMode === "ios-instructions" ? messages.installIosInstruction : messages.installManualInstruction}
+              {installMode === "ios-instructions" ? messages.installIosInstruction : messages.installBrowserInstruction}
             </p>
             <button
               ref={closeRef}
