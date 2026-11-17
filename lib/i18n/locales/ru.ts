@@ -18,6 +18,7 @@ export const ru = {
     installApp: "Установить приложение",
     installIosInstruction: "В Safari нажмите «Поделиться» → «На экран Домой».",
     installBrowserInstruction: "Установка недоступна автоматически в этом браузере. Используйте меню браузера → «Установить приложение» или «Добавить на главный экран».",
+    installAlreadyInstalled: "Приложение уже открыто в установленном режиме.",
     installDialogClose: "Закрыть",
     loading: "Загружаем информацию об аптеках…",
     developmentTitle: "Только тестовые данные.",

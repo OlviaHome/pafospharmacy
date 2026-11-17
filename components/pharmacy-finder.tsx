@@ -1084,7 +1084,7 @@ export function PharmacyFinder({
         subtitleNoWrapOnDesktop
         className={districtPage && locale === "en" ? "max-[21rem]:min-h-[23.5rem]" : ""}
       >
-        <InstallAppCta messages={messages} reserveSpace={districtPage} />
+        <InstallAppCta messages={messages} />
       </DirectoryHero>
 
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">

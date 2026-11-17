@@ -43,6 +43,7 @@ export interface FinderMessages {
   installApp: string;
   installIosInstruction: string;
   installBrowserInstruction: string;
+  installAlreadyInstalled: string;
   installDialogClose: string;
   loading: string;
   developmentTitle: string;
