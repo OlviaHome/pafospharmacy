@@ -14,7 +14,8 @@ export function localizedAlternates(locale: Locale, pathname = "") {
       ...Object.fromEntries(
         SUPPORTED_LOCALES.map((value) => [value, localePath(value, pathname)]),
       ),
-      "x-default": "/",
+      // The English page of the same group is the fallback for unmatched languages.
+      "x-default": localePath("en", pathname),
     },
   } satisfies Metadata["alternates"];
 }
