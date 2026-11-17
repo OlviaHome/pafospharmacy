@@ -53,9 +53,21 @@ describe("localized route documents and metadata", () => {
         el: "/el/privacy",
         ru: "/ru/privacy",
         ar: "/ar/privacy",
-        "x-default": "/",
+        "x-default": "/en/privacy",
       },
     });
+  });
+
+  it("points x-default at the English version of the same page, not at the home page", () => {
+    for (const locale of ["en", "el", "ru", "ar"] as const) {
+      for (const pathname of ["", "/hospitals", "/blog", "/about", "/data-sources", "/privacy", "/terms"]) {
+        const alternates = localizedAlternates(locale, pathname);
+        const languages: Record<string, string> = alternates.languages;
+        expect(languages["x-default"]).toBe(`/en${pathname}`);
+        expect(languages.en).toBe(`/en${pathname}`);
+        expect(alternates.canonical).toBe(`/${locale}${pathname}`);
+      }
+    }
   });
 
   it("renders the home finder without a loading placeholder so language switches stay coherent", async () => {
