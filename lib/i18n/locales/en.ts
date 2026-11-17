@@ -17,7 +17,6 @@ export const en = {
     heroSchedulePeriod: "Official duty schedule across Cyprus · 1 Oct 2026 — 30 Apr 2027",
     installApp: "Install app",
     installIosInstruction: "In Safari, tap Share → Add to Home Screen.",
-    installManualInstruction: "To add Health Guide Cyprus to your device, open the browser menu and choose “Install app” or “Add to Home Screen”, if available.",
     installBrowserInstruction: "Automatic installation isn’t available in this browser. Use the browser menu → “Install app” or “Add to Home Screen”.",
     installDialogClose: "Close",
     loading: "Loading pharmacy information…",
