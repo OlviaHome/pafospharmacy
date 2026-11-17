@@ -4,34 +4,21 @@ import { translationLocales } from "@/lib/blog/content";
 import { blogPostPath } from "@/lib/blog/metadata";
 import { getPublishedPosts } from "@/lib/blog/repository";
 import type { BlogPost } from "@/lib/blog/types";
-import { OFFICIAL_DATA_RETRIEVED_AT } from "@/lib/data/official-data-date";
 import { localePath, SUPPORTED_LOCALES } from "@/lib/i18n/config";
 import { DISTRICT_SLUGS } from "@/lib/i18n/district-pages";
 import { metadataBase } from "@/lib/i18n/metadata";
 
 export const revalidate = 3600;
 
-// Only pages built from the official pharmacy data get a lastModified, and only
-// the real retrieval date of that data. Static pages deliberately have none.
-const PAGES: readonly {
-  pathname: string;
-  changeFrequency: "daily" | "weekly" | "monthly" | "yearly";
-  priority: number;
-  lastModified?: string;
-}[] = [
+const PAGES = [
   { pathname: "/hospitals", changeFrequency: "monthly", priority: 0.7 },
-  {
-    pathname: "",
-    changeFrequency: "daily",
-    priority: 1,
-    lastModified: OFFICIAL_DATA_RETRIEVED_AT,
-  },
+  { pathname: "", changeFrequency: "daily", priority: 1 },
   { pathname: "/blog", changeFrequency: "weekly", priority: 0.7 },
   { pathname: "/about", changeFrequency: "monthly", priority: 0.5 },
   { pathname: "/data-sources", changeFrequency: "monthly", priority: 0.5 },
   { pathname: "/privacy", changeFrequency: "yearly", priority: 0.2 },
   { pathname: "/terms", changeFrequency: "yearly", priority: 0.2 },
-];
+] as const;
 
 function absolute(path: string): string {
   return new URL(path, metadataBase).toString();
@@ -54,13 +41,12 @@ function blogEntries(posts: BlogPost[]): MetadataRoute.Sitemap {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const pages = PAGES.flatMap(({ pathname, changeFrequency, priority, lastModified }) => {
+  const pages = PAGES.flatMap(({ pathname, changeFrequency, priority }) => {
     const languages = Object.fromEntries(
       SUPPORTED_LOCALES.map((locale) => [locale, absolute(localePath(locale, pathname))]),
     );
     return SUPPORTED_LOCALES.map((locale) => ({
       url: absolute(localePath(locale, pathname)),
-      ...(lastModified ? { lastModified } : {}),
       changeFrequency,
       priority,
       alternates: { languages },
@@ -74,7 +60,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
     return SUPPORTED_LOCALES.map((locale) => ({
       url: absolute(localePath(locale, pathname)),
-      lastModified: OFFICIAL_DATA_RETRIEVED_AT,
       changeFrequency: "daily" as const,
       priority: 0.8,
       alternates: { languages },
