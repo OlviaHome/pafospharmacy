@@ -19,6 +19,7 @@ export const en = {
     installApp: "Install app",
     installIosInstruction: "In Safari, tap Share → Add to Home Screen.",
     installBrowserInstruction: "Automatic installation isn’t available in this browser. Use the browser menu → “Install app” or “Add to Home Screen”.",
+    installAlreadyInstalled: "The app is already open in installed mode.",
     installDialogClose: "Close",
     loading: "Loading pharmacy information…",
     developmentTitle: "Development data only.",

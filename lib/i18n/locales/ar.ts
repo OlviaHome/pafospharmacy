@@ -18,6 +18,7 @@ export const ar = {
     installApp: "تثبيت التطبيق",
     installIosInstruction: "في Safari، اضغط على مشاركة، ثم إضافة إلى الشاشة الرئيسية.",
     installBrowserInstruction: "التثبيت التلقائي غير متاح في هذا المتصفح. استخدم قائمة المتصفح ← «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».",
+    installAlreadyInstalled: "التطبيق مفتوح بالفعل كتطبيق مثبّت.",
     installDialogClose: "إغلاق",
     loading: "جارٍ تحميل معلومات الصيدليات…",
     developmentTitle: "بيانات تجريبية فقط.",

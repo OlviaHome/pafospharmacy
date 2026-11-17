@@ -68,199 +68,139 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const IOS_SAFARI_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1";
+
+function installPromptEvent(outcome: "accepted" | "dismissed", prompt = vi.fn().mockResolvedValue(undefined)) {
+  return Object.assign(new Event("beforeinstallprompt"), {
+    prompt,
+    userChoice: Promise.resolve({ outcome, platform: "web" }),
+  });
+}
+
 describe("InstallAppCta", () => {
-  it("reserves district-page hero space before and after iOS installation detection", async () => {
-    setNavigatorValue(
-      "userAgent",
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
-    );
-    setNavigatorValue("platform", "iPhone");
-
-    const serverHtml = renderToStaticMarkup(
-      <InstallAppCta messages={en.finder} reserveSpace />,
-    );
+  it("is part of the server-rendered markup and reserves its hero space", () => {
+    const serverHtml = renderToStaticMarkup(<InstallAppCta messages={en.finder} />);
+    expect(serverHtml).toContain("<button");
+    expect(serverHtml).toContain(en.finder.installApp);
     expect(serverHtml).toContain("h-16");
-    expect(serverHtml).not.toContain("<button");
+  });
 
-    const { container } = render(<InstallAppCta messages={en.finder} reserveSpace />);
-    await screen.findByRole("button", { name: en.finder.installApp });
+  it("is visible without a browser install prompt and shows no dialog until pressed", () => {
+    render(<InstallAppCta messages={en.finder} />);
+    expect(screen.getByRole("button", { name: en.finder.installApp })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("stays visible from the first render after a district-navigation remount", () => {
+    const { rerender, container } = render(
+      <InstallAppCta key="limassol" messages={en.finder} />,
+    );
+    for (const district of ["paphos", "nicosia", "limassol"]) {
+      rerender(<InstallAppCta key={district} messages={en.finder} />);
+      expect(container.querySelector("button")?.textContent).toBe(en.finder.installApp);
+    }
     expect(container.querySelectorAll("span.h-16")).toHaveLength(1);
   });
 
-  it("keeps the iOS CTA visible from the first render after a district-navigation remount", async () => {
-    setNavigatorValue(
-      "userAgent",
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
-    );
-    setNavigatorValue("platform", "iPhone");
-
-    // The district route remounts the page subtree: a changed key reproduces it.
-    const { rerender, container } = render(
-      <InstallAppCta key="limassol" messages={en.finder} reserveSpace />,
-    );
-    await screen.findByRole("button", { name: en.finder.installApp });
-
-    const framesWithoutButton: string[] = [];
-    const observer = new MutationObserver(() => {
-      if (!container.querySelector("button")) framesWithoutButton.push("missing");
-    });
-    observer.observe(container, { childList: true, subtree: true });
-
-    for (const district of ["paphos", "nicosia", "limassol"]) {
-      rerender(<InstallAppCta key={district} messages={en.finder} reserveSpace />);
-      // Synchronously after the commit, before any effect or microtask can run.
-      expect(container.querySelector("button")?.textContent).toBe(en.finder.installApp);
-    }
-    await Promise.resolve();
-    observer.disconnect();
-    expect(framesWithoutButton).toEqual([]);
-  });
-
-  it("keeps the captured browser install prompt usable after a remount", async () => {
+  it("opens the browser install prompt when one is available and stays visible", async () => {
     const prompt = vi.fn().mockResolvedValue(undefined);
-    window.__pharmacyBeforeInstallPrompt = Object.assign(
-      new Event("beforeinstallprompt"),
-      {
-        prompt,
-        userChoice: Promise.resolve({ outcome: "dismissed" as const, platform: "web" }),
-      },
-    );
-
-    const { rerender, container } = render(
-      <InstallAppCta key="limassol" messages={en.finder} reserveSpace />,
-    );
-    await screen.findByRole("button", { name: en.finder.installApp });
-
-    rerender(<InstallAppCta key="paphos" messages={en.finder} reserveSpace />);
-    expect(container.querySelector("button")?.textContent).toBe(en.finder.installApp);
+    render(<InstallAppCta messages={en.finder} />);
+    fireEvent(window, installPromptEvent("accepted", prompt));
 
     fireEvent.click(screen.getByRole("button", { name: en.finder.installApp }));
-    expect(prompt).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => expect(prompt).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: en.finder.installApp })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(window.localStorage.setItem).not.toHaveBeenCalled();
   });
 
   it("uses an install prompt captured before hydration", async () => {
     const prompt = vi.fn().mockResolvedValue(undefined);
-    window.__pharmacyBeforeInstallPrompt = Object.assign(
-      new Event("beforeinstallprompt"),
-      {
-        prompt,
-        userChoice: Promise.resolve({ outcome: "accepted" as const, platform: "web" }),
-      },
-    );
+    window.__pharmacyBeforeInstallPrompt = installPromptEvent("dismissed", prompt) as never;
 
     render(<InstallAppCta messages={en.finder} />);
-    fireEvent.click(
-      await screen.findByRole("button", { name: en.finder.installApp }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: en.finder.installApp }));
 
-    expect(prompt).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(prompt).toHaveBeenCalledTimes(1));
     expect(window.__pharmacyBeforeInstallPrompt).toBeUndefined();
-    await waitFor(() => {
-      expect(window.localStorage.getItem("pharmacy_pwa_installed_v1")).toBe(
-        "true",
-      );
-    });
+    expect(screen.getByRole("button", { name: en.finder.installApp })).toBeTruthy();
   });
 
-  it("uses the captured browser install prompt and hides after acceptance", async () => {
+  it("keeps the captured prompt usable after a remount", async () => {
     const prompt = vi.fn().mockResolvedValue(undefined);
-    const event = Object.assign(new Event("beforeinstallprompt"), {
-      prompt,
-      userChoice: Promise.resolve({ outcome: "accepted", platform: "web" }),
-    });
+    const { rerender } = render(<InstallAppCta key="limassol" messages={en.finder} />);
+    fireEvent(window, installPromptEvent("accepted", prompt));
 
+    rerender(<InstallAppCta key="paphos" messages={en.finder} />);
+    fireEvent.click(screen.getByRole("button", { name: en.finder.installApp }));
+
+    await waitFor(() => expect(prompt).toHaveBeenCalledTimes(1));
+  });
+
+  it("falls back to browser-menu instructions once the single-use prompt is spent", async () => {
+    const prompt = vi.fn().mockResolvedValue(undefined);
     render(<InstallAppCta messages={en.finder} />);
-    expect(screen.queryByRole("button", { name: en.finder.installApp })).toBeNull();
+    fireEvent(window, installPromptEvent("dismissed", prompt));
+    const button = screen.getByRole("button", { name: en.finder.installApp });
 
-    fireEvent(window, event);
-    fireEvent.click(
-      await screen.findByRole("button", { name: en.finder.installApp }),
-    );
+    fireEvent.click(button);
+    await waitFor(() => expect(prompt).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("dialog")).toBeNull();
 
+    fireEvent.click(button);
+    const dialog = await screen.findByRole("dialog", { name: en.finder.installApp });
+    expect(dialog.textContent).toContain(en.finder.installBrowserInstruction);
     expect(prompt).toHaveBeenCalledTimes(1);
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: en.finder.installApp }),
-      ).toBeNull();
-    });
-    expect(window.localStorage.getItem("pharmacy_pwa_installed_v1")).toBe(
-      "true",
-    );
+    expect(screen.getByRole("button", { name: en.finder.installApp })).toBeTruthy();
   });
 
-  it("hides the CTA after the browser prompt is dismissed", async () => {
-    const event = Object.assign(new Event("beforeinstallprompt"), {
-      prompt: vi.fn().mockResolvedValue(undefined),
-      userChoice: Promise.resolve({ outcome: "dismissed", platform: "web" }),
-    });
-
+  it("shows browser-menu instructions when opening the prompt fails", async () => {
+    const prompt = vi.fn().mockRejectedValue(new Error("not allowed"));
     render(<InstallAppCta messages={en.finder} />);
-    fireEvent(window, event);
-    fireEvent.click(
-      await screen.findByRole("button", { name: en.finder.installApp }),
-    );
+    fireEvent(window, installPromptEvent("accepted", prompt));
 
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: en.finder.installApp }),
-      ).toBeNull();
-    });
-    expect(window.localStorage.getItem("pharmacy_pwa_installed_v1")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: en.finder.installApp }));
+
+    const dialog = await screen.findByRole("dialog", { name: en.finder.installApp });
+    expect(dialog.textContent).toContain(en.finder.installBrowserInstruction);
   });
 
-  it("stores the marker and hides when the appinstalled event fires", async () => {
+  it("ignores the legacy installed marker and the appinstalled event for visibility", async () => {
+    window.localStorage.setItem("pharmacy_pwa_installed_v1", "true");
     render(<InstallAppCta messages={en.finder} />);
-    fireEvent(
-      window,
-      Object.assign(new Event("beforeinstallprompt"), {
-        prompt: vi.fn().mockResolvedValue(undefined),
-        userChoice: Promise.resolve({ outcome: "accepted", platform: "web" }),
-      }),
-    );
-    await screen.findByRole("button", { name: en.finder.installApp });
-
     fireEvent(window, new Event("appinstalled"));
 
     await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: en.finder.installApp }),
-      ).toBeNull();
-    });
-    expect(window.localStorage.getItem("pharmacy_pwa_installed_v1")).toBe(
-      "true",
-    );
-  });
-
-  it("stays hidden in a browser tab when the installed marker exists", async () => {
-    window.localStorage.setItem("pharmacy_pwa_installed_v1", "true");
-
-    render(<InstallAppCta messages={en.finder} />);
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: en.finder.installApp }),
-      ).toBeNull();
+      expect(screen.getByRole("button", { name: en.finder.installApp })).toBeTruthy();
     });
   });
 
-  it("stays hidden on desktop without a browser install prompt", async () => {
-    render(<InstallAppCta messages={en.finder} />);
+  it.each([en, ru, el, ar] as const)(
+    "shows localized browser-menu instructions on desktop without a prompt for $locale",
+    async (dictionary) => {
+      render(
+        <div dir={dictionary.locale === "ar" ? "rtl" : "ltr"}>
+          <InstallAppCta messages={dictionary.finder} />
+        </div>,
+      );
 
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: en.finder.installApp }),
-      ).toBeNull();
-    });
-    expect(screen.queryByRole("dialog")).toBeNull();
-  });
+      fireEvent.click(screen.getByRole("button", { name: dictionary.finder.installApp }));
+
+      const dialog = await screen.findByRole("dialog", { name: dictionary.finder.installApp });
+      expect(dialog.textContent).toContain(dictionary.finder.installBrowserInstruction);
+      expect(dialog.textContent).not.toContain(dictionary.finder.installIosInstruction);
+      expect(dialog.closest("[dir]")?.getAttribute("dir")).toBe(
+        dictionary.locale === "ar" ? "rtl" : "ltr",
+      );
+    },
+  );
 
   it.each([en, ru, el, ar] as const)(
     "shows localized home-screen instructions in iOS Safari for $locale",
     async (dictionary) => {
-      setNavigatorValue(
-        "userAgent",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
-      );
+      setNavigatorValue("userAgent", IOS_SAFARI_UA);
       setNavigatorValue("platform", "iPhone");
 
       render(
@@ -269,15 +209,9 @@ describe("InstallAppCta", () => {
         </div>,
       );
 
-      fireEvent.click(
-        await screen.findByRole("button", {
-          name: dictionary.finder.installApp,
-        }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: dictionary.finder.installApp }));
 
-      const dialog = await screen.findByRole("dialog", {
-        name: dictionary.finder.installApp,
-      });
+      const dialog = await screen.findByRole("dialog", { name: dictionary.finder.installApp });
       expect(dialog.textContent).toContain(dictionary.finder.installIosInstruction);
       expect(dialog.closest("[dir]")?.getAttribute("dir")).toBe(
         dictionary.locale === "ar" ? "rtl" : "ltr",
@@ -285,19 +219,47 @@ describe("InstallAppCta", () => {
     },
   );
 
-  it("stays hidden when the site is already running standalone", async () => {
-    setStandaloneMatch(true);
-    setNavigatorValue(
-      "userAgent",
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
-    );
+  it("closes the instructions dialog and keeps the button", async () => {
+    render(<InstallAppCta messages={en.finder} />);
+    fireEvent.click(screen.getByRole("button", { name: en.finder.installApp }));
+    await screen.findByRole("dialog", { name: en.finder.installApp });
 
+    fireEvent.click(screen.getByRole("button", { name: en.finder.installDialogClose }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("button", { name: en.finder.installApp })).toBeTruthy();
+  });
+
+  it.each([en, ru, el, ar] as const)(
+    "stays visible when already running standalone and says so instead of installing again for $locale",
+    async (dictionary) => {
+      setStandaloneMatch(true);
+      const prompt = vi.fn().mockResolvedValue(undefined);
+      render(
+        <div dir={dictionary.locale === "ar" ? "rtl" : "ltr"}>
+          <InstallAppCta messages={dictionary.finder} />
+        </div>,
+      );
+      fireEvent(window, installPromptEvent("accepted", prompt));
+
+      fireEvent.click(screen.getByRole("button", { name: dictionary.finder.installApp }));
+
+      const dialog = await screen.findByRole("dialog", { name: dictionary.finder.installApp });
+      expect(dialog.textContent).toContain(dictionary.finder.installAlreadyInstalled);
+      expect(prompt).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: dictionary.finder.installApp })).toBeTruthy();
+    },
+  );
+
+  it("treats iOS standalone (navigator.standalone) as already installed", async () => {
+    setNavigatorValue("userAgent", IOS_SAFARI_UA);
+    setNavigatorValue("platform", "iPhone");
+    setNavigatorValue("standalone", true);
     render(<InstallAppCta messages={en.finder} />);
 
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: en.finder.installApp }),
-      ).toBeNull();
-    });
+    fireEvent.click(screen.getByRole("button", { name: en.finder.installApp }));
+
+    const dialog = await screen.findByRole("dialog", { name: en.finder.installApp });
+    expect(dialog.textContent).toContain(en.finder.installAlreadyInstalled);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { FinderMessages } from "@/lib/i18n/types";
 
@@ -15,25 +15,7 @@ declare global {
   }
 }
 
-type InstallMode = "browser-prompt" | "ios-instructions" | null;
-
-const INSTALLED_MARKER_KEY = "pharmacy_pwa_installed_v1";
-
-function hasInstalledMarker(): boolean {
-  try {
-    return window.localStorage.getItem(INSTALLED_MARKER_KEY) !== null;
-  } catch {
-    return false;
-  }
-}
-
-function saveInstalledMarker(): void {
-  try {
-    window.localStorage.setItem(INSTALLED_MARKER_KEY, "true");
-  } catch {
-    // Storage can be unavailable without affecting installation behavior.
-  }
-}
+type InstructionKind = "ios" | "browser" | "installed";
 
 function isStandalone(): boolean {
   return (
@@ -53,48 +35,26 @@ function isIosSafari(): boolean {
   return isIosDevice && isSafari;
 }
 
-interface InstallState {
-  mode: InstallMode;
-  prompt: BeforeInstallPromptEvent | null;
-}
-
-const EMPTY_INSTALL_STATE: InstallState = { mode: null, prompt: null };
-
-// Install availability is a fact about the browser tab, not about one React
-// component instance. Client navigation between district URLs remounts the
-// page subtree, so the state lives at module level: a remounted CTA reads the
-// already-known answer on its first render instead of starting from "hidden".
-let installState: InstallState = EMPTY_INSTALL_STATE;
+// The CTA is always rendered; the browser's install prompt is only needed when
+// the button is pressed. It is a fact about the browser tab, not about one
+// React instance (district navigation remounts the page subtree), so it is kept
+// at module level. Its presence never changes whether the button is visible.
+let deferredPrompt: BeforeInstallPromptEvent | null = null;
 let installDetectionStarted = false;
-const installStateListeners = new Set<() => void>();
 let removeInstallWindowListeners: (() => void) | null = null;
-
-function setInstallState(next: InstallState): void {
-  if (next.mode === installState.mode && next.prompt === installState.prompt) return;
-  installState = next;
-  installStateListeners.forEach((listener) => listener());
-}
 
 function startInstallDetection(): void {
   if (installDetectionStarted) return;
   installDetectionStarted = true;
 
-  if (isStandalone() || hasInstalledMarker()) {
-    window.__pharmacyBeforeInstallPrompt = undefined;
-    return;
-  }
-
   const handleBeforeInstallPrompt = (event: Event) => {
     event.preventDefault();
     window.__pharmacyBeforeInstallPrompt = undefined;
-    setInstallState({
-      mode: "browser-prompt",
-      prompt: event as BeforeInstallPromptEvent,
-    });
+    deferredPrompt = event as BeforeInstallPromptEvent;
   };
+  // A prompt can be used once; after installation there is nothing left to use.
   const handleAppInstalled = () => {
-    saveInstalledMarker();
-    setInstallState(EMPTY_INSTALL_STATE);
+    deferredPrompt = null;
   };
 
   window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -104,29 +64,22 @@ function startInstallDetection(): void {
     window.removeEventListener("appinstalled", handleAppInstalled);
   };
 
-  const capturedPrompt = window.__pharmacyBeforeInstallPrompt;
+  adoptCapturedPrompt();
+}
+
+/** Moves a prompt captured by the inline layout script (before hydration) into module state. */
+function adoptCapturedPrompt(): void {
+  const captured = window.__pharmacyBeforeInstallPrompt;
   window.__pharmacyBeforeInstallPrompt = undefined;
-  if (capturedPrompt) {
-    setInstallState({ mode: "browser-prompt", prompt: capturedPrompt });
-  } else if (isIosSafari()) {
-    setInstallState({ mode: "ios-instructions", prompt: null });
-  }
+  if (captured) deferredPrompt = captured;
 }
 
-function subscribeToInstallState(listener: () => void): () => void {
-  installStateListeners.add(listener);
-  startInstallDetection();
-  return () => {
-    installStateListeners.delete(listener);
-  };
-}
-
-function getInstallState(): InstallState {
-  return installState;
-}
-
-function getServerInstallState(): InstallState {
-  return EMPTY_INSTALL_STATE;
+/** Returns the pending browser install prompt (if any) and forgets it: a prompt is single-use. */
+function takeInstallPrompt(): BeforeInstallPromptEvent | null {
+  adoptCapturedPrompt();
+  const prompt = deferredPrompt;
+  deferredPrompt = null;
+  return prompt;
 }
 
 /** Test-only: forget the detected state so each test starts from a fresh tab. */
@@ -134,32 +87,32 @@ export function resetInstallStateForTests(): void {
   removeInstallWindowListeners?.();
   removeInstallWindowListeners = null;
   installDetectionStarted = false;
-  installState = EMPTY_INSTALL_STATE;
-  installStateListeners.clear();
+  deferredPrompt = null;
 }
 
 export function InstallAppCta({
   messages,
-  reserveSpace = false,
 }: {
   messages: Pick<
     FinderMessages,
-    "installApp" | "installIosInstruction" | "installDialogClose"
+    | "installApp"
+    | "installIosInstruction"
+    | "installBrowserInstruction"
+    | "installAlreadyInstalled"
+    | "installDialogClose"
   >;
-  reserveSpace?: boolean;
 }) {
-  const { mode: installMode, prompt: installPrompt } = useSyncExternalStore(
-    subscribeToInstallState,
-    getInstallState,
-    getServerInstallState,
-  );
-  const [showIosInstructions, setShowIosInstructions] = useState(false);
+  const [instructions, setInstructions] = useState<InstructionKind | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const ctaRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!showIosInstructions) return;
+    startInstallDetection();
+  }, []);
+
+  useEffect(() => {
+    if (!instructions) return;
     const dialog = dialogRef.current;
     if (dialog && !dialog.open && typeof dialog.showModal === "function") {
       dialog.showModal();
@@ -167,45 +120,52 @@ export function InstallAppCta({
       dialog.setAttribute("open", "");
     }
     closeRef.current?.focus();
-  }, [showIosInstructions]);
-
-  if (!installMode && !reserveSpace) return null;
+  }, [instructions]);
 
   const closeInstructions = () => {
-    setShowIosInstructions(false);
+    setInstructions(null);
     ctaRef.current?.focus();
   };
 
   const handleInstall = async () => {
-    if (installMode === "ios-instructions") {
-      setShowIosInstructions(true);
+    // Already running as the installed app: do not offer a second installation.
+    if (isStandalone()) {
+      setInstructions("installed");
       return;
     }
-    if (!installPrompt) return;
-
-    const prompt = installPrompt;
-    setInstallState({ mode: installMode, prompt: null });
-    await prompt.prompt();
-    const choice = await prompt.userChoice;
-    if (choice.outcome === "accepted") saveInstalledMarker();
-    setInstallState(EMPTY_INSTALL_STATE);
+    const prompt = takeInstallPrompt();
+    if (prompt) {
+      try {
+        await prompt.prompt();
+        await prompt.userChoice;
+      } catch {
+        setInstructions("browser");
+      }
+      return;
+    }
+    setInstructions(isIosSafari() ? "ios" : "browser");
   };
+
+  const instructionText =
+    instructions === "ios"
+      ? messages.installIosInstruction
+      : instructions === "installed"
+        ? messages.installAlreadyInstalled
+        : messages.installBrowserInstruction;
 
   return (
     <>
       <span aria-hidden="true" className="block h-16 lg:hidden" />
-      {installMode && (
-        <button
-          ref={ctaRef}
-          type="button"
-          onClick={handleInstall}
-          className="absolute bottom-6 right-4 min-h-11 rounded-xl bg-[#FF956A] px-4 py-2 text-sm font-medium text-[#32150a] transition-colors duration-200 hover:bg-[rgb(190,255,80)] focus-visible:bg-[rgb(190,255,80)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:bottom-8 sm:right-6 lg:right-8"
-        >
-          {messages.installApp}
-        </button>
-      )}
+      <button
+        ref={ctaRef}
+        type="button"
+        onClick={handleInstall}
+        className="absolute bottom-6 right-4 min-h-11 rounded-xl bg-[#FF956A] px-4 py-2 text-sm font-medium text-[#32150a] transition-colors duration-200 hover:bg-[rgb(190,255,80)] focus-visible:bg-[rgb(190,255,80)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:bottom-8 sm:right-6 lg:right-8"
+      >
+        {messages.installApp}
+      </button>
 
-      {showIosInstructions && (
+      {instructions && (
         <dialog
           ref={dialogRef}
           aria-label={messages.installApp}
@@ -213,12 +173,12 @@ export function InstallAppCta({
             event.preventDefault();
             closeInstructions();
           }}
-          onClose={() => setShowIosInstructions(false)}
+          onClose={() => setInstructions(null)}
           className="fixed inset-0 z-[70] m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-[var(--line)] bg-white p-0 text-[var(--ink)] shadow-[0_24px_70px_rgba(16,15,15,0.22)] backdrop:bg-black/35 backdrop:backdrop-blur-[2px]"
         >
           <div className="p-5 sm:p-6">
             <p className="text-base font-medium leading-6">
-              {messages.installIosInstruction}
+              {instructionText}
             </p>
             <button
               ref={closeRef}
