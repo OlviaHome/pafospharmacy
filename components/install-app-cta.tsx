@@ -15,25 +15,7 @@ declare global {
   }
 }
 
-type InstallMode = "browser-prompt" | "ios-instructions" | null;
-
-const INSTALLED_MARKER_KEY = "pharmacy_pwa_installed_v1";
-
-function hasInstalledMarker(): boolean {
-  try {
-    return window.localStorage.getItem(INSTALLED_MARKER_KEY) !== null;
-  } catch {
-    return false;
-  }
-}
-
-function saveInstalledMarker(): void {
-  try {
-    window.localStorage.setItem(INSTALLED_MARKER_KEY, "true");
-  } catch {
-    // Storage can be unavailable without affecting installation behavior.
-  }
-}
+type InstallMode = "browser-prompt" | "ios-instructions" | "manual-instructions" | null;
 
 function isStandalone(): boolean {
   return (
@@ -79,7 +61,7 @@ function startInstallDetection(): void {
   if (installDetectionStarted) return;
   installDetectionStarted = true;
 
-  if (isStandalone() || hasInstalledMarker()) {
+  if (isStandalone()) {
     window.__pharmacyBeforeInstallPrompt = undefined;
     return;
   }
@@ -93,7 +75,6 @@ function startInstallDetection(): void {
     });
   };
   const handleAppInstalled = () => {
-    saveInstalledMarker();
     setInstallState(EMPTY_INSTALL_STATE);
   };
 
@@ -108,8 +89,9 @@ function startInstallDetection(): void {
   window.__pharmacyBeforeInstallPrompt = undefined;
   if (capturedPrompt) {
     setInstallState({ mode: "browser-prompt", prompt: capturedPrompt });
-  } else if (isIosSafari()) {
-    setInstallState({ mode: "ios-instructions", prompt: null });
+  } else {
+    // Offer browser instructions if no native install event is available.
+    setInstallState({ mode: isIosSafari() ? "ios-instructions" : "manual-instructions", prompt: null });
   }
 }
 
@@ -144,7 +126,7 @@ export function InstallAppCta({
 }: {
   messages: Pick<
     FinderMessages,
-    "installApp" | "installIosInstruction" | "installDialogClose"
+    "installApp" | "installIosInstruction" | "installBrowserInstruction" | "installDialogClose"
   >;
   reserveSpace?: boolean;
 }) {
@@ -153,13 +135,13 @@ export function InstallAppCta({
     getInstallState,
     getServerInstallState,
   );
-  const [showIosInstructions, setShowIosInstructions] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const ctaRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!showIosInstructions) return;
+    if (!showInstructions) return;
     const dialog = dialogRef.current;
     if (dialog && !dialog.open && typeof dialog.showModal === "function") {
       dialog.showModal();
@@ -167,28 +149,29 @@ export function InstallAppCta({
       dialog.setAttribute("open", "");
     }
     closeRef.current?.focus();
-  }, [showIosInstructions]);
+  }, [showInstructions]);
 
   if (!installMode && !reserveSpace) return null;
 
   const closeInstructions = () => {
-    setShowIosInstructions(false);
+    setShowInstructions(false);
     ctaRef.current?.focus();
   };
 
   const handleInstall = async () => {
-    if (installMode === "ios-instructions") {
-      setShowIosInstructions(true);
+    if (installMode !== "browser-prompt" || !installPrompt) {
+      setShowInstructions(true);
       return;
     }
-    if (!installPrompt) return;
 
     const prompt = installPrompt;
     setInstallState({ mode: installMode, prompt: null });
     await prompt.prompt();
     const choice = await prompt.userChoice;
-    if (choice.outcome === "accepted") saveInstalledMarker();
-    setInstallState(EMPTY_INSTALL_STATE);
+    // Keep installation instructions accessible if the native prompt was dismissed.
+    setInstallState(choice.outcome === "accepted"
+      ? EMPTY_INSTALL_STATE
+      : { mode: "manual-instructions", prompt: null });
   };
 
   return (
@@ -205,7 +188,7 @@ export function InstallAppCta({
         </button>
       )}
 
-      {showIosInstructions && (
+      {showInstructions && (
         <dialog
           ref={dialogRef}
           aria-label={messages.installApp}
@@ -213,12 +196,12 @@ export function InstallAppCta({
             event.preventDefault();
             closeInstructions();
           }}
-          onClose={() => setShowIosInstructions(false)}
+          onClose={() => setShowInstructions(false)}
           className="fixed inset-0 z-[70] m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-[var(--line)] bg-white p-0 text-[var(--ink)] shadow-[0_24px_70px_rgba(16,15,15,0.22)] backdrop:bg-black/35 backdrop:backdrop-blur-[2px]"
         >
           <div className="p-5 sm:p-6">
             <p className="text-base font-medium leading-6">
-              {messages.installIosInstruction}
+              {installMode === "ios-instructions" ? messages.installIosInstruction : messages.installBrowserInstruction}
             </p>
             <button
               ref={closeRef}
