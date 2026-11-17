@@ -16,6 +16,7 @@ export function BlogShell({
       <FinderHeader
         locale={dictionary.locale}
         brandName={dictionary.finder.brandName}
+        pharmacies={dictionary.finder.pharmacies}
         blog={dictionary.finder.blog}
         about={dictionary.finder.about}
         dataSources={dictionary.finder.dataSources}

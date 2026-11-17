@@ -35,6 +35,7 @@ export interface ContentPageMessages {
 
 export interface FinderMessages {
   brandName: string;
+  pharmacies: string;
   blog: string;
   about: string;
   heroTitle: string;

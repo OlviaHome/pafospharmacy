@@ -11,6 +11,7 @@ export const en = {
   googlePrivacyPolicyLabel: "Google Privacy Policy",
   finder: {
     brandName: "Health Guide Cyprus",
+    pharmacies: "Pharmacies",
     blog: "Blog",
     about: "About",
     heroTitle: "Pharmacies on Duty and Open Now in Cyprus",
