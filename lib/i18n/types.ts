@@ -41,6 +41,7 @@ export interface FinderMessages {
   heroSchedulePeriod: string;
   installApp: string;
   installIosInstruction: string;
+  installManualInstruction: string;
   installBrowserInstruction: string;
   installDialogClose: string;
   loading: string;
