@@ -10,6 +10,7 @@ export const ar = {
   googlePrivacyPolicyLabel: "سياسة الخصوصية لدى Google",
   finder: {
     brandName: "Health Guide Cyprus",
+    pharmacies: "الصيدليات",
     blog: "المدونة",
     about: "عن الخدمة",
     heroTitle: "الصيدليات المناوبة والمفتوحة الآن في قبرص",

@@ -10,6 +10,7 @@ export const ru = {
   googlePrivacyPolicyLabel: "Политика конфиденциальности Google",
   finder: {
     brandName: "Health Guide Cyprus",
+    pharmacies: "Аптеки",
     blog: "Блог",
     about: "О сервисе",
     heroTitle: "Дежурные и открытые аптеки на Кипре",

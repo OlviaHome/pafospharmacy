@@ -13,6 +13,7 @@ import type { Locale } from "@/lib/i18n/types";
 export function FinderHeader({
   locale,
   brandName,
+  pharmacies,
   blog,
   about,
   dataSources,
@@ -20,6 +21,7 @@ export function FinderHeader({
 }: {
   locale: Locale;
   brandName: string;
+  pharmacies: string;
   blog: string;
   about: string;
   dataSources: string;
@@ -27,6 +29,15 @@ export function FinderHeader({
 }) {
   const pathname = usePathname();
   const district = pathname.split("/")[2];
+  // Section of the current page; district pages are part of the Pharmacies catalogue.
+  const section = pathname.split("/")[2] ?? "";
+  const isDistrict = DISTRICT_SLUGS.includes(section as typeof DISTRICT_SLUGS[number]);
+  const active = section === "" || isDistrict ? "pharmacies" : section;
+  const current = (key: string) => (active === key ? ("page" as const) : undefined);
+  const tone = (key: string) =>
+    active === key
+      ? "text-[var(--brand-strong)]"
+      : "text-[var(--ink-muted)] hover:text-[var(--brand)]";
   const hospitalsHref = localePath(locale, "/hospitals") + (DISTRICT_SLUGS.includes(district as typeof DISTRICT_SLUGS[number]) ? `?district=${district}` : "");
   return (
     <header className="sticky top-0 z-50 border-b border-black/5 bg-white/85 shadow-[0_1px_12px_rgba(16,15,15,0.04)] backdrop-blur-xl supports-[backdrop-filter]:bg-white/75">
@@ -48,46 +59,78 @@ export function FinderHeader({
           </span>
         </Link>
         <Link
+          href={localePath(locale)}
+          aria-current={current("pharmacies")}
+          className={`hidden min-h-11 items-center text-sm font-bold md:inline-flex ${tone("pharmacies")}`}
+        >
+          {pharmacies}
+        </Link>
+        <Link
+          href={hospitalsHref}
+          aria-current={current("hospitals")}
+          className={`hidden min-h-11 items-center text-sm font-bold md:inline-flex ${tone("hospitals")}`}
+        >
+          {hospitalMessages[locale].menu}
+        </Link>
+        <Link
           href={localePath(locale, "/blog")}
-          className="hidden min-h-11 min-w-11 items-center justify-center text-sm font-bold text-[var(--ink-muted)] hover:text-[var(--brand)] sm:inline-flex"
+          aria-current={current("blog")}
+          className={`hidden min-h-11 min-w-11 items-center justify-center text-sm font-bold md:inline-flex ${tone("blog")}`}
         >
           {blog}
         </Link>
         <Link
           href={localePath(locale, "/about")}
-          className="hidden min-h-11 min-w-11 items-center justify-center text-sm font-bold text-[var(--ink-muted)] hover:text-[var(--brand)] sm:inline-flex"
+          aria-current={current("about")}
+          className={`hidden min-h-11 min-w-11 items-center justify-center text-sm font-bold md:inline-flex ${tone("about")}`}
         >
           {about}
         </Link>
         <Link
           href={localePath(locale, "/data-sources")}
-          className="hidden min-h-11 min-w-11 items-center justify-center text-sm font-bold text-[var(--ink-muted)] hover:text-[var(--brand)] md:inline-flex"
+          aria-current={current("data-sources")}
+          className={`hidden min-h-11 min-w-11 items-center justify-center text-sm font-bold md:inline-flex ${tone("data-sources")}`}
         >
           {dataSources}
         </Link>
-        <Link href={hospitalsHref} className="hidden min-h-11 items-center text-sm font-bold text-[var(--ink-muted)] sm:inline-flex">{hospitalMessages[locale].menu}</Link>
         <LanguageSelector locale={locale} label={languageLabel} />
       </div>
       <nav
-        aria-label={`${blog} / ${about} / ${dataSources}`}
-        className="mx-auto flex flex-wrap min-h-11 w-full max-w-7xl items-center gap-5 border-t border-[var(--line)] px-4 text-xs font-bold text-[var(--ink-muted)] sm:px-6 md:hidden"
+        aria-label={`${pharmacies} / ${hospitalMessages[locale].menu} / ${blog} / ${about} / ${dataSources}`}
+        className="mx-auto flex flex-wrap min-h-11 w-full max-w-7xl items-center gap-x-3 border-t border-[var(--line)] px-4 text-xs font-bold sm:px-6 md:hidden"
       >
-        <Link href={hospitalsHref} className="inline-flex min-h-11 items-center sm:hidden">{hospitalMessages[locale].menu}</Link>
+        <Link
+          href={localePath(locale)}
+          aria-current={current("pharmacies")}
+          className={`inline-flex min-h-11 items-center ${tone("pharmacies")}`}
+        >
+          {pharmacies}
+        </Link>
+        <Link
+          href={hospitalsHref}
+          aria-current={current("hospitals")}
+          className={`inline-flex min-h-11 items-center ${tone("hospitals")}`}
+        >
+          {hospitalMessages[locale].menu}
+        </Link>
         <Link
           href={localePath(locale, "/blog")}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center sm:hidden"
+          aria-current={current("blog")}
+          className={`inline-flex min-h-11 min-w-11 items-center justify-center ${tone("blog")}`}
         >
           {blog}
         </Link>
         <Link
           href={localePath(locale, "/about")}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center sm:hidden"
+          aria-current={current("about")}
+          className={`inline-flex min-h-11 min-w-11 items-center justify-center ${tone("about")}`}
         >
           {about}
         </Link>
         <Link
           href={localePath(locale, "/data-sources")}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          aria-current={current("data-sources")}
+          className={`inline-flex min-h-11 min-w-11 items-center justify-center ${tone("data-sources")}`}
         >
           {dataSources}
         </Link>

@@ -11,6 +11,7 @@ export const el = {
   googlePrivacyPolicyLabel: "Πολιτική απορρήτου της Google",
   finder: {
     brandName: "Health Guide Cyprus",
+    pharmacies: "Φαρμακεία",
     blog: "Blog",
     about: "Σχετικά",
     heroTitle: "Εφημερεύοντα και ανοιχτά φαρμακεία στην Κύπρο",

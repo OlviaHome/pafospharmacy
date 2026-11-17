@@ -1016,6 +1016,7 @@ export function PharmacyFinder({
       <FinderHeader
         locale={locale}
         brandName={messages.brandName}
+        pharmacies={messages.pharmacies}
         blog={messages.blog}
         about={messages.about}
         dataSources={messages.dataSources}
