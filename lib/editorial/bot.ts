@@ -32,6 +32,7 @@ import {
   createPost,
   deletePost,
   findMessage,
+  hasActiveJob,
   hasUndo,
   listPosts,
   listTopics,
@@ -39,6 +40,8 @@ import {
   postCostUsd,
   rememberMessage,
   setTranslationStatus,
+  takeTopic,
+  transitionPost,
   undoLastChange,
   updatePost,
   upsertImage,
@@ -57,6 +60,8 @@ import {
 
 const MAX_TOPIC_LENGTH = 500;
 const MAX_INSTRUCTION_LENGTH = 2000;
+/** Statuses from which an edit, a re-translation or publication may start. */
+const EDITABLE_STATUSES: EditorialPost["status"][] = ["review", "paused", "failed"];
 
 function adminChatId(): number {
   return Number(telegramConfig().adminId);
@@ -545,8 +550,12 @@ async function requestEdit(chatId: number, post: EditorialPost, instruction: str
     await sendMessage(chatId, `#${post.number} в архиве. Сначала восстановите её.`);
     return;
   }
-  // Mark as busy before the job starts so the job's own status update always wins.
-  await updatePost(post.id, { status: "generating" });
+  // Mark as busy before the job starts so the job's own status update always wins. Only one of
+  // two simultaneous requests can make this change; the other one stops here.
+  if (!(await transitionPost(post.id, EDITABLE_STATUSES, { status: "generating" }))) {
+    await sendMessage(chatId, `#${post.number} сейчас обновляется. Подождите карточку.`);
+    return;
+  }
   const result = await startJob(post.id, "edit", { instruction: instruction.slice(0, MAX_INSTRUCTION_LENGTH) });
   const blocked = limitMessage(result);
   if (blocked) {
@@ -627,15 +636,14 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
   }
   if (action === "newok" || action === "newforce") {
     await answerCallback(query.id);
-    const context = await findMessage(chatId, messageId);
-    if (!context?.payload || context.purpose !== "topic_confirm") {
+    // Taken atomically: a double tap or a redelivered tap never starts two articles.
+    const topic = await takeTopic(chatId, messageId);
+    if (!topic) {
       await editMessage(chatId, messageId, "Тема не найдена, напишите её ещё раз.");
       return;
     }
-    await editMessage(chatId, messageId, `Тема: «${escapeHtml(context.payload)}»`);
-    // Prevent a double tap from starting two articles.
-    await rememberMessage(chatId, messageId, "topic_confirm", null, { payload: "" });
-    await startArticle(chatId, context.payload, { force: action === "newforce" });
+    await editMessage(chatId, messageId, `Тема: «${escapeHtml(topic)}»`);
+    await startArticle(chatId, topic, { force: action === "newforce" });
     return;
   }
 
@@ -704,12 +712,17 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         }
         await answerCallback(query.id, "Публикую…");
       }
-      await setTranslationStatus(post.id, ["ru", "en"], "published");
-      await updatePost(post.id, {
+      // Only one of two simultaneous taps publishes and starts the EL/AR translations.
+      const won = await transitionPost(post.id, EDITABLE_STATUSES, {
         status: "published",
         published_at: post.publishedAt ?? new Date().toISOString(),
         last_error: null,
       });
+      if (!won) {
+        await sendMessage(chatId, `#${post.number} уже опубликована или обновляется.`);
+        return;
+      }
+      await setTranslationStatus(post.id, ["ru", "en"], "published");
       revalidateBlog();
       const published = (await loadPost({ id: post.id }))!;
       if (action === "pub") await refreshCard(chatId, messageId, published);
@@ -726,6 +739,10 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
       await answerCallback(query.id);
       if (post.status !== "published") {
         await sendMessage(chatId, "Сначала опубликуйте RU + EN.");
+        return;
+      }
+      if (await hasActiveJob(post.id, "translate")) {
+        await sendMessage(chatId, `Перевод #${post.number} уже идёт. Покажу его, когда будет готов.`);
         return;
       }
       await startTranslations(chatId, post);
@@ -841,7 +858,10 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         await sendMessage(chatId, blocked);
         return;
       }
-      await updatePost(post.id, { status: "generating" });
+      if (!(await transitionPost(post.id, EDITABLE_STATUSES, { status: "generating" }))) {
+        await answerCallback(query.id, "Уже обновляется");
+        return;
+      }
       const result = await startJob(post.id, "translate", { locales: ["en"], notify: "card" });
       await answerCallback(query.id);
       const limit = limitMessage(result);
@@ -1001,7 +1021,10 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         await answerCallback(query.id, "Статья не в статусе ошибки");
         return;
       }
-      await updatePost(post.id, { status: "generating", last_error: null });
+      if (!(await transitionPost(post.id, ["failed"], { status: "generating", last_error: null }))) {
+        await answerCallback(query.id, "Статья не в статусе ошибки");
+        return;
+      }
       const result = await startJob(post.id, "write", {});
       const blocked = limitMessage(result);
       await answerCallback(query.id);

@@ -197,6 +197,28 @@ export async function updatePost(
   );
 }
 
+/**
+ * Changes a post only while its status is still one of `from`, in one UPDATE, so of two
+ * simultaneous requests (a double tap, a redelivered update) exactly one wins.
+ * Returns false when another request changed the status first.
+ */
+export async function transitionPost(
+  id: string,
+  from: BlogPostStatus[],
+  patch: { status: BlogPostStatus; last_error?: string | null; published_at?: string | null },
+): Promise<boolean> {
+  const data = check(
+    await adminClient()
+      .from("blog_posts")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .in("status", from)
+      .select("id"),
+    "transition post",
+  );
+  return (data ?? []).length === 1;
+}
+
 export async function deletePost(id: string): Promise<void> {
   check(await adminClient().from("blog_posts").delete().eq("id", id), "delete post");
 }
@@ -459,6 +481,18 @@ export async function claimJob(id: number): Promise<JobRecord | null> {
   return { id: Number(row.id), postId: row.post_id, kind: row.kind, status: row.status, payload: row.payload ?? {} };
 }
 
+/** Whether a job of this kind is queued or running for the post. */
+export async function hasActiveJob(postId: string, kind: JobKind): Promise<boolean> {
+  const { count, error } = await adminClient()
+    .from("blog_agent_jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("post_id", postId)
+    .eq("kind", kind)
+    .in("status", ["queued", "running"]);
+  if (error) throw new Error(`active jobs: ${error.message}`);
+  return (count ?? 0) > 0;
+}
+
 export async function finishJob(id: number, status: "done" | "failed", error?: string): Promise<void> {
   check(
     await adminClient()
@@ -557,6 +591,26 @@ export async function rememberMessage(
     }),
     "remember message",
   );
+}
+
+/**
+ * Takes the topic of a "Написать статью?" message exactly once: the payload is cleared only if it
+ * still holds the topic that was read, so of two simultaneous taps only one gets it.
+ */
+export async function takeTopic(chatId: number, messageId: number): Promise<string | null> {
+  const found = await findMessage(chatId, messageId);
+  if (!found || found.purpose !== "topic_confirm" || !found.payload) return null;
+  const data = check(
+    await adminClient()
+      .from("blog_bot_messages")
+      .update({ payload: "" })
+      .eq("chat_id", chatId)
+      .eq("message_id", messageId)
+      .eq("payload", found.payload)
+      .select("message_id"),
+    "take topic",
+  );
+  return (data ?? []).length === 1 ? found.payload : null;
 }
 
 export async function findMessage(
