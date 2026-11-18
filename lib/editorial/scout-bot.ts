@@ -6,8 +6,22 @@ import { MODEL_PRICES } from "./pricing";
 import { startScoutJob } from "./pipeline";
 import { checkSource, type Fetcher } from "./scout-sources";
 import { cyprusDate } from "./scout";
-import { renderDigestHeader, renderTopic, type ScoutOutcome } from "./scout-render";
-import { listSources, recordSourceCheck, scoutSpentSince, setSourceEnabled, type NewsSource } from "./scout-store";
+import { eventMaterial, renderDigestHeader, renderSourceLinks, renderTopic, topicKeyboard, type DigestTopic, type ScoutOutcome } from "./scout-render";
+import {
+  claimForWork,
+  listSkipped,
+  listSources,
+  loadEvent,
+  recordSourceCheck,
+  restoreEvent,
+  scoutSpentSince,
+  setSourceEnabled,
+  skipEvent,
+  SKIPPED_DAYS,
+  type NewsEvent,
+  type NewsSource,
+} from "./scout-store";
+import { createPost, createStartedImport, deletePost } from "./store";
 import { cyprusMonthStart } from "./limits";
 import { answerCallback, editMessage, escapeHtml, sendMessage, type InlineKeyboard } from "./telegram";
 
@@ -57,15 +71,46 @@ export async function handleScoutCommand(chatId: number, argument: string): Prom
   );
 }
 
-/** A digest as messages: the header, then one message per topic. */
+/** Telegram refused a digest message: `unsent` are the events (by number) that were not delivered. */
+export class DigestDeliveryError extends Error {
+  constructor(readonly unsent: number[]) {
+    super("digest delivery failed");
+    this.name = "DigestDeliveryError";
+  }
+}
+
+/** A digest as messages: the header, then one message per topic with its buttons. */
 export async function sendScoutOutcome(chatId: number, outcome: ScoutOutcome): Promise<void> {
-  await sendMessage(chatId, renderDigestHeader(outcome, today()));
+  const numbers = outcome.kind === "topics" ? outcome.topics.flatMap((topic) => (topic.number === null ? [] : [topic.number])) : [];
+  try {
+    await sendMessage(chatId, renderDigestHeader(outcome, today()));
+  } catch {
+    throw new DigestDeliveryError(numbers);
+  }
   if (outcome.kind !== "topics") return;
   let index = 1;
   for (const topic of outcome.topics) {
-    await sendMessage(chatId, renderTopic(topic, index));
+    try {
+      await sendMessage(chatId, renderTopic(topic, index), topic.number === null ? {} : { keyboard: topicKeyboard(topic.number) });
+    } catch {
+      // The topics already sent stay shown; only the rest go back to "new" for the repeated run.
+      throw new DigestDeliveryError(outcome.topics.slice(index - 1).flatMap((rest) => (rest.number === null ? [] : [rest.number])));
+    }
     index += 1;
   }
+}
+
+function topicOf(event: NewsEvent): DigestTopic {
+  return {
+    number: event.number,
+    title: event.titleRu,
+    gist: event.gist,
+    why: event.why,
+    score: event.score,
+    scoreReason: event.scoreReason,
+    links: event.links,
+    firstSeenAt: event.firstSeenAt,
+  };
 }
 
 /* ---------- /sources ---------- */
@@ -103,14 +148,161 @@ export async function sendSources(chatId: number): Promise<void> {
   await sendMessage(chatId, view.text, { keyboard: view.keyboard });
 }
 
-export const SCOUT_ACTIONS = new Set(["srcon", "srcoff", "srcchk"]);
+export const SCOUT_ACTIONS = new Set(["srcon", "srcoff", "srcchk", "scw", "sco", "scs", "scr", "scrl"]);
+
+/** What the topic buttons need from the editor's side of the bot (injected, so tests need no bot). */
+export interface ScoutDeps {
+  fetcher?: Fetcher;
+  /** Shows the card of an existing draft. */
+  openDraft?: (chatId: number, postId: string) => Promise<void>;
+  /** Starts mode A for the draft; returns the reason when it was refused (limits), otherwise null. */
+  startRewrite?: (postId: string, importId: string) => Promise<string | null>;
+}
+
+const NOT_FOUND = "Тема не найдена";
+
+function withNote(event: NewsEvent, note: string): string {
+  return `${renderTopic(topicOf(event), null)}\n\n${note}`;
+}
+
+/** "Написать статью": mode A at once, no confirmation; a repeated tap opens the same draft. */
+async function writeFromTopic(query: TelegramCallbackQuery, number: number, deps: ScoutDeps): Promise<void> {
+  const chatId = query.message!.chat.id;
+  const messageId = query.message!.message_id;
+  const event = Number.isInteger(number) ? await loadEvent(number) : null;
+  if (!event) {
+    await answerCallback(query.id, NOT_FOUND);
+    return;
+  }
+  const openExisting = async (existing: NewsEvent): Promise<boolean> => {
+    if (existing.status !== "in_work" || !existing.postId) return false;
+    await answerCallback(query.id, "Статья уже начата");
+    await deps.openDraft?.(chatId, existing.postId);
+    return true;
+  };
+  if (await openExisting(event)) return;
+
+  // The draft and its material are created first and attached to the topic by one conditional
+  // update: of two simultaneous taps only one keeps its draft, the other removes its own.
+  const material = eventMaterial(topicOf(event));
+  const post = await createPost(`Новость: ${event.titleRu}`.slice(0, 120));
+  let importId: string;
+  try {
+    importId = await createStartedImport(chatId, {
+      postId: post.id,
+      sourceText: material.text,
+      sourceLabel: `Мониторинг новостей, тема ${event.number}`,
+      sourceUrl: material.url,
+    });
+  } catch {
+    await deletePost(post.id).catch(() => undefined);
+    await answerCallback(query.id, "Не удалось создать черновик");
+    return;
+  }
+  const claimed = await claimForWork(event.number, post.id);
+  if (!claimed) {
+    await deletePost(post.id).catch(() => undefined);
+    const current = await loadEvent(event.number);
+    if (!current || !(await openExisting(current))) await answerCallback(query.id, "Тема уже обрабатывается");
+    return;
+  }
+  await answerCallback(query.id);
+  await editMessage(chatId, messageId, withNote(claimed, `✍️ Статья <b>#${post.number}</b> в работе.`), [
+    [{ text: `Открыть #${post.number}`, callback_data: `open:${post.number}` }],
+  ]);
+  const refused = deps.startRewrite ? await deps.startRewrite(post.id, importId) : null;
+  if (refused) {
+    await sendMessage(chatId, `${refused}\nЧерновик #${post.number} сохранён: его можно запустить позже кнопкой «Написать заново».`);
+    return;
+  }
+  await sendMessage(
+    chatId,
+    `🔍 Начала статью <b>#${post.number}</b> по теме «${escapeHtml(event.titleRu)}»: ищу первоисточники и проверяю утверждения.\nОбычно это занимает 3–6 минут. Пришлю карточку, когда будет готово.`,
+  );
+}
+
+/* ---------- /skipped ---------- */
+
+export function renderSkipped(events: NewsEvent[]): { text: string; keyboard: InlineKeyboard } {
+  if (events.length === 0) return { text: `Пропущенных тем за ${SKIPPED_DAYS} дней нет.`, keyboard: [] };
+  const lines = [
+    `<b>Пропущенные темы</b> (за ${SKIPPED_DAYS} дней)`,
+    "«Вернуть» отправит тему в следующий дайджест.",
+    "",
+    ...events.map((event) => `<b>${event.number}.</b> ${escapeHtml(event.titleRu)}`),
+  ];
+  const keyboard: InlineKeyboard = [];
+  for (let i = 0; i < events.length; i += 2) {
+    keyboard.push(events.slice(i, i + 2).map((event) => ({ text: `↩️ Вернуть ${event.number}`, callback_data: `scrl:${event.number}` })));
+  }
+  return { text: lines.join("\n"), keyboard };
+}
+
+export async function sendSkipped(chatId: number): Promise<void> {
+  const view = renderSkipped(await listSkipped());
+  await sendMessage(chatId, view.text, view.keyboard.length ? { keyboard: view.keyboard } : {});
+}
+
+async function handleTopicCallback(query: TelegramCallbackQuery, action: string, rawNumber: string, deps: ScoutDeps): Promise<void> {
+  const chatId = query.message!.chat.id;
+  const messageId = query.message!.message_id;
+  const number = Number(rawNumber);
+  if (action === "scw") {
+    await writeFromTopic(query, number, deps);
+    return;
+  }
+  const event = Number.isInteger(number) ? await loadEvent(number) : null;
+  if (!event) {
+    await answerCallback(query.id, NOT_FOUND);
+    return;
+  }
+  switch (action) {
+    case "sco":
+      await answerCallback(query.id);
+      await sendMessage(chatId, renderSourceLinks({ title: event.titleRu, links: event.links }));
+      return;
+    case "scs": {
+      const skipped = await skipEvent(number);
+      if (!skipped) {
+        await answerCallback(query.id, event.status === "in_work" ? "Статья уже начата" : "Уже пропущена");
+        return;
+      }
+      await answerCallback(query.id, "Пропущено");
+      await editMessage(chatId, messageId, withNote(skipped, "⏭ Пропущено. Тема вернётся, только если появится что-то новое, или по кнопке ниже (/skipped)."), [
+        [{ text: "↩️ Вернуть", callback_data: `scr:${number}` }],
+      ]);
+      return;
+    }
+    case "scr": {
+      const restored = await restoreEvent(number);
+      if (!restored) {
+        await answerCallback(query.id, "Уже возвращена или в работе");
+        return;
+      }
+      await answerCallback(query.id, "Вернётся в следующий дайджест");
+      await editMessage(chatId, messageId, withNote(restored, "↩️ Вернётся в следующий дайджест."));
+      return;
+    }
+    case "scrl": {
+      const restored = await restoreEvent(number);
+      await answerCallback(query.id, restored ? "Вернётся в следующий дайджест" : "Уже возвращена или в работе");
+      const view = renderSkipped(await listSkipped());
+      await editMessage(chatId, messageId, view.text, view.keyboard);
+      return;
+    }
+  }
+}
 
 export async function handleScoutCallback(
   query: TelegramCallbackQuery,
   action: string,
   rawNumber: string,
-  options: { fetcher?: Fetcher } = {},
+  options: ScoutDeps = {},
 ): Promise<void> {
+  if (["scw", "sco", "scs", "scr", "scrl"].includes(action)) {
+    await handleTopicCallback(query, action, rawNumber, options);
+    return;
+  }
   const chatId = query.message!.chat.id;
   const messageId = query.message!.message_id;
   if (action === "srcchk") {

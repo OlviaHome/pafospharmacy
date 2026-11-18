@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "schedules": {
+    "scout-daily": {
+      "schedule": "0 9 * * *",
+      "timezone": "Europe/Nicosia",
+      "path": "/api/editorial/scout",
+      "requestMethod": "GET"
+    },
+    "scout-retry": {
+      "schedule": "0 11 * * *",
+      "timezone": "Europe/Nicosia",
+      "path": "/api/editorial/scout",
+      "requestMethod": "GET"
+    }
+  }
+}

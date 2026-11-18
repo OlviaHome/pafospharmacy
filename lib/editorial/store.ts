@@ -778,6 +778,35 @@ export async function createImport(chatId: number): Promise<string> {
   return data.id as string;
 }
 
+/**
+ * An import that starts already complete: the Scout hands a topic to the editor as material, with
+ * its draft attached (mode A, Russian). The text is the topic's summary, never a primary source.
+ */
+export async function createStartedImport(
+  chatId: number,
+  fields: { postId: string; sourceText: string; sourceLabel: string; sourceUrl: string | null },
+): Promise<string> {
+  const data = check(
+    await adminClient()
+      .from("blog_imports")
+      .insert({
+        chat_id: chatId,
+        status: "started",
+        mode: "rewrite",
+        language: "ru",
+        source_text: fields.sourceText,
+        source_label: fields.sourceLabel,
+        source_url: fields.sourceUrl,
+        post_id: fields.postId,
+      })
+      .select("id")
+      .single(),
+    "create started import",
+  );
+  if (!data) throw new Error("create started import: no row returned");
+  return data.id as string;
+}
+
 export type AddPartResult = { ok: true; parts: number; chars: number } | { ok: false; reason: "closed" | "too_long" };
 
 /**

@@ -376,6 +376,102 @@ export async function claimShown(ids: string[], runId: string): Promise<NewsEven
   return (rows ?? []).map(mapEvent);
 }
 
+export async function loadEvent(number: number): Promise<NewsEvent | null> {
+  const row = check(await adminClient().from("news_events").select(EVENT_COLUMNS).eq("number", number).maybeSingle(), "load event");
+  return row ? mapEvent(row) : null;
+}
+
+/**
+ * The editor chose "write an article": the event becomes "in work" and carries the draft. One
+ * conditional update, so of two taps only one gets the event back (the other opens the same draft).
+ */
+export async function claimForWork(number: number, postId: string): Promise<NewsEvent | null> {
+  const rows = check(
+    await adminClient()
+      .from("news_events")
+      .update({ status: "in_work", post_id: postId, updated_at: new Date().toISOString() })
+      .eq("number", number)
+      // A topic whose draft was deleted (post_id back to null) can be taken again.
+      .or("status.in.(new,shown,skipped),and(status.eq.in_work,post_id.is.null)")
+      .select(EVENT_COLUMNS),
+    "claim for work",
+  );
+  return rows?.length ? mapEvent(rows[0]) : null;
+}
+
+/** "Пропустить": hides the event until a new development reopens it. Only a topic not yet in work. */
+export async function skipEvent(number: number): Promise<NewsEvent | null> {
+  const rows = check(
+    await adminClient()
+      .from("news_events")
+      .update({ status: "skipped", skipped_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("number", number)
+      .in("status", ["new", "shown"])
+      .select(EVENT_COLUMNS),
+    "skip event",
+  );
+  return rows?.length ? mapEvent(rows[0]) : null;
+}
+
+/** "Вернуть": a skipped event goes back to "new", so the next digest shows it. */
+export async function restoreEvent(number: number): Promise<NewsEvent | null> {
+  const rows = check(
+    await adminClient()
+      .from("news_events")
+      .update({ status: "new", skipped_at: null, updated_at: new Date().toISOString() })
+      .eq("number", number)
+      .eq("status", "skipped")
+      .select(EVENT_COLUMNS),
+    "restore event",
+  );
+  return rows?.length ? mapEvent(rows[0]) : null;
+}
+
+export const SKIPPED_DAYS = 30;
+export const MAX_SKIPPED_LISTED = 20;
+
+/** Skipped events of the last 30 days, the most recently skipped first. */
+export async function listSkipped(now = new Date()): Promise<NewsEvent[]> {
+  const since = new Date(now.getTime() - SKIPPED_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const rows = check(
+    await adminClient()
+      .from("news_events")
+      .select(EVENT_COLUMNS)
+      .eq("status", "skipped")
+      .gte("skipped_at", since)
+      .order("skipped_at", { ascending: false })
+      .limit(MAX_SKIPPED_LISTED),
+    "list skipped",
+  );
+  return (rows ?? []).map(mapEvent);
+}
+
+/**
+ * Telegram did not take a digest message: the events of that run that were not delivered go back
+ * to "new" so the repeated run shows them (and only them), and the run is marked as failed.
+ */
+export async function undoUndelivered(runId: string, numbers: number[]): Promise<void> {
+  const db = adminClient();
+  if (numbers.length > 0) {
+    check(
+      await db
+        .from("news_events")
+        .update({ status: "new", shown_at: null, shown_run_id: null, updated_at: new Date().toISOString() })
+        .in("number", numbers)
+        .eq("status", "shown")
+        .eq("shown_run_id", runId),
+      "undo undelivered",
+    );
+  }
+  check(
+    await db
+      .from("news_runs")
+      .update({ status: "failed", error_code: "telegram", finished_at: new Date().toISOString() })
+      .eq("id", runId),
+    "fail run delivery",
+  );
+}
+
 /** The events a run showed (to send its digest again without duplicating anything in the database). */
 export async function eventsOfRun(runId: string): Promise<NewsEvent[]> {
   const rows = check(

@@ -282,9 +282,9 @@ export async function runScout(options: ScoutOptions): Promise<ScoutOutcome | nu
 
     const stats = { items: items.length, selected: actions.length, shown: topics.length };
     if (topics.length === 0) {
-      return finish({ kind: "empty", test, unavailable, collected: items.length, model }, stats);
+      return finish({ kind: "empty", test, unavailable, collected: items.length, model, ...(test ? {} : { runId: claim.runId }) }, stats);
     }
-    return finish({ kind: "topics", test, topics, unavailable, collected: items.length, model }, stats);
+    return finish({ kind: "topics", test, topics, unavailable, collected: items.length, model, ...(test ? {} : { runId: claim.runId }) }, stats);
   } catch (error) {
     console.error("scout: run failed", error instanceof Error ? error.name : "unknown");
     return finish(failed(test, "internal", unavailable));

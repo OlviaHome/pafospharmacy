@@ -30,7 +30,7 @@ import { splitSections } from "./sections";
 import type { JobKind } from "./limits";
 import { nextStockImage, refreshSourceChecks, setNotifier, startJob, type StartResult } from "./pipeline";
 import { findSimilar } from "./similar";
-import { handleScoutCallback, handleScoutCommand, SCOUT_ACTIONS, scoutUsageLines, sendScoutOutcome, sendSources } from "./scout-bot";
+import { handleScoutCallback, handleScoutCommand, SCOUT_ACTIONS, scoutUsageLines, sendScoutOutcome, sendSkipped, sendSources } from "./scout-bot";
 import {
   assembleParts,
   languageLabel,
@@ -219,7 +219,7 @@ const HELP = `Я пишу статьи для блога HealthGuide Cyprus. Н�
 /drafts: черновики
 /published: опубликованные
 /scout: мониторинг новостей сейчас; /scout test: пробный запуск (ничего не сохраняется)
-/sources: источники мониторинга
+/sources: источники мониторинга; /skipped: пропущенные темы (30 дней) и кнопка «Вернуть»
 /usage: расходы и лимиты`;
 
 async function startArticle(chatId: number, topic: string, options: { force?: boolean } = {}): Promise<void> {
@@ -365,6 +365,9 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
         return;
       case "/sources":
         await sendSources(chatId);
+        return;
+      case "/skipped":
+        await sendSkipped(chatId);
         return;
       default:
         await sendMessage(chatId, "Не знаю такой команды. /help");
@@ -748,7 +751,18 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     return;
   }
   if (SCOUT_ACTIONS.has(action)) {
-    await handleScoutCallback(query, action, rawNumber ?? "");
+    await handleScoutCallback(query, action, rawNumber ?? "", {
+      openDraft: async (chat, postId) => {
+        const draft = await loadPost({ id: postId });
+        if (draft) await sendCard(chat, draft);
+      },
+      startRewrite: async (postId, importId) => {
+        const result = await startJob(postId, "rewrite", { importId });
+        const blocked = limitMessage(result);
+        if (blocked) await updatePost(postId, { status: "failed", last_error: result.ok ? null : result.reason });
+        return blocked;
+      },
+    });
     return;
   }
 
