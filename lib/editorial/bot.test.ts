@@ -612,10 +612,11 @@ describe("/import: receiving material", () => {
 
     await handleUpdate(callbackUpdate(`impdone:${onlyImport().id}`, lastImportMessage()));
     expect(onlyImport().status).toBe("ready");
-    expect(onlyImport().language).toBe("ru");
+    expect(onlyImport().language).toBeNull();
     expect(texts().at(-1)).toContain("Материал собран");
-    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain("imprw:");
-    expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("Без рерайта");
+    expect(texts().at(-1)).toContain("не указан");
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain("impru:");
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("imprw:");
   });
 
   it("joins a long text that Telegram split into several messages, in message order", async () => {
@@ -742,8 +743,55 @@ describe("/import: starting the article", () => {
     await handleUpdate(textUpdate("/import"));
     await handleUpdate(textUpdate(text, lastImportMessage()));
     await handleUpdate(callbackUpdate(`impdone:${onlyImport().id}`));
+    await handleUpdate(callbackUpdate(`impru:${onlyImport().id}`));
     return onlyImport().id;
   }
+
+  it("does not start without a language: the start button is hidden and a tap is refused", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Материал.", lastImportMessage()));
+    const id = onlyImport().id;
+    await handleUpdate(callbackUpdate(`impdone:${id}`));
+    await handleUpdate(callbackUpdate(`imprw:${id}`));
+    expect(answered.at(-1)?.text).toBe("Сначала выберите язык оригинала");
+    expect(posts.size).toBe(0);
+    expect(jobsOfKind("rewrite")).toHaveLength(0);
+    expect(onlyImport().status).toBe("ready");
+  });
+
+  it("the button sets the language, shows it in the summary, and it can be changed before the start", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Material in English.", lastImportMessage()));
+    const id = onlyImport().id;
+    await handleUpdate(callbackUpdate(`impdone:${id}`));
+    await handleUpdate(callbackUpdate(`impen:${id}`, 700));
+    expect(onlyImport().language).toBe("en");
+    expect(edited.at(-1)).toMatchObject({ messageId: 700 });
+    expect(edited.at(-1)!.text).toContain("язык оригинала: <b>English</b>");
+    await handleUpdate(callbackUpdate(`impuk:${id}`, 700));
+    expect(onlyImport().language).toBe("uk");
+    expect(edited.at(-1)!.text).toContain("Українська");
+    await handleUpdate(callbackUpdate(`imprw:${id}`));
+    expect(jobsOfKind("rewrite")).toHaveLength(1);
+    // After the start the choice is closed.
+    await handleUpdate(callbackUpdate(`impru:${id}`));
+    expect(onlyImport().language).toBe("uk");
+  });
+
+  it("«Другой язык» asks for a name; the reply is saved and shown", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Tekst po polsku.", lastImportMessage()));
+    const id = onlyImport().id;
+    await handleUpdate(callbackUpdate(`impdone:${id}`));
+    await handleUpdate(callbackUpdate(`impother:${id}`));
+    expect(sent.at(-1)!.forceReply).toBe(true);
+    expect(texts().at(-1)).toContain("название языка");
+    await handleUpdate(textUpdate("польский", lastImportMessage()));
+    expect(onlyImport().language).toBe("other:польский");
+    expect(texts().at(-1)).toContain("язык оригинала: <b>польский</b>");
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain("imprw:");
+    expect(onlyImport().parts).toHaveLength(1);
+  });
 
   it("«Рерайт + фактчек» creates one draft and queues a rewrite job for this material", async () => {
     const id = await readyImport();

@@ -816,7 +816,7 @@ export async function transitionImport(
     mode: "rewrite";
     post_id: string;
     source_text: string;
-    language: string;
+    language: string | null;
     source_url: string | null;
     source_label: string;
   }>,

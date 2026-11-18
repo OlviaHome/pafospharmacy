@@ -30,7 +30,9 @@ import { nextStockImage, refreshSourceChecks, setNotifier, startJob, type StartR
 import { findSimilar } from "./similar";
 import {
   assembleParts,
-  detectLanguage,
+  languageLabel,
+  LANGUAGE_CHOICES,
+  otherLanguage,
   forwardLabel,
   importChecks,
   importTopic,
@@ -385,6 +387,19 @@ async function handleReply(
   text: string,
 ): Promise<void> {
   const chatId = message.chat.id;
+  if (context.purpose === "import" && context.slot && context.payload === "language") {
+    const language = otherLanguage(text);
+    if (!language) {
+      await sendMessage(chatId, "Напишите название языка словами, до 40 символов (например, «польский»). Ответьте на сообщение выше ещё раз.");
+      return;
+    }
+    if (await setImportLanguage(chatId, context.slot, language)) {
+      await sendImportSummary(chatId, context.slot);
+    } else {
+      await sendMessage(chatId, "Этот импорт уже передан в работу или закрыт.");
+    }
+    return;
+  }
   if (context.purpose === "import" && context.slot) {
     await acceptImportPart(message, context.slot);
     return;
@@ -1190,7 +1205,8 @@ async function startTranslations(chatId: number, post: EditorialPost): Promise<v
 
 /* ---------- /import: material for a new article (mode A, «Рерайт + фактчек») ---------- */
 
-const IMPORT_ACTIONS = new Set(["impdone", "impcancel", "impcont", "imprestart", "impmore", "imprw"]);
+const IMPORT_LANGUAGE_ACTIONS = ["impru", "impen", "impel", "impuk"] as const;
+const IMPORT_ACTIONS = new Set(["impdone", "impcancel", "impcont", "imprestart", "impmore", "imprw", "impother", ...IMPORT_LANGUAGE_ACTIONS]);
 
 const IMPORT_PROMPT = [
   "📥 <b>Импорт материала</b>",
@@ -1297,31 +1313,58 @@ async function acceptImportPart(message: TelegramMessage, importId: string): Pro
   await rememberMessage(chatId, sent.message_id, "import", null, { slot: importId });
 }
 
+function importSummary(record: NonNullable<Awaited<ReturnType<typeof loadImport>>>): { text: string; keyboard: InlineKeyboard } {
+  const importId = record.id;
+  const sourceText = record.sourceText ?? "";
+  const preview = sourceText.replace(/\s+/g, " ").slice(0, 300);
+  const mark = (code: string, label: string) => `${record.language === code ? "✓ " : ""}${label}`;
+  const otherSelected = record.language?.startsWith("other:") ?? false;
+  const choices = LANGUAGE_CHOICES.map((choice, index) => ({
+    text: mark(choice.code, choice.label),
+    callback_data: `${IMPORT_LANGUAGE_ACTIONS[index]}:${importId}`,
+  }));
+  const keyboard: InlineKeyboard = [
+    choices.slice(0, 3),
+    [choices[3], { text: otherSelected ? "✓ Другой язык" : "Другой язык", callback_data: `impother:${importId}` }],
+  ];
+  // The article is not started until the language of the original is chosen.
+  if (record.language) keyboard.push([{ text: "🔍 Рерайт + фактчек", callback_data: `imprw:${importId}` }]);
+  keyboard.push([{ text: "➕ Добавить ещё", callback_data: `impmore:${importId}` }], [{ text: "Отменить", callback_data: `impcancel:${importId}` }]);
+  return {
+    text: [
+      "📥 <b>Материал собран</b>",
+      `Частей: ${record.parts} · символов: ${sourceText.length} · язык оригинала: <b>${escapeHtml(languageLabel(record.language))}</b>`,
+      `Откуда: ${escapeHtml(record.sourceLabel ?? "текст от редактора")}`,
+      "",
+      `<i>${escapeHtml(preview)}${sourceText.length > 300 ? "…" : ""}</i>`,
+      "",
+      record.language
+        ? "Язык можно поменять, пока статья не запущена. «🔍 Рерайт + фактчек»: найду первоисточники, проверю утверждения и напишу самостоятельную статью на русском, затем английский перевод и обычная карточка. Материал не публикуется и не считается источником."
+        : "Выберите язык оригинала — без этого рерайт не запустится.",
+    ].join("\n"),
+    keyboard,
+  };
+}
+
 async function sendImportSummary(chatId: number, importId: string): Promise<void> {
   const record = await loadImport(importId);
   if (!record?.sourceText) return;
-  const language = detectLanguage(record.sourceText);
-  const preview = record.sourceText.replace(/\s+/g, " ").slice(0, 300);
-  const sent = await sendMessage(
-    chatId,
-    [
-      "📥 <b>Материал собран</b>",
-      `Частей: ${record.parts} · символов: ${record.sourceText.length} · язык: ${language.label}`,
-      `Откуда: ${escapeHtml(record.sourceLabel ?? "текст от редактора")}`,
-      "",
-      `<i>${escapeHtml(preview)}${record.sourceText.length > 300 ? "…" : ""}</i>`,
-      "",
-      "«🔍 Рерайт + фактчек»: найду первоисточники, проверю утверждения и напишу самостоятельную статью на русском, затем английский перевод и обычная карточка. Материал не публикуется и не считается источником.",
-    ].join("\n"),
-    {
-      keyboard: [
-        [{ text: "🔍 Рерайт + фактчек", callback_data: `imprw:${importId}` }],
-        [{ text: "➕ Добавить ещё", callback_data: `impmore:${importId}` }],
-        [{ text: "Отменить", callback_data: `impcancel:${importId}` }],
-      ],
-    },
-  );
+  const summary = importSummary(record);
+  const sent = await sendMessage(chatId, summary.text, { keyboard: summary.keyboard });
   await rememberMessage(chatId, sent.message_id, "import", null, { slot: importId });
+}
+
+/** Saves the chosen language while the import is ready, and refreshes the summary it was chosen on. */
+async function setImportLanguage(chatId: number, importId: string, language: string, summaryMessageId?: number): Promise<boolean> {
+  if (!(await transitionImport(importId, ["ready"], { language }))) return false;
+  if (summaryMessageId) {
+    const record = await loadImport(importId);
+    if (record?.sourceText) {
+      const summary = importSummary(record);
+      await editMessage(chatId, summaryMessageId, summary.text, summary.keyboard);
+    }
+  }
+  return true;
 }
 
 async function handleImportCallback(query: TelegramCallbackQuery, action: string, importId: string): Promise<void> {
@@ -1358,6 +1401,29 @@ async function handleImportCallback(query: TelegramCallbackQuery, action: string
       await sendImportPrompt(chatId, importId);
       return;
     }
+    case "impru":
+    case "impen":
+    case "impel":
+    case "impuk": {
+      const index = (IMPORT_LANGUAGE_ACTIONS as readonly string[]).indexOf(action);
+      if (!(await setImportLanguage(chatId, importId, LANGUAGE_CHOICES[index].code, messageId))) {
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      await answerCallback(query.id, `Язык: ${LANGUAGE_CHOICES[index].label}`);
+      return;
+    }
+    case "impother": {
+      const record = await loadImport(importId);
+      if (record?.status !== "ready") {
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      await answerCallback(query.id);
+      const sent = await sendMessage(chatId, "Напишите название языка оригинала ответом на это сообщение (например, «польский»).", { forceReply: true });
+      await rememberMessage(chatId, sent.message_id, "import", null, { slot: importId, payload: "language" });
+      return;
+    }
     case "impdone": {
       const parts = await importParts(importId);
       if (parts.length === 0) {
@@ -1368,7 +1434,8 @@ async function handleImportCallback(query: TelegramCallbackQuery, action: string
       const won = await transitionImport(importId, ["collecting"], {
         status: "ready",
         source_text: material.text,
-        language: detectLanguage(material.text).code,
+        // Chosen by the editor on the summary, every time the material is closed.
+        language: null,
         source_url: material.sourceUrl,
         source_label: material.sourceLabel,
       });
@@ -1385,6 +1452,10 @@ async function handleImportCallback(query: TelegramCallbackQuery, action: string
       const record = await loadImport(importId);
       if (record?.status !== "ready" || !record.sourceText) {
         await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      if (!record.language) {
+        await answerCallback(query.id, "Сначала выберите язык оригинала");
         return;
       }
       // The draft is created first and attached by a conditional update: of two simultaneous taps

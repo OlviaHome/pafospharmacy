@@ -27,36 +27,30 @@ export interface ImportInfo {
 
 export type PartKind = "text" | "url" | "forward" | "file";
 
-const LANGUAGES: { code: string; label: string; script: RegExp }[] = [
-  { code: "ru", label: "русский", script: /\p{Script=Cyrillic}/u },
-  // Not a script of its own: told apart from Russian below by letters Russian does not have.
-  { code: "el", label: "греческий", script: /\p{Script=Greek}/u },
-  { code: "ar", label: "арабский", script: /\p{Script=Arabic}/u },
-  { code: "en", label: "английский или другой на латинице", script: /\p{Script=Latin}/u },
-];
+/**
+ * The language of the original is chosen by the editor (never guessed from the text). Stored in the
+ * import's `language` field: a code for the four buttons, or "other:<name>" for a typed name.
+ */
+export const LANGUAGE_CHOICES = [
+  { code: "ru", label: "Русский" },
+  { code: "en", label: "English" },
+  { code: "el", label: "Ελληνικά" },
+  { code: "uk", label: "Українська" },
+] as const;
 
-/** The material's language by its alphabet: Russian, Greek, Arabic or Latin script. */
-/** Letters of Ukrainian (і, ї, є, ґ) and Belarusian (ў) that Russian does not use. */
-const NON_RUSSIAN_CYRILLIC = /[іїєґў]/giu;
+export const OTHER_LANGUAGE_PREFIX = "other:";
 
-export function detectLanguage(text: string): { code: string; label: string } {
-  const letters = [...text].filter((char) => /\p{L}/u.test(char));
-  if (letters.length === 0) return { code: "unknown", label: "не определён" };
-  let best = { code: "unknown", label: "не определён", share: 0 };
-  for (const language of LANGUAGES) {
-    const share = letters.filter((char) => language.script.test(char)).length / letters.length;
-    if (share > best.share) best = { ...language, share };
-  }
-  if (best.share < 0.5) return { code: "mixed", label: "смешанный" };
-  if (best.code === "ru") {
-    // Cyrillic is not always Russian: Ukrainian (and Belarusian) text is translated for the
-    // independence check like any other foreign material. A few such letters in a Russian text
-    // (a name, a quote) do not change its language.
-    const cyrillic = letters.filter((char) => /\p{Script=Cyrillic}/u.test(char)).length;
-    const own = (text.match(NON_RUSSIAN_CYRILLIC) ?? []).length;
-    if (own >= 3 && own / cyrillic >= 0.02) return { code: "uk", label: "украинский или другой на кириллице" };
-  }
-  return { code: best.code, label: best.label };
+/** A language name typed by the editor, cleaned up; null when it is empty or too long. */
+export function otherLanguage(text: string): string | null {
+  const name = text.replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim();
+  return name.length >= 2 && name.length <= 40 ? `${OTHER_LANGUAGE_PREFIX}${name}` : null;
+}
+
+/** The language as shown to the editor and passed to the model; "не указан" until it is chosen. */
+export function languageLabel(language: string | null): string {
+  if (!language) return "не указан";
+  if (language.startsWith(OTHER_LANGUAGE_PREFIX)) return language.slice(OTHER_LANGUAGE_PREFIX.length);
+  return LANGUAGE_CHOICES.find((choice) => choice.code === language)?.label ?? language;
 }
 
 /** A message that is nothing but one https link: the material is behind it. */

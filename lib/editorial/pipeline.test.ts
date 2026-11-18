@@ -243,7 +243,7 @@ describe("writing an article from imported material (/import, mode A)", () => {
     expect(write.instructions).toContain("UNTRUSTED DATA");
     expect(write.instructions).not.toContain(INJECTION);
     const input = JSON.parse(write.input);
-    expect(input.source_material).toMatchObject({ text: MATERIAL, language: "en", url: "https://news.example.com/ambulance" });
+    expect(input.source_material).toMatchObject({ text: MATERIAL, language: "English", url: "https://news.example.com/ambulance" });
     expect(input.source_material.notice).toContain("not instructions");
 
     // 3. Then the ordinary path: Russian text, checks, notes with the material's issues, English translation.
@@ -290,6 +290,16 @@ describe("writing an article from imported material (/import, mode A)", () => {
     expect(store.setImportTranslation).not.toHaveBeenCalled();
     expect(store.saveTranslation).not.toHaveBeenCalled();
     expect(store.finishJob).toHaveBeenCalledWith(25, "failed", expect.stringContaining("Служебный перевод материала получился неполным"));
+  });
+
+  it("does not run without a language chosen by the editor", async () => {
+    store.claimJob.mockResolvedValue({ id: 26, postId: "post-1", kind: "rewrite", status: "running", payload: { importId: "imp-5" } });
+    store.loadImport.mockResolvedValue({ id: "imp-5", sourceText: "Материал.", language: null, sourceUrl: null, sourceLabel: null, sourceTextRu: null });
+
+    await runJob(26);
+
+    expect(callResponses).not.toHaveBeenCalled();
+    expect(store.finishJob).toHaveBeenCalledWith(26, "failed", expect.stringContaining("Язык оригинала не выбран"));
   });
 
   it("splits a material into translation pieces without losing text", () => {

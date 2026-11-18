@@ -34,6 +34,7 @@ import {
   type TranslationDraft,
 } from "./prompts";
 import { activeImages } from "./cards";
+import { languageLabel } from "./imports";
 import {
   claimJob,
   enqueueJob,
@@ -369,6 +370,8 @@ async function runRewrite(job: JobRecord, post: EditorialPost): Promise<void> {
   const material = importId ? await loadImport(importId) : null;
   if (!material?.sourceText) throw new Error("Импортированный материал не найден.");
 
+  // The editor chooses the original's language; a Russian one needs no working translation.
+  if (!material.language) throw new Error("Язык оригинала не выбран: вернитесь к сводке импорта и выберите его.");
   if (material.language !== "ru" && !material.sourceTextRu) {
     await setImportTranslation(material.id, await translateMaterial(job, material.sourceText));
   }
@@ -379,7 +382,7 @@ async function runRewrite(job: JobRecord, post: EditorialPost): Promise<void> {
     instructions: rewriteInstructions(new Date()),
     input: rewriteInput({
       text: material.sourceText,
-      language: material.language,
+      language: languageLabel(material.language),
       origin: material.sourceLabel ?? "текст от редактора",
       url: material.sourceUrl,
     }),

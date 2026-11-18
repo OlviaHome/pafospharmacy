@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { detectLanguage, importChecks, originalityCheck, type ImportInfo } from "./imports";
+import { importChecks, languageLabel, originalityCheck, otherLanguage, type ImportInfo } from "./imports";
 import type { EditorialPost } from "./store";
 
 function post(info: Partial<ImportInfo> | null): EditorialPost {
@@ -53,20 +53,24 @@ describe("independence check of an imported draft", () => {
   });
 });
 
-describe("language of an imported material", () => {
-  it("tells Russian, Ukrainian, Greek and English apart", () => {
-    expect(detectLanguage("Министерство здравоохранения объявило о новой схеме работы скорой помощи.").code).toBe("ru");
-    expect(detectLanguage("Міністерство охорони здоров’я оголосило про нову схему роботи швидкої допомоги, їй потрібні кошти.").code).toBe("uk");
-    expect(detectLanguage("Το υπουργείο υγείας ανακοίνωσε νέο σχέδιο για το ασθενοφόρο.").code).toBe("el");
-    expect(detectLanguage("The Health Ministry announced a new ambulance service plan.").code).toBe("en");
+describe("language of an imported material (chosen by the editor, never guessed)", () => {
+  it("shows the four buttons' languages and a typed one by name", () => {
+    expect(languageLabel("ru")).toBe("Русский");
+    expect(languageLabel("uk")).toBe("Українська");
+    expect(languageLabel("other:Польский")).toBe("Польский");
+    expect(languageLabel(null)).toBe("не указан");
   });
 
-  it("keeps a Russian text with a Ukrainian name or quote Russian", () => {
-    expect(detectLanguage("Врач Олена Шевченко из Києва рассказала о новой схеме работы скорой помощи и о том, как вызвать бригаду.").code).toBe("ru");
+  it("cleans a typed language name and refuses an empty or very long one", () => {
+    expect(otherLanguage("  польский ")).toBe("other:польский");
+    expect(otherLanguage("<b>иврит</b>")).toBe("other:b иврит /b");
+    expect(otherLanguage(" ")).toBeNull();
+    expect(otherLanguage("x".repeat(41))).toBeNull();
   });
 
-  it("makes the independence check need a translation for a Ukrainian material", () => {
-    const result = originalityCheck(post({ language: "uk", sourceTextRu: null }));
-    expect(result).toMatchObject({ ok: false, blocking: true });
+  it("makes the independence check need a translation for any language but Russian", () => {
+    for (const language of ["en", "uk", "other:Польский"]) {
+      expect(originalityCheck(post({ language, sourceTextRu: null }))).toMatchObject({ ok: false, blocking: true });
+    }
   });
 });
