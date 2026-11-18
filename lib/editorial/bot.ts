@@ -16,6 +16,7 @@ import {
   renderImagesMenu,
   renderManualMenu,
   renderFactsMenu,
+  renderSuggestionsMenu,
   renderTranslationsCard,
 } from "./cards";
 import { blockingFailures, failedChecks, formatChecks, prePublishChecks, type CheckResult } from "./checks";
@@ -24,6 +25,7 @@ import { fetchSourceText, verifyClaims } from "./source-text";
 import { editorialLimits, openAiModel, siteOrigin, telegramConfig, unsplashKey } from "./config";
 import { removeStoredImage, storeImageBytes } from "./images";
 import { addInlineImage, applyManualEdit, isManualPart, partLabel, partText, removeInlineImage, type ManualPart } from "./manual";
+import { applySuggestion, formatPairs, textHash } from "./prepare";
 import { splitSections } from "./sections";
 import type { JobKind } from "./limits";
 import { nextStockImage, refreshSourceChecks, setNotifier, startJob, type StartResult } from "./pipeline";
@@ -34,9 +36,11 @@ import {
   LANGUAGE_CHOICES,
   otherLanguage,
   forwardLabel,
+  authorTextOf,
   importChecks,
   importTopic,
   MAX_IMPORT_CHARS,
+  MAX_PREPARE_CHARS,
   messageText,
   singleUrl,
   type PartKind,
@@ -52,6 +56,7 @@ import {
   importParts,
   loadImport,
   openImport,
+  setImportAcceptedHash,
   transitionImport,
   hasActiveJob,
   hasUndo,
@@ -170,6 +175,7 @@ setNotifier({
       edit: "внести правку",
       translate: "перевести",
       rewrite: "написать статью из импорта",
+      prepare: "подготовить текст к публикации",
     };
     await sendMessage(
       adminChatId(),
@@ -1030,6 +1036,75 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
       return;
     }
 
+    case "sug": {
+      await answerCallback(query.id);
+      const menu = renderSuggestionsMenu(post);
+      await sendMessage(chatId, menu.text, { keyboard: menu.keyboard });
+      return;
+    }
+
+    case "sugok":
+    case "sugno": {
+      const suggestion = post.suggestions.find((candidate) => candidate.id === slot);
+      if (!suggestion || suggestion.status !== "pending") {
+        await answerCallback(query.id, "Это предложение уже обработано");
+        return;
+      }
+      const blocked = editBlocker(post);
+      if (action === "sugok" && blocked) {
+        await answerCallback(query.id);
+        await sendMessage(chatId, blocked);
+        return;
+      }
+      const russian = post.translations.find((t) => t.locale === "ru");
+      if (action === "sugok") {
+        const replaced = russian ? applySuggestion(russian.bodyMd, suggestion) : null;
+        if (!replaced) {
+          await answerCallback(query.id, "Этот фрагмент уже изменился");
+          return;
+        }
+        await applyManualEdit(post, "ru", "file", replaced);
+      }
+      await updatePost(post.id, {
+        suggestions: post.suggestions.map((candidate) =>
+          candidate.id === suggestion.id ? { ...candidate, status: action === "sugok" ? "accepted" : "rejected" } : candidate,
+        ),
+      });
+      await answerCallback(query.id, action === "sugok" ? "Внесено" : "Отклонено");
+      const fresh = (await loadPost({ id: post.id }))!;
+      const menu = renderSuggestionsMenu(fresh);
+      await editMessage(chatId, messageId, menu.text, menu.keyboard);
+      return;
+    }
+
+    case "cmp": {
+      await answerCallback(query.id);
+      const pairs = post.importInfo?.prepared?.pairs;
+      if (post.importInfo?.mode !== "prepare" || !pairs?.length) {
+        await sendMessage(chatId, "Для этой статьи нет сохранённого перевода по абзацам.");
+        return;
+      }
+      const text = formatPairs(pairs);
+      if (text.length <= 3500) {
+        await sendMessage(chatId, `📑 <b>#${post.number} · оригинал и перевод</b>\n\n${escapeHtml(text)}`);
+      } else {
+        await sendDocument(chatId, `original-vs-translation-${post.number}.txt`, text, `📑 #${post.number} · оригинал и перевод по абзацам (${pairs.length})`);
+      }
+      return;
+    }
+
+    case "prv": {
+      const baseline = authorTextOf(post);
+      if (!post.importInfo || baseline === null) {
+        await answerCallback(query.id, "Нечего подтверждать");
+        return;
+      }
+      await setImportAcceptedHash(post.importInfo.id, textHash(baseline));
+      await answerCallback(query.id, "Расхождения отмечены как проверенные");
+      await refreshCard(chatId, messageId, (await loadPost({ id: post.id }))!);
+      return;
+    }
+
     case "frc": {
       await answerCallback(query.id, "Перепроверяю цитаты…");
       const fresh = await recheckFacts(post);
@@ -1077,6 +1152,10 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     case "ffx": {
       // Accepting a proposed correction is an ordinary AI edit; the facts are then checked again.
       await answerCallback(query.id);
+      if (post.importInfo?.mode === "prepare") {
+        await sendMessage(chatId, "В режиме «Без рерайта» текст автора не правится автоматически. Исправьте его сами («📝 Править самой») или оставьте как есть.");
+        return;
+      }
       const item = renderFactsMenu(post).items.find((candidate) => candidate.id === slot);
       if (!item?.suggestedFix) {
         await sendMessage(chatId, "Этот факт уже изменился. Откройте «🔎 Факты» заново.");
@@ -1148,9 +1227,9 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         await answerCallback(query.id, "Статья не в статусе ошибки");
         return;
       }
-      // A draft from /import is written again from its material.
+      // A draft from /import is made again from its material, in the mode it was started in.
       const result = post.importInfo
-        ? await startJob(post.id, "rewrite", { importId: post.importInfo.id })
+        ? await startJob(post.id, post.importInfo.mode === "prepare" ? "prepare" : "rewrite", { importId: post.importInfo.id })
         : await startJob(post.id, "write", {});
       const blocked = limitMessage(result);
       await answerCallback(query.id);
@@ -1206,7 +1285,7 @@ async function startTranslations(chatId: number, post: EditorialPost): Promise<v
 /* ---------- /import: material for a new article (mode A, «Рерайт + фактчек») ---------- */
 
 const IMPORT_LANGUAGE_ACTIONS = ["impru", "impen", "impel", "impuk"] as const;
-const IMPORT_ACTIONS = new Set(["impdone", "impcancel", "impcont", "imprestart", "impmore", "imprw", "impother", ...IMPORT_LANGUAGE_ACTIONS]);
+const IMPORT_ACTIONS = new Set(["impdone", "impcancel", "impcont", "imprestart", "impmore", "imprw", "impb", "impbok", "impbback", "impother", ...IMPORT_LANGUAGE_ACTIONS]);
 
 const IMPORT_PROMPT = [
   "📥 <b>Импорт материала</b>",
@@ -1328,7 +1407,12 @@ function importSummary(record: NonNullable<Awaited<ReturnType<typeof loadImport>
     [choices[3], { text: otherSelected ? "✓ Другой язык" : "Другой язык", callback_data: `impother:${importId}` }],
   ];
   // The article is not started until the language of the original is chosen.
-  if (record.language) keyboard.push([{ text: "🔍 Рерайт + фактчек", callback_data: `imprw:${importId}` }]);
+  if (record.language) {
+    keyboard.push([
+      { text: "🔍 Рерайт + фактчек", callback_data: `imprw:${importId}` },
+      { text: "📄 Без рерайта", callback_data: `impb:${importId}` },
+    ]);
+  }
   keyboard.push([{ text: "➕ Добавить ещё", callback_data: `impmore:${importId}` }], [{ text: "Отменить", callback_data: `impcancel:${importId}` }]);
   return {
     text: [
@@ -1339,8 +1423,8 @@ function importSummary(record: NonNullable<Awaited<ReturnType<typeof loadImport>
       `<i>${escapeHtml(preview)}${sourceText.length > 300 ? "…" : ""}</i>`,
       "",
       record.language
-        ? "Язык можно поменять, пока статья не запущена. «🔍 Рерайт + фактчек»: найду первоисточники, проверю утверждения и напишу самостоятельную статью на русском, затем английский перевод и обычная карточка. Материал не публикуется и не считается источником."
-        : "Выберите язык оригинала — без этого рерайт не запустится.",
+        ? "Язык можно поменять, пока статья не запущена. «🔍 Рерайт + фактчек»: найду первоисточники, проверю утверждения и напишу самостоятельную статью на русском, затем английский перевод и обычная карточка. Материал не публикуется и не считается источником.\n«📄 Без рерайта»: текст останется вашим — исправлю только орфографию и оформление (или точно переведу на русский), добавлю структуру и проверю факты."
+        : "Выберите язык оригинала — без этого статья не запустится.",
     ].join("\n"),
     keyboard,
   };
@@ -1446,6 +1530,91 @@ async function handleImportCallback(query: TelegramCallbackQuery, action: string
       await answerCallback(query.id);
       await editMessage(chatId, messageId, "📥 Материал собран.");
       await sendImportSummary(chatId, importId);
+      return;
+    }
+    case "impb": {
+      const record = await loadImport(importId);
+      if (record?.status !== "ready" || !record.sourceText) {
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      if (!record.language) {
+        await answerCallback(query.id, "Сначала выберите язык оригинала");
+        return;
+      }
+      if (record.sourceText.length > MAX_PREPARE_CHARS) {
+        await answerCallback(query.id);
+        await sendMessage(
+          chatId,
+          `Текст длиннее ${MAX_PREPARE_CHARS} символов (${record.sourceText.length}): в режиме «Без рерайта» он обрабатывается за один раз. Разделите его на части и импортируйте по отдельности или используйте «🔍 Рерайт + фактчек».`,
+        );
+        return;
+      }
+      await answerCallback(query.id);
+      const foreign = record.language !== "ru";
+      await editMessage(
+        chatId,
+        messageId,
+        [
+          "📄 <b>Режим «Без рерайта»</b>",
+          foreign
+            ? `Текст на языке «${escapeHtml(languageLabel(record.language))}»: режим «Без рерайта» переведёт его на русский точно по смыслу — стиль, тон, структура и все факты сохраняются. Оригинал останется в импорте, его можно сравнить с переводом по абзацам («📑 Сравнить с оригиналом»).`
+            : "Текст останется вашим: исправлю только орфографию, пунктуацию, пробелы, кавычки, тире и оформление; слова, стиль и длина не меняются. Всё остальное, что стоит поправить, окажется в списке «✍️ Предложения», решать вам.",
+          "Я добавлю заголовки, «Коротко», FAQ, источники и картинки и проверю факты. Важные факты без подтверждения блокируют публикацию; текст автоматически я не исправляю.",
+          "",
+          "⚠️ Публиковать можно только материал, на который у редакции есть права: ваш собственный текст или текст, который вам разрешили опубликовать. Нажимая кнопку ниже, вы это подтверждаете; дата подтверждения сохранится в импорте.",
+        ].join("\n"),
+        [
+          [{ text: "✅ Права есть, продолжить", callback_data: `impbok:${importId}` }],
+          [{ text: "⬅️ Назад", callback_data: `impbback:${importId}` }],
+        ],
+      );
+      return;
+    }
+    case "impbback": {
+      const record = await loadImport(importId);
+      await answerCallback(query.id);
+      if (record?.status !== "ready" || !record.sourceText) {
+        await editMessage(chatId, messageId, "Этот импорт уже передан в работу или закрыт.");
+        return;
+      }
+      const summary = importSummary(record);
+      await editMessage(chatId, messageId, summary.text, summary.keyboard);
+      return;
+    }
+    case "impbok": {
+      const record = await loadImport(importId);
+      if (record?.status !== "ready" || !record.sourceText || !record.language || record.sourceText.length > MAX_PREPARE_CHARS) {
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      // Same pattern as mode A: the draft is created first and attached by a conditional update.
+      const post = await createPost(importTopic(record.sourceText));
+      if (
+        !(await transitionImport(importId, ["ready"], {
+          status: "started",
+          mode: "prepare",
+          rights_confirmed_at: new Date().toISOString(),
+          post_id: post.id,
+        }))
+      ) {
+        await deletePost(post.id);
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      await answerCallback(query.id);
+      await editMessage(chatId, messageId, `📥 Материал передан в работу без рерайта: статья #${post.number}.`);
+      const result = await startJob(post.id, "prepare", { importId });
+      const blocked = limitMessage(result);
+      if (blocked) {
+        await updatePost(post.id, { status: "failed", last_error: result.ok ? null : result.reason });
+        await sendMessage(chatId, `${blocked}\nЧерновик #${post.number} сохранён: его можно запустить позже кнопкой «Написать заново».`);
+        return;
+      }
+      await sendMessage(
+        chatId,
+        `📄 Готовлю <b>#${post.number}</b> без рерайта: ${record.language === "ru" ? "проверяю орфографию" : "перевожу"}, добавляю структуру и проверяю факты.\nОбычно это занимает 3–6 минут. Пришлю карточку, когда будет готово.`,
+      );
       return;
     }
     case "imprw": {

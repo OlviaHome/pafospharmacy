@@ -19,6 +19,9 @@ import {
   ARTICLE_SCHEMA,
   MATERIAL_TRANSLATION_INSTRUCTIONS,
   MATERIAL_TRANSLATION_SCHEMA,
+  PREPARE_SCHEMA,
+  prepareInput,
+  prepareInstructions,
   REWRITE_SCHEMA,
   rewriteInput,
   rewriteInstructions,
@@ -30,11 +33,13 @@ import {
   type ArticleDraft,
   type ArticleImagePlan,
   type MaterialIssue,
+  type PrepareDraft,
   type RewriteDraft,
   type TranslationDraft,
 } from "./prompts";
 import { activeImages } from "./cards";
 import { languageLabel } from "./imports";
+import { assembleBody, checkParagraph, splitParagraphs, applySuggestion, type Suggestion } from "./prepare";
 import {
   claimJob,
   enqueueJob,
@@ -44,6 +49,7 @@ import {
   loadImport,
   loadPost,
   recordUsage,
+  setImportPrepared,
   setImportTranslation,
   saveTranslation,
   setTranslationStatus,
@@ -160,6 +166,7 @@ export async function runJob(jobId: number): Promise<void> {
   try {
     if (job.kind === "write") await runWrite(job, post);
     else if (job.kind === "rewrite") await runRewrite(job, post);
+    else if (job.kind === "prepare") await runPrepare(job, post);
     else if (job.kind === "translate") await runTranslate(job, post);
     else await runEdit(job, post);
     await finishJob(job.id, "done");
@@ -403,6 +410,140 @@ async function runRewrite(job: JobRecord, post: EditorialPost): Promise<void> {
     existingImages: [],
     finalPatch: { slug: slugChoice.slug },
     leadingWarnings: [...slugWarning(slugChoice), ...materialIssueNotes(result.data.material_issues)],
+  });
+}
+
+/** The most suggestions kept for one article. */
+const MAX_SUGGESTIONS = 20;
+
+/**
+ * /import, mode B: the editor's own text is published as it is. The model returns the author's
+ * paragraphs (spelling-corrected, or translated into Russian) and the structure around them;
+ * the server builds the article, so the structuring step cannot touch the author's words.
+ * A corrected Russian paragraph that differs by more than spelling goes back to the original and
+ * the model's version becomes a suggestion.
+ */
+async function runPrepare(job: JobRecord, post: EditorialPost): Promise<void> {
+  const importId = String((job.payload as JobPayload).importId ?? post.importInfo?.id ?? "");
+  const material = importId ? await loadImport(importId) : null;
+  if (!material?.sourceText) throw new Error("Импортированный материал не найден.");
+  if (!material.language) throw new Error("Язык оригинала не выбран: вернитесь к сводке импорта и выберите его.");
+  const foreign = material.language !== "ru";
+  const original = splitParagraphs(material.sourceText);
+  if (original.length === 0) throw new Error("В материале нет текста.");
+
+  const model = openAiModel();
+  const result = await callResponses<PrepareDraft>({
+    model,
+    instructions: prepareInstructions(new Date(), foreign, languageLabel(material.language)),
+    input: prepareInput({
+      paragraphs: original,
+      language: languageLabel(material.language),
+      origin: material.sourceLabel ?? "текст от редактора",
+      url: material.sourceUrl,
+    }),
+    schemaName: "blog_import_prepare",
+    schema: PREPARE_SCHEMA,
+    maxSearches: 4,
+    maxOutputTokens: 24_000,
+    reasoningEffort: "medium",
+    timeoutMs: WRITE_TIMEOUT_MS,
+  });
+  await recordUsage(job.id, model, result.usage, result.costUsd);
+
+  const draft = result.data;
+  if (!Array.isArray(draft.paragraphs) || draft.paragraphs.length !== original.length) {
+    throw new Error(
+      `Модель вернула ${Array.isArray(draft.paragraphs) ? draft.paragraphs.length : 0} абзацев вместо ${original.length}, поэтому текст автора не сохранён. Нажмите «Написать заново».`,
+    );
+  }
+
+  const notes: string[] = [];
+  const suggestions: Suggestion[] = [];
+  let paragraphs: string[];
+  if (foreign) {
+    paragraphs = draft.paragraphs.map((text) => text.trim());
+    await setImportPrepared(material.id, {
+      pairs: original.map((o, index) => ({ o, t: paragraphs[index] })),
+      text: paragraphs.join("\n\n"),
+    });
+  } else {
+    let reverted = 0;
+    paragraphs = original.map((source, index) => {
+      const corrected = (draft.paragraphs[index] ?? "").trim();
+      if (!corrected) return source;
+      const verdict = checkParagraph(source, corrected);
+      if (verdict.ok) return corrected;
+      reverted += 1;
+      const places = verdict.hunks
+        .slice(0, 3)
+        .map((hunk) => `было «${hunk.before.slice(0, 60)}» → стало «${hunk.after.slice(0, 60)}»`)
+        .join("; ");
+      suggestions.push({
+        id: "",
+        before: source,
+        after: corrected,
+        reason: `ИИ изменил больше, чем орфографию (абзац ${index + 1}): ${places}`,
+        status: "pending",
+      });
+      return source;
+    });
+    if (reverted > 0) {
+      notes.push(`В ${reverted} абзацах ИИ изменил больше, чем орфографию: оставлен текст автора, правки — в «✍️ Предложения».`);
+    }
+  }
+
+  const headings = (draft.headings ?? []).filter(
+    (heading) => Number.isInteger(heading.before) && heading.before >= 0 && heading.before < paragraphs.length && heading.text.trim(),
+  );
+  const slots = new Set<string>();
+  const inlineImages = (draft.images ?? []).flatMap((image) => {
+    const slot = image.slot.trim().toLowerCase();
+    if (slot === "cover" || slots.has(slot)) return [];
+    if (!Number.isInteger(image.after_paragraph) || image.after_paragraph < 0 || image.after_paragraph >= paragraphs.length) return [];
+    slots.add(slot);
+    return [{ slot, after: image.after_paragraph }];
+  });
+  const body = assembleBody({ paragraphs, headings, short_points: draft.short_points ?? [], inline_images: inlineImages });
+
+  // The model's own suggestions: only those that point at one exact place of the text.
+  let dropped = 0;
+  for (const candidate of draft.suggestions ?? []) {
+    if (suggestions.length >= MAX_SUGGESTIONS) break;
+    const before = (candidate.before ?? "").trim();
+    const after = (candidate.after ?? "").trim();
+    if (!before || before === after || applySuggestion(body, { before, after }) === null) {
+      dropped += 1;
+      continue;
+    }
+    suggestions.push({ id: "", before, after, reason: (candidate.reason ?? "").trim().slice(0, 300), status: "pending" });
+  }
+  suggestions.forEach((suggestion, index) => {
+    suggestion.id = `s${index + 1}`;
+  });
+  if (dropped > 0) notes.push(`Предложений ИИ отброшено: ${dropped} (фрагмент не найден в тексте ровно один раз).`);
+
+  const article = normalizeArticle({
+    slug: draft.slug,
+    title: draft.title,
+    description: draft.description,
+    body_md: body,
+    faq: draft.faq,
+    sources: draft.sources,
+    images: draft.images.map((image) => ({ slot: image.slot, kind: image.kind, search_query: image.search_query, alt: image.alt, note: image.note })),
+    claims: draft.claims,
+    editor_notes: draft.editor_notes,
+  });
+  const slugChoice = await uniqueSlug(article.slug || article.title, post.id);
+  await finishArticle(post, article, {
+    revision: "import: prepare",
+    citedUrls: result.citedUrls,
+    existingImages: [],
+    finalPatch: { slug: slugChoice.slug },
+    leadingWarnings: [...slugWarning(slugChoice), ...notes, ...materialIssueNotes(draft.material_issues)],
+    afterSave: async () => {
+      await updatePost(post.id, { suggestions });
+    },
   });
 }
 
