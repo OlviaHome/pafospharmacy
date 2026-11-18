@@ -29,12 +29,16 @@ export type PartKind = "text" | "url" | "forward" | "file";
 
 const LANGUAGES: { code: string; label: string; script: RegExp }[] = [
   { code: "ru", label: "русский", script: /\p{Script=Cyrillic}/u },
+  // Not a script of its own: told apart from Russian below by letters Russian does not have.
   { code: "el", label: "греческий", script: /\p{Script=Greek}/u },
   { code: "ar", label: "арабский", script: /\p{Script=Arabic}/u },
   { code: "en", label: "английский или другой на латинице", script: /\p{Script=Latin}/u },
 ];
 
 /** The material's language by its alphabet: Russian, Greek, Arabic or Latin script. */
+/** Letters of Ukrainian (і, ї, є, ґ) and Belarusian (ў) that Russian does not use. */
+const NON_RUSSIAN_CYRILLIC = /[іїєґў]/giu;
+
 export function detectLanguage(text: string): { code: string; label: string } {
   const letters = [...text].filter((char) => /\p{L}/u.test(char));
   if (letters.length === 0) return { code: "unknown", label: "не определён" };
@@ -43,7 +47,16 @@ export function detectLanguage(text: string): { code: string; label: string } {
     const share = letters.filter((char) => language.script.test(char)).length / letters.length;
     if (share > best.share) best = { ...language, share };
   }
-  return best.share >= 0.5 ? { code: best.code, label: best.label } : { code: "mixed", label: "смешанный" };
+  if (best.share < 0.5) return { code: "mixed", label: "смешанный" };
+  if (best.code === "ru") {
+    // Cyrillic is not always Russian: Ukrainian (and Belarusian) text is translated for the
+    // independence check like any other foreign material. A few such letters in a Russian text
+    // (a name, a quote) do not change its language.
+    const cyrillic = letters.filter((char) => /\p{Script=Cyrillic}/u.test(char)).length;
+    const own = (text.match(NON_RUSSIAN_CYRILLIC) ?? []).length;
+    if (own >= 3 && own / cyrillic >= 0.02) return { code: "uk", label: "украинский или другой на кириллице" };
+  }
+  return { code: best.code, label: best.label };
 }
 
 /** A message that is nothing but one https link: the material is behind it. */

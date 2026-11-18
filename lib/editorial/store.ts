@@ -729,13 +729,15 @@ export async function expireImports(chatId: number, now = new Date()): Promise<v
 }
 
 /** The chat's unfinished import, if any: at most one is open at a time. */
-export async function openImport(chatId: number): Promise<ImportRecord | null> {
+export async function openImport(chatId: number, now = new Date()): Promise<ImportRecord | null> {
+  const cutoff = new Date(now.getTime() - IMPORT_TTL_MS).toISOString();
   const data = check(
     await adminClient()
       .from("blog_imports")
       .select(IMPORT_COLUMNS)
       .eq("chat_id", chatId)
       .in("status", ["collecting", "ready"])
+      .gte("updated_at", cutoff)
       .order("created_at", { ascending: false })
       .limit(1),
     "open import",

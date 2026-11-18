@@ -177,7 +177,11 @@ vi.mock("@/lib/editorial/store", () => ({
     const row = imports.get(id);
     return row ? importRecord(row) : null;
   }),
-  expireImports: vi.fn(async () => undefined),
+  expireImports: vi.fn(async (chatId: number) => {
+    for (const [id, row] of imports) {
+      if (row.chatId === chatId && row.status !== "started" && row.updatedAt < Date.now() - 24 * 60 * 60 * 1000) imports.delete(id);
+    }
+  }),
   openImport: vi.fn(async (chatId: number) => {
     await tick();
     const row = [...imports.values()].reverse().find((r) => r.chatId === chatId && (r.status === "collecting" || r.status === "ready"));
@@ -202,6 +206,7 @@ vi.mock("@/lib/editorial/store", () => ({
       row.parts.push({ messageId, kind: part.kind, body: part.body, sourceUrl: part.sourceUrl ?? null, sourceLabel: part.sourceLabel ?? null });
     }
     row.lastPartAt = new Date().toISOString();
+    row.updatedAt = Date.now();
     return { ok: true, parts: row.parts.length, chars: row.parts.reduce((sum, p) => sum + p.body.length, 0) };
   }),
   importParts: vi.fn(async (id: string) => {
@@ -629,6 +634,23 @@ describe("/import: receiving material", () => {
     await handleUpdate(textUpdate("Ещё кусок через десять минут."));
     expect(onlyImport().parts.map((p) => p.body)).toEqual(["Часть материала.", "Ещё кусок через десять минут."]);
     expect(texts().some((t) => t.startsWith("Написать статью на тему"))).toBe(false);
+  });
+
+  it("an import older than 24 hours does not take messages, even without a new /import", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Старый материал.", lastImportMessage()));
+    onlyImport().updatedAt = Date.now() - 25 * 60 * 60 * 1000;
+    await handleUpdate(textUpdate("Как найти дежурную аптеку"));
+    expect(texts().at(-1)).toBe("Написать статью на тему «Как найти дежурную аптеку»?");
+    expect(imports.size).toBe(0);
+  });
+
+  it("an import that is still fresh keeps taking messages", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Материал.", lastImportMessage()));
+    onlyImport().updatedAt = Date.now() - 23 * 60 * 60 * 1000;
+    await handleUpdate(textUpdate("Продолжение материала."));
+    expect(onlyImport().parts).toHaveLength(2);
   });
 
   it("while collecting, commands and replies to other bot messages work as before", async () => {

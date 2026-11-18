@@ -355,8 +355,9 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
   // While an /import is collecting, every text, file or forwarded post goes into it (Telegram
   // splits a long paste into several messages, and only the first is a reply). Commands and replies
   // to the bot's other messages are handled above as always; after «Это весь текст» or «Отменить»
-  // messages are topics again.
+  // messages are topics again. An import older than a day is dropped first and never takes a message.
   if (message.forward_origin || message.text || message.document) {
+    await expireImports(chatId);
     const open = await openImport(chatId);
     if (open?.status === "collecting") {
       await acceptImportPart(message, open.id);
