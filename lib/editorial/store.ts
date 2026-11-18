@@ -9,6 +9,7 @@ import type { Locale } from "@/lib/i18n/types";
 
 import type { SourceCheck } from "./checks";
 import { asFactEntries, type FactEntry } from "./facts";
+import { IMPORT_TTL_MS, MAX_IMPORT_CHARS, type ImportInfo, type PartKind, type StoredPart } from "./imports";
 import { supabaseAdminConfig } from "./config";
 import { cyprusDayStart, cyprusMonthStart, STALE_JOB_MS, type JobKind, type UsageSnapshot } from "./limits";
 import type { UsageNumbers } from "./pricing";
@@ -79,6 +80,8 @@ export interface EditorialPost {
   updatedAt: string;
   translations: TranslationRecord[];
   images: ImageRecord[];
+  /** The /import material the draft was written from; null for ordinary drafts. */
+  importInfo: ImportInfo | null;
 }
 
 const POST_COLUMNS = `
@@ -86,12 +89,28 @@ const POST_COLUMNS = `
   published_at, created_at, updated_at,
   translations:blog_post_translations(locale, status, title, description, body_md, faq, sources, published_at, updated_at),
   images:blog_images(id, slot, url, width, height, alt, placeholder_note, source, credit_name, credit_url, source_page_url,
-    license_name, license_url, provider_photo_id, tried_photo_ids, search_query, storage_path)
+    license_name, license_url, provider_photo_id, tried_photo_ids, search_query, storage_path),
+  import:blog_imports(id, mode, language, source_url, source_label, source_text, source_text_ru)
 `;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+function mapImport(raw: any): ImportInfo | null {
+  const row = Array.isArray(raw) ? raw[0] : raw;
+  if (!row) return null;
+  return {
+    id: row.id,
+    mode: row.mode === "rewrite" ? "rewrite" : null,
+    language: row.language ?? null,
+    sourceUrl: row.source_url ?? null,
+    sourceLabel: row.source_label ?? null,
+    sourceText: row.source_text ?? null,
+    sourceTextRu: row.source_text_ru ?? null,
+  };
+}
+
 function mapPost(row: any): EditorialPost {
   return {
+    importInfo: mapImport(row.import),
     id: row.id,
     number: Number(row.number),
     slug: row.slug,
@@ -553,7 +572,7 @@ export async function usageSnapshot(now = new Date()): Promise<UsageSnapshot> {
     db
       .from("blog_agent_jobs")
       .select("id", { count: "exact", head: true })
-      .eq("kind", "write")
+      .in("kind", ["write", "rewrite"])
       .gte("created_at", dayStart),
     db.from("blog_ai_usage").select("cost_usd").gte("created_at", cyprusMonthStart(now)),
   ]);
@@ -587,7 +606,7 @@ export async function markUpdateProcessed(updateId: number): Promise<boolean> {
   throw new Error(`mark update: ${error.message}`);
 }
 
-export type MessagePurpose = "card" | "edit_prompt" | "image_prompt" | "topic_confirm" | "images";
+export type MessagePurpose = "card" | "edit_prompt" | "image_prompt" | "topic_confirm" | "images" | "import";
 
 export async function rememberMessage(
   chatId: number,
@@ -647,4 +666,183 @@ export async function findMessage(
     "find message",
   );
   return data ? { postId: data.post_id, purpose: data.purpose, slot: data.slot, payload: data.payload } : null;
+}
+
+/* ---------- /import ---------- */
+
+export interface ImportRecord {
+  id: string;
+  chatId: number;
+  status: "collecting" | "ready" | "started" | "cancelled";
+  postId: string | null;
+  sourceText: string | null;
+  language: string | null;
+  sourceUrl: string | null;
+  sourceLabel: string | null;
+  sourceTextRu: string | null;
+  createdAt: string;
+  lastPartAt: string | null;
+  parts: number;
+  chars: number;
+}
+
+const IMPORT_COLUMNS = "id, chat_id, status, post_id, source_text, language, source_url, source_label, source_text_ru, created_at, last_part_at, parts:blog_import_parts(message_id, body)";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function mapImportRecord(row: any): ImportRecord {
+  const parts: { body: string }[] = row.parts ?? [];
+  return {
+    id: row.id,
+    chatId: Number(row.chat_id),
+    status: row.status,
+    postId: row.post_id,
+    sourceText: row.source_text,
+    language: row.language,
+    sourceUrl: row.source_url,
+    sourceLabel: row.source_label,
+    sourceTextRu: row.source_text_ru,
+    createdAt: row.created_at,
+    lastPartAt: row.last_part_at,
+    parts: parts.length,
+    chars: parts.reduce((sum, part) => sum + part.body.length, 0),
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export async function loadImport(id: string): Promise<ImportRecord | null> {
+  const data = check(await adminClient().from("blog_imports").select(IMPORT_COLUMNS).eq("id", id).maybeSingle(), "load import");
+  return data ? mapImportRecord(data) : null;
+}
+
+/** Drops this chat's unfinished imports older than a day (their parts go with them). */
+export async function expireImports(chatId: number, now = new Date()): Promise<void> {
+  const cutoff = new Date(now.getTime() - IMPORT_TTL_MS).toISOString();
+  check(
+    await adminClient()
+      .from("blog_imports")
+      .delete()
+      .eq("chat_id", chatId)
+      .in("status", ["collecting", "ready", "cancelled"])
+      .lt("updated_at", cutoff),
+    "expire imports",
+  );
+}
+
+/** The chat's unfinished import, if any: at most one is open at a time. */
+export async function openImport(chatId: number): Promise<ImportRecord | null> {
+  const data = check(
+    await adminClient()
+      .from("blog_imports")
+      .select(IMPORT_COLUMNS)
+      .eq("chat_id", chatId)
+      .in("status", ["collecting", "ready"])
+      .order("created_at", { ascending: false })
+      .limit(1),
+    "open import",
+  );
+  return data && data.length > 0 ? mapImportRecord(data[0]) : null;
+}
+
+export async function createImport(chatId: number): Promise<string> {
+  const data = check(await adminClient().from("blog_imports").insert({ chat_id: chatId }).select("id").single(), "create import");
+  if (!data) throw new Error("create import: no row returned");
+  return data.id as string;
+}
+
+export type AddPartResult = { ok: true; parts: number; chars: number } | { ok: false; reason: "closed" | "too_long" };
+
+/**
+ * Adds one part. A message redelivered by Telegram is stored once; nothing is added once the
+ * import is no longer collecting or would grow past MAX_IMPORT_CHARS.
+ */
+export async function addImportPart(
+  importId: string,
+  messageId: number,
+  part: { kind: PartKind; body: string; sourceUrl?: string | null; sourceLabel?: string | null },
+): Promise<AddPartResult> {
+  const current = await loadImport(importId);
+  if (!current || current.status !== "collecting") return { ok: false, reason: "closed" };
+  if (current.chars + part.body.length > MAX_IMPORT_CHARS) return { ok: false, reason: "too_long" };
+  const db = adminClient();
+  check(
+    await db.from("blog_import_parts").upsert(
+      {
+        import_id: importId,
+        message_id: messageId,
+        kind: part.kind,
+        body: part.body,
+        source_url: part.sourceUrl ?? null,
+        source_label: part.sourceLabel ?? null,
+      },
+      { onConflict: "import_id,message_id", ignoreDuplicates: true },
+    ),
+    "add import part",
+  );
+  const now = new Date().toISOString();
+  check(await db.from("blog_imports").update({ last_part_at: now, updated_at: now }).eq("id", importId), "touch import");
+  const after = await loadImport(importId);
+  return { ok: true, parts: after?.parts ?? 0, chars: after?.chars ?? 0 };
+}
+
+export async function importParts(importId: string): Promise<StoredPart[]> {
+  const data = check(
+    await adminClient()
+      .from("blog_import_parts")
+      .select("message_id, kind, body, source_url, source_label")
+      .eq("import_id", importId)
+      .order("message_id", { ascending: true }),
+    "import parts",
+  );
+  return (data ?? []).map((row: { message_id: number; kind: PartKind; body: string; source_url: string | null; source_label: string | null }) => ({
+    messageId: Number(row.message_id),
+    kind: row.kind,
+    body: row.body,
+    sourceUrl: row.source_url,
+    sourceLabel: row.source_label,
+  }));
+}
+
+/**
+ * Moves an import from one status to another only if it is still in `from` (one conditional
+ * UPDATE, so of two simultaneous taps exactly one wins). Returns false otherwise.
+ */
+export async function transitionImport(
+  id: string,
+  from: ImportRecord["status"][],
+  patch: Partial<{
+    status: ImportRecord["status"];
+    mode: "rewrite";
+    post_id: string;
+    source_text: string;
+    language: string;
+    source_url: string | null;
+    source_label: string;
+  }>,
+): Promise<boolean> {
+  const data = check(
+    await adminClient()
+      .from("blog_imports")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .in("status", from)
+      .select("id"),
+    "transition import",
+  );
+  return (data ?? []).length === 1;
+}
+
+/** Cancels an import that has not been turned into a draft yet; its parts are deleted with it. */
+export async function deleteImport(id: string): Promise<boolean> {
+  const data = check(
+    await adminClient().from("blog_imports").delete().eq("id", id).in("status", ["collecting", "ready", "cancelled"]).select("id"),
+    "delete import",
+  );
+  return (data ?? []).length === 1;
+}
+
+export async function setImportTranslation(id: string, textRu: string): Promise<void> {
+  check(
+    await adminClient().from("blog_imports").update({ source_text_ru: textRu.slice(0, 80_000), updated_at: new Date().toISOString() }).eq("id", id),
+    "import translation",
+  );
 }

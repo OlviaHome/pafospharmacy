@@ -8,12 +8,24 @@ import { createHash } from "node:crypto";
 
 export type Importance = "critical" | "normal";
 
+/**
+ * What kind of statement it is (imported drafts only): something that happened or is in force,
+ * an announced plan, a forecast, or a report no primary source confirms yet.
+ */
+export type ClaimNature = "fact" | "plan" | "forecast" | "unconfirmed";
+
 /** A key statement of the article as the model reported it. */
 export interface Claim {
   claim: string;
   importance: Importance;
   source_url: string;
   quote: string;
+  /** Imported drafts only (see prompts.ts REWRITE_SCHEMA). */
+  nature?: ClaimNature;
+  /** Imported drafts only: why a primary source contradicts the statement or the material. */
+  conflict?: string;
+  /** Imported drafts only: proposed Russian wording that would resolve the conflict. */
+  suggested_fix?: string;
 }
 
 export type FactState = "quote_found" | "quote_not_found" | "source_unavailable" | "no_text" | "no_quote";
@@ -21,6 +33,8 @@ export type FactState = "quote_found" | "quote_not_found" | "source_unavailable"
 export interface ManualConfirmation {
   at: string;
   sourceUrl: string;
+  /** The editor's justification; required to confirm a statement that contradicts its source. */
+  reason?: string;
 }
 
 /**
@@ -40,6 +54,16 @@ export interface FactEntry {
   detail: string | null;
   checkedAt: string | null;
   manual: ManualConfirmation | null;
+  /** Imported drafts only, carried over from the claim. */
+  nature?: ClaimNature;
+  conflict?: string;
+  suggestedFix?: string;
+}
+
+const NATURES: ReadonlySet<string> = new Set(["fact", "plan", "forecast", "unconfirmed"]);
+
+function optionalText(value: unknown, max: number): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
 }
 
 /** Stable id: changes whenever the statement, its quote or its source changes, which resets a manual confirmation. */
@@ -83,6 +107,11 @@ export function cleanClaims(raw: unknown): Claim[] {
       source_url: typeof record.source_url === "string" ? record.source_url.trim() : "",
       quote: typeof record.quote === "string" ? record.quote.trim().slice(0, 400) : "",
     };
+    if (typeof record.nature === "string" && NATURES.has(record.nature)) entry.nature = record.nature as ClaimNature;
+    const conflict = optionalText(record.conflict, 600);
+    if (conflict) entry.conflict = conflict;
+    const fix = optionalText(record.suggested_fix, 600);
+    if (fix) entry.suggested_fix = fix;
     const key = factId("claim", entry.claim, entry.quote, entry.source_url);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -125,6 +154,9 @@ export function asFactEntries(raw: unknown): FactEntry[] {
           entry.manual && typeof entry.manual.at === "string" && typeof entry.manual.sourceUrl === "string"
             ? entry.manual
             : null,
+        ...(typeof entry.nature === "string" && NATURES.has(entry.nature) ? { nature: entry.nature } : {}),
+        ...(optionalText(entry.conflict, 600) ? { conflict: optionalText(entry.conflict, 600) } : {}),
+        ...(optionalText(entry.suggestedFix, 600) ? { suggestedFix: optionalText(entry.suggestedFix, 600) } : {}),
       },
     ];
   });
@@ -189,15 +221,48 @@ export interface FactItem {
   manual: ManualConfirmation | null;
   /** True when this item stops publication. */
   blocking: boolean;
+  /** Imported drafts only. */
+  nature?: ClaimNature;
+  /** Why the item needs the editor beyond its quote status (imported drafts only). */
+  note?: string;
+  conflict?: string;
+  suggestedFix?: string;
+}
+
+export interface FactItemOptions {
+  /**
+   * Text checked for figures without a claim. Default: the Russian body. Imported drafts pass the
+   * body plus the FAQ, so figures in «Коротко», headings and FAQ answers all need a claim.
+   */
+  coverageText?: string;
+  /**
+   * Sources that are not primary sources (the imported material itself): a critical claim that
+   * cites one needs the editor's confirmation even when its quote is found there.
+   */
+  materialUrls?: string[];
+}
+
+function sameUrl(a: string, b: string): boolean {
+  const clean = (url: string) => url.trim().replace(/#.*$/, "").replace(/\/+$/, "").toLowerCase();
+  return clean(a) === clean(b);
 }
 
 /** Every fact item of the article with its status, computed from stored entries and the current text. */
-export function factItems(entries: FactEntry[], russianBody: string): FactItem[] {
+export function factItems(entries: FactEntry[], russianBody: string, options: FactItemOptions = {}): FactItem[] {
   const claimEntries = entries.filter((entry) => entry.kind === "claim");
   const manualById = new Map(entries.filter((entry) => entry.manual).map((entry) => [entry.id, entry.manual!]));
   const items: FactItem[] = claimEntries.map((entry) => {
-    const manual = entry.manual;
+    // A contradicted statement counts as confirmed only with the editor's written reason.
+    const manual = entry.conflict && !entry.manual?.reason ? null : entry.manual;
     const status = manual ? "manual" : (entry.state ?? "no_quote");
+    const fromMaterial = Boolean(entry.sourceUrl && options.materialUrls?.some((url) => sameUrl(url, entry.sourceUrl!)));
+    const notes = [
+      entry.conflict ? `противоречит источнику: ${entry.conflict}` : "",
+      entry.nature === "unconfirmed" ? "не подтверждено первоисточником" : "",
+      fromMaterial ? "источник — сам импортированный материал, а не первоисточник" : "",
+    ].filter(Boolean);
+    // Only the editor can clear these: a quote found in the material or in a report proves nothing.
+    const needsEditor = Boolean(entry.conflict) || entry.nature === "unconfirmed" || fromMaterial;
     return {
       id: entry.id,
       kind: "claim",
@@ -208,11 +273,17 @@ export function factItems(entries: FactEntry[], russianBody: string): FactItem[]
       status,
       detail: entry.detail,
       manual,
-      blocking: entry.importance === "critical" && status !== "quote_found" && status !== "manual",
+      blocking:
+        status !== "manual" &&
+        (needsEditor ? entry.importance === "critical" || Boolean(entry.conflict) : entry.importance === "critical" && status !== "quote_found"),
+      ...(entry.nature ? { nature: entry.nature } : {}),
+      ...(notes.length ? { note: notes.join("; ") } : {}),
+      ...(entry.conflict ? { conflict: entry.conflict } : {}),
+      ...(entry.suggestedFix ? { suggestedFix: entry.suggestedFix } : {}),
     };
   });
 
-  for (const sentence of uncoveredSentences(russianBody, claimsFromEntries(claimEntries))) {
+  for (const sentence of uncoveredSentences(options.coverageText ?? russianBody, claimsFromEntries(claimEntries))) {
     const id = factId("sentence", sentence);
     const manual = manualById.get(id) ?? null;
     items.push({
@@ -249,8 +320,14 @@ export function factItems(entries: FactEntry[], russianBody: string): FactItem[]
 }
 
 /** Records the editor's manual confirmation, with date and source, for one current item. */
-export function confirmFact(entries: FactEntry[], item: FactItem, sourceUrl: string, at = new Date()): FactEntry[] {
-  const manual = { at: at.toISOString(), sourceUrl };
+export function confirmFact(
+  entries: FactEntry[],
+  item: FactItem,
+  sourceUrl: string,
+  at = new Date(),
+  reason?: string,
+): FactEntry[] {
+  const manual: ManualConfirmation = { at: at.toISOString(), sourceUrl, ...(reason ? { reason: reason.slice(0, 1000) } : {}) };
   if (item.kind === "claim") {
     return entries.map((entry) => (entry.id === item.id ? { ...entry, manual } : entry));
   }
@@ -272,6 +349,17 @@ export function confirmFact(entries: FactEntry[], item: FactItem, sourceUrl: str
   ];
 }
 
+function importFields(claim: Claim, previous: FactEntry | undefined): Pick<FactEntry, "nature" | "conflict" | "suggestedFix"> {
+  const nature = claim.nature ?? previous?.nature;
+  const conflict = claim.conflict ?? previous?.conflict;
+  const suggestedFix = claim.suggested_fix ?? previous?.suggestedFix;
+  return {
+    ...(nature ? { nature } : {}),
+    ...(conflict ? { conflict } : {}),
+    ...(suggestedFix ? { suggestedFix } : {}),
+  };
+}
+
 /**
  * Builds claim entries from fresh source texts. A manual confirmation survives only for a claim
  * whose statement, quote and source are unchanged (same id). Editor confirmations of uncovered
@@ -284,6 +372,8 @@ export function evaluateClaims(
   now = new Date(),
 ): FactEntry[] {
   const previousManual = new Map(previous.filter((entry) => entry.manual).map((entry) => [entry.id, entry.manual!]));
+  // An AI edit returns claims without the import fields; an unchanged claim (same id) keeps them.
+  const previousById = new Map(previous.filter((entry) => entry.kind === "claim").map((entry) => [entry.id, entry]));
   const claimEntries = claims.map((claim): FactEntry => {
     const id = factId("claim", claim.claim, claim.quote, claim.source_url);
     let state: FactState;
@@ -315,6 +405,7 @@ export function evaluateClaims(
       detail,
       checkedAt: now.toISOString(),
       manual: previousManual.get(id) ?? null,
+      ...importFields(claim, previousById.get(id)),
     };
   });
   const keptConfirmations = previous.filter((entry) => entry.kind !== "claim" && entry.manual);

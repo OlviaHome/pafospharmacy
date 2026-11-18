@@ -41,6 +41,11 @@ export function openAiModel(): string {
   return process.env.OPENAI_MODEL?.trim() || "gpt-5.6-terra";
 }
 
+/** Cheap model for service tasks that need no judgement (the working translation of imported material). */
+export function utilityModel(): string {
+  return process.env.OPENAI_UTILITY_MODEL?.trim() || "gpt-5.6-luna";
+}
+
 export function siteOrigin(): string {
   return (process.env.SITE_URL?.trim() || PRODUCTION_URL).replace(/\/$/, "");
 }

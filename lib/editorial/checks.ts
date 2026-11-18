@@ -2,7 +2,7 @@ import { SEO_TITLE_MAX } from "@/lib/blog/content";
 import type { BlogFaqItem, BlogSource } from "@/lib/blog/types";
 import type { Locale } from "@/lib/i18n/types";
 
-import { factItems, type FactEntry, type FactItem } from "./facts";
+import { factItems, type FactEntry, type FactItem, type FactItemOptions } from "./facts";
 import { markerSlots, wordCount } from "./normalize";
 import { sourceKind } from "./prompts";
 
@@ -85,6 +85,8 @@ export function prePublishChecks(
   locales: Locale[],
   sourceChecks: SourceCheck[],
   factEntries: FactEntry[] = [],
+  /** Imported drafts only: wider fact coverage and their own blocking checks (see imports.ts). */
+  imported?: { facts: FactItemOptions; extra: CheckResult[] },
 ): CheckResult[] {
   const results: CheckResult[] = [];
   const russian = translations.find((t) => t.locale === "ru");
@@ -205,7 +207,10 @@ export function prePublishChecks(
           : `Ссылки: ${problems.join("; ")}`,
   });
 
-  if (russian && locales.includes("ru")) results.push(...factResults(factItems(factEntries, russian.bodyMd)));
+  if (russian && locales.includes("ru")) {
+    results.push(...factResults(factItems(factEntries, russian.bodyMd, imported?.facts)));
+    if (imported) results.push(...imported.extra);
+  }
 
   return results;
 }

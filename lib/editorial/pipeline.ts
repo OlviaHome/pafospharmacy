@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Locale } from "@/lib/i18n/types";
 
-import { editorialLimits, isProductionRuntime, openAiModel, siteOrigin, telegramConfig } from "./config";
+import { editorialLimits, isProductionRuntime, openAiModel, siteOrigin, telegramConfig, utilityModel } from "./config";
 import type { SourceCheck } from "./checks";
 import { materializeStock, removeStoredImage, searchStock } from "./images";
 import { claimsFromEntries } from "./facts";
@@ -17,6 +17,11 @@ import { callResponses, OpenAiError } from "./openai";
 import { estimateCostUsd, reservedCostUsd } from "./pricing";
 import {
   ARTICLE_SCHEMA,
+  MATERIAL_TRANSLATION_INSTRUCTIONS,
+  MATERIAL_TRANSLATION_SCHEMA,
+  REWRITE_SCHEMA,
+  rewriteInput,
+  rewriteInstructions,
   editInstructions,
   sourceKind,
   TRANSLATION_SCHEMA,
@@ -24,6 +29,8 @@ import {
   writeInstructions,
   type ArticleDraft,
   type ArticleImagePlan,
+  type MaterialIssue,
+  type RewriteDraft,
   type TranslationDraft,
 } from "./prompts";
 import { activeImages } from "./cards";
@@ -33,8 +40,10 @@ import {
   failStaleJobs,
   finishJob,
   firstActiveJobId,
+  loadImport,
   loadPost,
   recordUsage,
+  setImportTranslation,
   saveTranslation,
   setTranslationStatus,
   updatePost,
@@ -54,6 +63,8 @@ export interface JobPayload {
   locales?: Locale[];
   instruction?: string;
   batchId?: string;
+  /** "rewrite" jobs: the /import material to write from. */
+  importId?: string;
   /** What to send the editor when the job chain finishes. */
   notify?: "card" | "translations";
 }
@@ -147,6 +158,7 @@ export async function runJob(jobId: number): Promise<void> {
   }
   try {
     if (job.kind === "write") await runWrite(job, post);
+    else if (job.kind === "rewrite") await runRewrite(job, post);
     else if (job.kind === "translate") await runTranslate(job, post);
     else await runEdit(job, post);
     await finishJob(job.id, "done");
@@ -263,6 +275,74 @@ async function runWrite(job: JobRecord, post: EditorialPost): Promise<void> {
     existingImages: [],
     finalPatch: { slug: slugChoice.slug },
     leadingWarnings: slugWarning(slugChoice),
+  });
+}
+
+/** Notes for the editor about statements of the imported material that sources contradict or do not confirm. */
+function materialIssueNotes(issues: MaterialIssue[] | undefined): string[] {
+  return (issues ?? []).slice(0, 8).map((issue) =>
+    [
+      `Исходный материал: «${issue.fragment.slice(0, 200)}» — ${issue.problem}`,
+      issue.source_url ? ` Источник: ${issue.source_url}.` : "",
+      issue.suggested_fix ? ` Верно: ${issue.suggested_fix}` : "",
+    ].join(""),
+  );
+}
+
+/**
+ * /import, mode A: an independent article from the editor's material. The material goes to the
+ * model only as marked data; a non-Russian material is first given a working Russian translation
+ * (cheap model), used only by the independence check.
+ */
+async function runRewrite(job: JobRecord, post: EditorialPost): Promise<void> {
+  const importId = String((job.payload as JobPayload).importId ?? post.importInfo?.id ?? "");
+  const material = importId ? await loadImport(importId) : null;
+  if (!material?.sourceText) throw new Error("Импортированный материал не найден.");
+
+  if (material.language !== "ru" && !material.sourceTextRu) {
+    const model = utilityModel();
+    const translated = await callResponses<{ text_ru: string }>({
+      model,
+      instructions: MATERIAL_TRANSLATION_INSTRUCTIONS,
+      input: JSON.stringify({ text: material.sourceText.slice(0, 20_000) }),
+      schemaName: "material_translation",
+      schema: MATERIAL_TRANSLATION_SCHEMA,
+      maxSearches: 0,
+      maxOutputTokens: 16_000,
+      reasoningEffort: "low",
+      timeoutMs: TRANSLATE_TIMEOUT_MS,
+    });
+    await recordUsage(job.id, model, translated.usage, translated.costUsd);
+    if (translated.data.text_ru.trim()) await setImportTranslation(material.id, translated.data.text_ru);
+  }
+
+  const model = openAiModel();
+  const result = await callResponses<RewriteDraft>({
+    model,
+    instructions: rewriteInstructions(new Date()),
+    input: rewriteInput({
+      text: material.sourceText,
+      language: material.language,
+      origin: material.sourceLabel ?? "текст от редактора",
+      url: material.sourceUrl,
+    }),
+    schemaName: "blog_import_article",
+    schema: REWRITE_SCHEMA,
+    maxSearches: editorialLimits().maxSearchesPerArticle,
+    maxOutputTokens: 24_000,
+    reasoningEffort: "medium",
+    timeoutMs: WRITE_TIMEOUT_MS,
+  });
+  await recordUsage(job.id, model, result.usage, result.costUsd);
+
+  const article = normalizeArticle(result.data);
+  const slugChoice = await uniqueSlug(article.slug || article.title, post.id);
+  await finishArticle(post, article, {
+    revision: "import: rewrite",
+    citedUrls: result.citedUrls,
+    existingImages: [],
+    finalPatch: { slug: slugChoice.slug },
+    leadingWarnings: [...slugWarning(slugChoice), ...materialIssueNotes(result.data.material_issues)],
   });
 }
 
