@@ -40,4 +40,27 @@ describe("facts menu", () => {
     expect(menu.text).not.toContain("Регистрация у личного врача бесплатна");
     expect(menu.keyboard[0].map((button) => button.text)).toEqual(["✅ 1"]);
   });
+
+  it("shows only as many facts as fit in one Telegram message, each with its own button, never a cut one", () => {
+    const long = "очень длинное утверждение ".repeat(12);
+    const entries = evaluateClaims(
+      Array.from({ length: 8 }, (_, i) => ({
+        claim: `${i + 1}. ${long}`,
+        importance: "critical" as const,
+        source_url: `${GOV}/page-${i}-${"x".repeat(80)}`,
+        quote: "q".repeat(190),
+      })),
+      new Map(Array.from({ length: 8 }, (_, i) => [`${GOV}/page-${i}-${"x".repeat(80)}`, { ok: false as const, state: "source_unavailable" as const, detail: "сайт не пускает автоматическую проверку (HTTP 403) ".repeat(3) }])),
+      [],
+    );
+    const menu = renderFactsMenu(post(entries));
+    expect(menu.text.length).toBeLessThan(4000);
+    const buttons = menu.keyboard.flat().filter((button) => button.callback_data?.startsWith("fok:"));
+    expect(buttons.length).toBeGreaterThanOrEqual(1);
+    expect(buttons.length).toBeLessThan(8);
+    // Every button belongs to a fact that is actually on the screen.
+    for (let n = 1; n <= buttons.length; n += 1) expect(menu.text).toContain(`<b>${n}.</b>`);
+    expect(menu.text).not.toContain(`<b>${buttons.length + 1}.</b>`);
+    expect(menu.text).toContain("…и ещё");
+  });
 });

@@ -348,7 +348,6 @@ export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: 
     (item) => item.blocking || (item.importance === "normal" && item.status !== "quote_found" && item.status !== "manual"),
   );
   open.sort((a, b) => Number(b.blocking) - Number(a.blocking));
-  const shown = open.slice(0, 8);
   const found = items.filter((item) => item.status === "quote_found").length;
   const manual = items.filter((item) => item.status === "manual").length;
   const byHand = open.filter((item) => NEEDS_MANUAL_CHECK.has(item.status)).length;
@@ -358,17 +357,34 @@ export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: 
     "«Цитата найдена» значит только, что этот текст есть в источнике, а не что вывод статьи доказан, — смысл проверяете вы.",
     "",
   ];
-  shown.forEach((item, index) => {
+  const blockOf = (item: FactItem, index: number): string[] => {
+    const out: string[] = [];
     const mark = item.blocking ? "🔴" : "⚠️";
     const status = `${FACT_STATUS[item.status]}${item.detail ? `: ${escapeHtml(item.detail)}` : ""}`;
-    lines.push(`${mark} <b>${index + 1}.</b> ${escapeHtml(item.claim.slice(0, 300))}`);
-    lines.push(NEEDS_MANUAL_CHECK.has(item.status) ? `   🔎 Проверить вручную — ${status}` : `   ${status}`);
-    if (item.nature && item.nature !== "fact") lines.push(`   Характер: ${NATURE_LABEL[item.nature]}`);
-    if (item.note) lines.push(`   ❗ ${escapeHtml(item.note.slice(0, 400))}`);
-    if (item.sourceUrl) lines.push(`   Источник: ${link(item.sourceUrl, hostLabel(item.sourceUrl))}`);
-    if (item.quote) lines.push(`   «${escapeHtml(item.quote.slice(0, 200))}»`);
-    if (item.suggestedFix) lines.push(`   Предлагаемая правка: ${escapeHtml(item.suggestedFix.slice(0, 300))}`);
-  });
+    out.push(`${mark} <b>${index + 1}.</b> ${escapeHtml(item.claim.slice(0, 300))}`);
+    out.push(NEEDS_MANUAL_CHECK.has(item.status) ? `   🔎 Проверить вручную — ${status}` : `   ${status}`);
+    if (item.nature && item.nature !== "fact") out.push(`   Характер: ${NATURE_LABEL[item.nature]}`);
+    if (item.note) out.push(`   ❗ ${escapeHtml(item.note.slice(0, 400))}`);
+    if (item.sourceUrl) out.push(`   Источник: ${link(item.sourceUrl, hostLabel(item.sourceUrl))}`);
+    if (item.quote) out.push(`   «${escapeHtml(item.quote.slice(0, 200))}»`);
+    if (item.suggestedFix) out.push(`   Предлагаемая правка: ${escapeHtml(item.suggestedFix.slice(0, 300))}`);
+    return out;
+  };
+  // A message over Telegram's limit would be cut and hide facts that still have buttons, so only as
+  // many facts as fit are shown (at least one); the rest follow after these are dealt with.
+  const FACTS_TEXT_BUDGET = 3000;
+  const shown: FactItem[] = [];
+  const blocks: string[][] = [];
+  let used = lines.join("\n").length;
+  for (const item of open.slice(0, 8)) {
+    const block = blockOf(item, shown.length);
+    const size = block.join("\n").length + 1;
+    if (shown.length > 0 && used + size > FACTS_TEXT_BUDGET) break;
+    shown.push(item);
+    blocks.push(block);
+    used += size;
+  }
+  for (const block of blocks) lines.push(...block);
   if (open.length > shown.length) lines.push("", `…и ещё ${open.length - shown.length}. Исправьте текст или подтвердите эти, затем откройте меню снова.`);
   if (open.length === 0) lines.push("Всё, что требовало внимания, подтверждено.");
   if (byHand > 0) lines.push("", "🔎 Проверить вручную — бот не смог открыть или прочитать источник (например, сайт не пускает автоматические запросы). Ссылка сохранена: откройте её сами.");
