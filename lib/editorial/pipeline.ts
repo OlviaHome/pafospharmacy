@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Locale } from "@/lib/i18n/types";
 
-import { editorialLimits, openAiModel, siteOrigin, telegramConfig } from "./config";
+import { editorialLimits, isProductionRuntime, openAiModel, siteOrigin, telegramConfig } from "./config";
 import type { SourceCheck } from "./checks";
 import { materializeStock, removeStoredImage, searchStock } from "./images";
 import { claimsFromEntries } from "./facts";
@@ -32,6 +32,7 @@ import {
   enqueueJob,
   failStaleJobs,
   finishJob,
+  firstActiveJobId,
   loadPost,
   recordUsage,
   saveTranslation,
@@ -57,17 +58,23 @@ export interface JobPayload {
   notify?: "card" | "translations";
 }
 
-export type StartResult = (LimitDecision & { ok: true; jobId: number }) | (LimitDecision & { ok: false });
+export type StartResult =
+  | (LimitDecision & { ok: true; jobId: number })
+  | (LimitDecision & { ok: false; duplicate?: boolean });
 
 /**
  * Checks the limits and queues a job. Chained follow-up jobs of an already started article
  * (e.g. the English translation after writing) only respect the monthly budget.
+ *
+ * `exclusive`: at most one active job of this kind per post. The job is queued first and only
+ * then compared with the other active ones; the oldest wins and a newer one cancels itself
+ * before it is dispatched. Of two simultaneous requests exactly one runs, without a lock table.
  */
 export async function startJob(
   postId: string,
   kind: JobKind,
   payload: JobPayload,
-  options: { chained?: boolean; dispatch?: (jobId: number) => Promise<void> } = {},
+  options: { chained?: boolean; exclusive?: boolean; dispatch?: (jobId: number) => Promise<void> } = {},
 ): Promise<StartResult> {
   await failStaleJobs();
   const usage = await usageSnapshot();
@@ -77,6 +84,13 @@ export async function startJob(
     : evaluateLimits(kind, usage, limits, reservedCostUsd(openAiModel(), kind));
   if (!decision.ok) return decision;
   const jobId = await enqueueJob(postId, kind, payload as Record<string, unknown>);
+  if (options.exclusive) {
+    const first = await firstActiveJobId(postId, kind);
+    if (first !== null && first !== jobId) {
+      await finishJob(jobId, "failed", `duplicate of job ${first}`);
+      return { ok: false, duplicate: true, reason: "Такое задание для этой статьи уже выполняется." };
+    }
+  }
   await (options.dispatch ?? dispatchJob)(jobId);
   return { ok: true, jobId };
 }
@@ -86,6 +100,11 @@ export async function startJob(
  * Falls back to running after the current response if the call fails.
  */
 export async function dispatchJob(jobId: number): Promise<void> {
+  // Outside production the runner URL would point at the live site: run here instead.
+  if (!isProductionRuntime()) {
+    after(() => runJob(jobId));
+    return;
+  }
   try {
     const response = await fetch(`${siteOrigin()}/api/editorial/run`, {
       method: "POST",
@@ -238,6 +257,39 @@ async function runWrite(job: JobRecord, post: EditorialPost): Promise<void> {
 
   const article = normalizeArticle(result.data);
   const slugChoice = await uniqueSlug(article.slug || article.title, post.id);
+  await finishArticle(post, article, {
+    revision: "generated",
+    citedUrls: result.citedUrls,
+    existingImages: [],
+    finalPatch: { slug: slugChoice.slug },
+    leadingWarnings: slugWarning(slugChoice),
+  });
+}
+
+interface FinishArticleOptions {
+  /** Revision note stored with the Russian text. */
+  revision: string;
+  citedUrls: string[];
+  /** Images the article already has; their real photos are kept. */
+  existingImages: ImageRecord[];
+  /** Post fields set together with the editor notes at the end. */
+  finalPatch: { slug?: string; status?: "review" };
+  /** Warnings shown before the model's own in the editor notes. */
+  leadingWarnings?: string[];
+  /** Runs right after the Russian text and images are saved. */
+  afterSave?: () => Promise<void>;
+}
+
+/**
+ * Everything that happens to a freshly written or revised Russian article, whatever produced it:
+ * save the text, resolve images, check links and quotes (no OpenAI call), write the editor notes
+ * and queue the English translation, which then sends the card.
+ */
+async function finishArticle(
+  post: EditorialPost,
+  article: ReturnType<typeof normalizeArticle>,
+  options: FinishArticleOptions,
+): Promise<void> {
   const batchId = randomUUID();
   await saveTranslation(
     post,
@@ -251,19 +303,20 @@ async function runWrite(job: JobRecord, post: EditorialPost): Promise<void> {
     },
     "review",
     batchId,
-    "generated",
+    options.revision,
   );
-  await resolveImagePlans(post, article.images, []);
+  await resolveImagePlans(post, article.images, options.existingImages);
+  await options.afterSave?.();
   const checks = await refreshSourceChecks(post.id, article.sources.map((source) => source.url));
   // Fact check by source content (no OpenAI call): quotes are looked up on the source pages.
   await updatePost(post.id, { fact_checks: await verifyClaims(article.claims ?? [], post.factChecks) });
   await updatePost(post.id, {
-    slug: slugChoice.slug,
+    ...options.finalPatch,
     last_error: null,
     editor_notes: notesFor(article.editor_notes, [
-      ...slugWarning(slugChoice),
+      ...(options.leadingWarnings ?? []),
       ...article.warnings,
-      ...sourceWarnings(article.sources, result.citedUrls, checks),
+      ...sourceWarnings(article.sources, options.citedUrls, checks),
     ]),
   });
   await chain(post.id, { locales: ["en"], batchId, notify: "card" });
@@ -307,40 +360,19 @@ async function runEdit(job: JobRecord, post: EditorialPost): Promise<void> {
   await recordUsage(job.id, model, result.usage, result.costUsd);
 
   const article = normalizeArticle(result.data);
-  const batchId = randomUUID();
-  await saveTranslation(
-    post,
-    "ru",
-    {
-      title: article.title,
-      description: article.description,
-      bodyMd: article.body_md,
-      faq: article.faq,
-      sources: article.sources,
+  await finishArticle(post, article, {
+    revision: `edit: ${instruction.slice(0, 200)}`,
+    citedUrls: result.citedUrls,
+    existingImages: post.images,
+    finalPatch: { status: "review" },
+    afterSave: async () => {
+      // Other languages no longer match the Russian text; they are re-translated after publication.
+      const outdated = post.translations
+        .map((t) => t.locale)
+        .filter((locale): locale is Locale => locale !== "ru" && locale !== "en");
+      await setTranslationStatus(post.id, outdated, "draft");
     },
-    "review",
-    batchId,
-    `edit: ${instruction.slice(0, 200)}`,
-  );
-  await resolveImagePlans(post, article.images, post.images);
-
-  // Other languages no longer match the Russian text; they are re-translated after publication.
-  const outdated = post.translations
-    .map((t) => t.locale)
-    .filter((locale): locale is Locale => locale !== "ru" && locale !== "en");
-  await setTranslationStatus(post.id, outdated, "draft");
-  const checks = await refreshSourceChecks(post.id, article.sources.map((source) => source.url));
-  // Fact check by source content (no OpenAI call): quotes are looked up on the source pages.
-  await updatePost(post.id, { fact_checks: await verifyClaims(article.claims ?? [], post.factChecks) });
-  await updatePost(post.id, {
-    status: "review",
-    last_error: null,
-    editor_notes: notesFor(article.editor_notes, [
-      ...article.warnings,
-      ...sourceWarnings(article.sources, result.citedUrls, checks),
-    ]),
   });
-  await chain(post.id, { locales: ["en"], batchId, notify: "card" });
 }
 
 async function runTranslate(job: JobRecord, post: EditorialPost): Promise<void> {

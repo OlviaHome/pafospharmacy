@@ -47,7 +47,36 @@ export function siteOrigin(): string {
 
 export class EditorialConfigError extends Error {}
 
+/**
+ * True on the production deployment. Vercel sets VERCEL_ENV; a plain `next start` with
+ * NODE_ENV=production and no VERCEL_ENV counts as production too, so production keeps working
+ * even if Vercel's system variables are not exposed.
+ */
+export function isProductionRuntime(): boolean {
+  const vercelEnv = process.env.VERCEL_ENV?.trim();
+  if (vercelEnv) return vercelEnv === "production";
+  return process.env.NODE_ENV === "production";
+}
+
+/**
+ * The editorial bot touches the production database, the production Telegram bot and paid APIs.
+ * Preview deployments, `next dev` and tests may use it only with EDITORIAL_ALLOW_NON_PRODUCTION=true,
+ * so a stray secret in another environment can never act on production data by accident.
+ */
+export function editorialRuntimeAllowed(): boolean {
+  return isProductionRuntime() || process.env.EDITORIAL_ALLOW_NON_PRODUCTION?.trim() === "true";
+}
+
+function assertEditorialRuntime(): void {
+  if (!editorialRuntimeAllowed()) {
+    throw new EditorialConfigError(
+      "The editorial bot runs only in production. Set EDITORIAL_ALLOW_NON_PRODUCTION=true to use it elsewhere.",
+    );
+  }
+}
+
 function required(name: string): string {
+  assertEditorialRuntime();
   const value = process.env[name]?.trim();
   if (!value) throw new EditorialConfigError(`${name} is not configured.`);
   return value;
