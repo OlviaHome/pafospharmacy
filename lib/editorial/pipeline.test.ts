@@ -41,6 +41,7 @@ const store = {
   enqueueJob: fake(async () => 42),
   failStaleJobs: fake(),
   finishJob: fake(),
+  firstActiveJobId: fake(async () => null),
   loadPost: fake(),
   recordUsage: fake(),
   saveTranslation: fake(),
@@ -54,7 +55,7 @@ vi.mock("@/lib/editorial/store", () => store);
 
 const fetchMock = vi.fn(async () => new Response(null, { status: 202 }));
 
-const { runJob, dispatchJob, setNotifier } = await import("./pipeline");
+const { runJob, dispatchJob, setNotifier, startJob } = await import("./pipeline");
 
 function post(overrides: Partial<EditorialPost> = {}): EditorialPost {
   return {
@@ -103,6 +104,9 @@ beforeEach(() => {
   callResponses.mockReset();
   afterCallbacks.length = 0;
   store.loadPost.mockResolvedValue(post());
+  store.enqueueJob.mockImplementation(async () => 42);
+  store.finishJob.mockImplementation(async () => undefined);
+  store.firstActiveJobId.mockImplementation(async () => null);
   setNotifier({ card: vi.fn(async () => undefined), translations: vi.fn(async () => undefined), failure: vi.fn(async () => undefined) });
 });
 
@@ -190,6 +194,57 @@ describe("editing an article", () => {
     const batchId = store.saveTranslation.mock.calls[0][4];
     expect(store.enqueueJob).toHaveBeenCalledWith("post-1", "translate", { locales: ["en"], batchId, notify: "card" });
     expect(store.finishJob).toHaveBeenCalledWith(12, "done");
+  });
+});
+
+describe("exclusive jobs", () => {
+  /** A tiny job table in which every call yields, so simultaneous requests interleave. */
+  function jobTable() {
+    const jobs: { id: number; postId: string; kind: string; status: string }[] = [];
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+    store.enqueueJob.mockImplementation(async (postId: string, kind: string) => {
+      await tick();
+      const id = jobs.length + 100;
+      jobs.push({ id, postId, kind, status: "queued" });
+      return id;
+    });
+    store.firstActiveJobId.mockImplementation(async (postId: string, kind: string) => {
+      await tick();
+      const active = jobs.filter((j) => j.postId === postId && j.kind === kind && ["queued", "running"].includes(j.status));
+      return active.length ? Math.min(...active.map((j) => j.id)) : null;
+    });
+    store.finishJob.mockImplementation(async (id: number, status: string) => {
+      await tick();
+      jobs.find((j) => j.id === id)!.status = status;
+    });
+    return jobs;
+  }
+
+  it("of two simultaneous EL/AR starts with no active job, exactly one is dispatched", async () => {
+    const jobs = jobTable();
+    const dispatch = vi.fn(async () => undefined);
+    const payload = { locales: ["el", "ar"] as never, notify: "translations" as const };
+    const results = await Promise.all([
+      startJob("post-1", "translate", payload, { exclusive: true, dispatch }),
+      startJob("post-1", "translate", payload, { exclusive: true, dispatch }),
+      startJob("post-1", "translate", payload, { exclusive: true, dispatch }),
+    ]);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok && r.duplicate)).toHaveLength(2);
+    // The duplicates cancel themselves and stop counting as active.
+    expect(jobs.filter((j) => j.status === "queued")).toHaveLength(1);
+    expect(jobs.filter((j) => j.status === "failed")).toHaveLength(2);
+  });
+
+  it("starts normally once the earlier job has finished", async () => {
+    const jobs = jobTable();
+    const dispatch = vi.fn(async () => undefined);
+    await startJob("post-1", "translate", {}, { exclusive: true, dispatch });
+    jobs[0].status = "done";
+    const second = await startJob("post-1", "translate", {}, { exclusive: true, dispatch });
+    expect(second.ok).toBe(true);
+    expect(dispatch).toHaveBeenCalledTimes(2);
   });
 });
 

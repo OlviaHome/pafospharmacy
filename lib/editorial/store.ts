@@ -493,6 +493,22 @@ export async function hasActiveJob(postId: string, kind: JobKind): Promise<boole
   return (count ?? 0) > 0;
 }
 
+/** The oldest queued or running job of this kind for the post, or null. */
+export async function firstActiveJobId(postId: string, kind: JobKind): Promise<number | null> {
+  const data = check(
+    await adminClient()
+      .from("blog_agent_jobs")
+      .select("id")
+      .eq("post_id", postId)
+      .eq("kind", kind)
+      .in("status", ["queued", "running"])
+      .order("id", { ascending: true })
+      .limit(1),
+    "first active job",
+  );
+  return data && data.length > 0 ? Number(data[0].id) : null;
+}
+
 export async function finishJob(id: number, status: "done" | "failed", error?: string): Promise<void> {
   check(
     await adminClient()
@@ -593,13 +609,17 @@ export async function rememberMessage(
   );
 }
 
+export type TakeTopicResult = { status: "taken"; topic: string } | { status: "busy" } | { status: "missing" };
+
 /**
  * Takes the topic of a "Написать статью?" message exactly once: the payload is cleared only if it
- * still holds the topic that was read, so of two simultaneous taps only one gets it.
+ * still holds the topic that was read, so of two simultaneous taps only one gets it. "busy" means
+ * another tap already took it; "missing" means there is no such confirmation message.
  */
-export async function takeTopic(chatId: number, messageId: number): Promise<string | null> {
+export async function takeTopic(chatId: number, messageId: number): Promise<TakeTopicResult> {
   const found = await findMessage(chatId, messageId);
-  if (!found || found.purpose !== "topic_confirm" || !found.payload) return null;
+  if (!found || found.purpose !== "topic_confirm" || found.payload === null) return { status: "missing" };
+  if (found.payload === "") return { status: "busy" };
   const data = check(
     await adminClient()
       .from("blog_bot_messages")
@@ -610,7 +630,7 @@ export async function takeTopic(chatId: number, messageId: number): Promise<stri
       .select("message_id"),
     "take topic",
   );
-  return (data ?? []).length === 1 ? found.payload : null;
+  return (data ?? []).length === 1 ? { status: "taken", topic: found.payload } : { status: "busy" };
 }
 
 export async function findMessage(

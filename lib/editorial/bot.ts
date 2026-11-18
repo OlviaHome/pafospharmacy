@@ -635,13 +635,19 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     return;
   }
   if (action === "newok" || action === "newforce") {
-    await answerCallback(query.id);
     // Taken atomically: a double tap or a redelivered tap never starts two articles.
-    const topic = await takeTopic(chatId, messageId);
-    if (!topic) {
+    const taken = await takeTopic(chatId, messageId);
+    if (taken.status === "busy") {
+      // The first tap is already writing; its message stays as it is.
+      await answerCallback(query.id, "Уже обрабатывается");
+      return;
+    }
+    await answerCallback(query.id);
+    if (taken.status === "missing") {
       await editMessage(chatId, messageId, "Тема не найдена, напишите её ещё раз.");
       return;
     }
+    const topic = taken.topic;
     await editMessage(chatId, messageId, `Тема: «${escapeHtml(topic)}»`);
     await startArticle(chatId, topic, { force: action === "newforce" });
     return;
@@ -722,7 +728,24 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         await sendMessage(chatId, `#${post.number} уже опубликована или обновляется.`);
         return;
       }
-      await setTranslationStatus(post.id, ["ru", "en"], "published");
+      try {
+        await setTranslationStatus(post.id, ["ru", "en"], "published");
+      } catch (error) {
+        // Put the post back where it was, so publishing can simply be pressed again. Texts are
+        // shown on the site only while the post itself is published, so a language that was
+        // already marked published before the failure stays hidden until the retry.
+        const reason = error instanceof Error ? error.message : String(error);
+        await transitionPost(post.id, ["published"], {
+          status: post.status,
+          published_at: post.publishedAt,
+          last_error: reason.slice(0, 1000),
+        });
+        await sendMessage(
+          chatId,
+          `⚠️ #${post.number} не опубликована: не удалось обновить тексты (<code>${escapeHtml(reason.slice(0, 300))}</code>). Статья возвращена в прежний статус, публикацию можно повторить.`,
+        );
+        return;
+      }
       revalidateBlog();
       const published = (await loadPost({ id: post.id }))!;
       if (action === "pub") await refreshCard(chatId, messageId, published);
@@ -1064,7 +1087,11 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
 }
 
 async function startTranslations(chatId: number, post: EditorialPost): Promise<void> {
-  const result = await startJob(post.id, "translate", { locales: ["el", "ar"], notify: "translations" });
+  const result = await startJob(post.id, "translate", { locales: ["el", "ar"], notify: "translations" }, { exclusive: true });
+  if (!result.ok && result.duplicate) {
+    await sendMessage(chatId, `Перевод #${post.number} уже идёт. Покажу его, когда будет готов.`);
+    return;
+  }
   const blocked = limitMessage(result);
   if (blocked) {
     await sendMessage(chatId, `${blocked}\nПереводы на EL/AR можно запустить позже кнопкой 🌍 в карточке.`);

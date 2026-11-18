@@ -57,6 +57,7 @@ const posts = new Map<string, EditorialPost>();
 const messages = new Map<string, { postId: string | null; purpose: MessagePurpose; slot: string | null; payload: string | null }>();
 const activeJobs: { postId: string; kind: string }[] = [];
 let nextNumber = 1;
+let failNextTranslationUpdate = false;
 
 /** Lets two "simultaneous" requests interleave at every store call, like two webhook invocations. */
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -99,6 +100,10 @@ vi.mock("@/lib/editorial/store", () => ({
     return activeJobs.some((job) => job.postId === postId && job.kind === kind);
   }),
   setTranslationStatus: vi.fn(async (postId: string, locales: string[], status: string) => {
+    if (failNextTranslationUpdate) {
+      failNextTranslationUpdate = false;
+      throw new Error("publish translations: connection reset");
+    }
     await tick();
     const post = posts.get(postId);
     for (const t of post?.translations ?? []) if (locales.includes(t.locale)) t.status = status as never;
@@ -117,10 +122,11 @@ vi.mock("@/lib/editorial/store", () => ({
   takeTopic: vi.fn(async (chatId: number, messageId: number) => {
     await tick();
     const found = messages.get(`${chatId}:${messageId}`);
-    if (!found || found.purpose !== "topic_confirm" || !found.payload) return null;
+    if (!found || found.purpose !== "topic_confirm" || found.payload === null) return { status: "missing" };
+    if (found.payload === "") return { status: "busy" };
     const topic = found.payload;
     found.payload = "";
-    return topic;
+    return { status: "taken", topic };
   }),
   listTopics: vi.fn(async () => []),
   listPosts: vi.fn(async () => []),
@@ -243,6 +249,7 @@ beforeEach(() => {
   posts.clear();
   messages.clear();
   activeJobs.length = 0;
+  failNextTranslationUpdate = false;
   sent.length = 0;
   edited.length = 0;
   answered.length = 0;
@@ -332,15 +339,26 @@ describe("buttons that create drafts or start jobs", () => {
     await Promise.all([handleUpdate(callbackUpdate("newok", confirmId)), handleUpdate(callbackUpdate("newok", confirmId))]);
     expect(posts.size).toBe(1);
     expect(jobsOfKind("write")).toHaveLength(1);
-    expect(edited.map((e) => e.text)).toContain("Тема не найдена, напишите её ещё раз.");
+    // The second tap only answers the callback; the first tap's message is left alone.
+    expect(answered.map((a) => a.text)).toContain("Уже обрабатывается");
+    expect(edited.map((e) => e.text)).toEqual(["Тема: «Как найти дежурную аптеку на Кипре»"]);
   });
 
-  it("a second tap after the draft was created does nothing", async () => {
+  it("a second tap after the draft was created answers «Уже обрабатывается» and edits nothing", async () => {
     await handleUpdate(textUpdate("Тема для повторного нажатия"));
     const confirmId = Number([...messages.keys()][0].split(":")[1]);
     await handleUpdate(callbackUpdate("newok", confirmId));
+    const editsAfterFirst = edited.length;
     await handleUpdate(callbackUpdate("newok", confirmId));
     expect(posts.size).toBe(1);
+    expect(edited).toHaveLength(editsAfterFirst);
+    expect(answered.at(-1)?.text).toBe("Уже обрабатывается");
+  });
+
+  it("a tap on a confirmation that does not exist says the topic was not found", async () => {
+    await handleUpdate(callbackUpdate("newok", 4242));
+    expect(edited.map((e) => e.text)).toEqual(["Тема не найдена, напишите её ещё раз."]);
+    expect(posts.size).toBe(0);
   });
 
   it("two simultaneous AI edit replies start one job", async () => {
@@ -368,6 +386,23 @@ describe("buttons that create drafts or start jobs", () => {
       handleUpdate(callbackUpdate(`tren:${post.number}`)),
     ]);
     expect(jobsOfKind("translate")).toHaveLength(1);
+  });
+
+  it("two simultaneous taps on EL/AR start the job exclusively and report the duplicate", async () => {
+    const post = reviewPost({ status: "published" });
+    // The exclusive start (see pipeline.test.ts) lets the first request run and refuses the second.
+    let started = 0;
+    startJob.mockImplementation(async (...args: unknown[]) => {
+      expect(args[3]).toEqual({ exclusive: true });
+      started += 1;
+      return started === 1
+        ? { ok: true as const, jobId: 1 }
+        : ({ ok: false, duplicate: true, reason: "Такое задание для этой статьи уже выполняется." } as never);
+    });
+    await Promise.all([handleUpdate(callbackUpdate(`tr:${post.number}`)), handleUpdate(callbackUpdate(`tr:${post.number}`))]);
+    expect(jobsOfKind("translate")).toHaveLength(2);
+    expect(texts().filter((t) => t.startsWith("🌍 Перевожу"))).toHaveLength(1);
+    expect(texts().filter((t) => t.includes("уже идёт"))).toHaveLength(1);
   });
 
   it("does not start EL/AR translations while one is already running", async () => {
@@ -398,6 +433,24 @@ describe("publishing", () => {
     ]);
     expect(jobsOfKind("translate")).toHaveLength(1);
     expect(texts().filter((t) => t.includes("Опубликовано:"))).toHaveLength(1);
+  });
+
+  it("puts the post back when the texts cannot be published, and a retry then works", async () => {
+    const post = reviewPost();
+    failNextTranslationUpdate = true;
+    await handleUpdate(callbackUpdate(`pubok:${post.number}`));
+    let after = posts.get(post.id)!;
+    expect(after.status).toBe("review");
+    expect(after.publishedAt).toBeNull();
+    expect(after.lastError).toContain("connection reset");
+    expect(texts().at(-1)).toContain("не опубликована");
+    expect(startJob).not.toHaveBeenCalled();
+
+    await handleUpdate(callbackUpdate(`pubok:${post.number}`));
+    after = posts.get(post.id)!;
+    expect(after.status).toBe("published");
+    expect(after.translations.every((t) => t.status === "published")).toBe(true);
+    expect(jobsOfKind("translate")).toHaveLength(1);
   });
 
   it("never publishes over blocking facts, even after «Да, публиковать»", async () => {

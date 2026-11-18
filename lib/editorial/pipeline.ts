@@ -32,6 +32,7 @@ import {
   enqueueJob,
   failStaleJobs,
   finishJob,
+  firstActiveJobId,
   loadPost,
   recordUsage,
   saveTranslation,
@@ -57,17 +58,23 @@ export interface JobPayload {
   notify?: "card" | "translations";
 }
 
-export type StartResult = (LimitDecision & { ok: true; jobId: number }) | (LimitDecision & { ok: false });
+export type StartResult =
+  | (LimitDecision & { ok: true; jobId: number })
+  | (LimitDecision & { ok: false; duplicate?: boolean });
 
 /**
  * Checks the limits and queues a job. Chained follow-up jobs of an already started article
  * (e.g. the English translation after writing) only respect the monthly budget.
+ *
+ * `exclusive`: at most one active job of this kind per post. The job is queued first and only
+ * then compared with the other active ones; the oldest wins and a newer one cancels itself
+ * before it is dispatched. Of two simultaneous requests exactly one runs, without a lock table.
  */
 export async function startJob(
   postId: string,
   kind: JobKind,
   payload: JobPayload,
-  options: { chained?: boolean; dispatch?: (jobId: number) => Promise<void> } = {},
+  options: { chained?: boolean; exclusive?: boolean; dispatch?: (jobId: number) => Promise<void> } = {},
 ): Promise<StartResult> {
   await failStaleJobs();
   const usage = await usageSnapshot();
@@ -77,6 +84,13 @@ export async function startJob(
     : evaluateLimits(kind, usage, limits, reservedCostUsd(openAiModel(), kind));
   if (!decision.ok) return decision;
   const jobId = await enqueueJob(postId, kind, payload as Record<string, unknown>);
+  if (options.exclusive) {
+    const first = await firstActiveJobId(postId, kind);
+    if (first !== null && first !== jobId) {
+      await finishJob(jobId, "failed", `duplicate of job ${first}`);
+      return { ok: false, duplicate: true, reason: "Такое задание для этой статьи уже выполняется." };
+    }
+  }
   await (options.dispatch ?? dispatchJob)(jobId);
   return { ok: true, jobId };
 }
