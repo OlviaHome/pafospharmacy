@@ -46,9 +46,11 @@ export function estimateCostUsd(model: string, usage: UsageNumbers): number {
  * Conservative upfront reservation per job kind, checked against the monthly budget
  * before a job starts, so the last job of the month cannot overshoot by much.
  */
-export function reservedCostUsd(model: string, kind: "write" | "edit" | "translate"): number {
+export function reservedCostUsd(model: string, kind: "write" | "edit" | "translate" | "rewrite"): number {
   const tokens = {
     write: { inputTokens: 80_000, cachedInputTokens: 0, outputTokens: 20_000, webSearchCalls: 8 },
+    // Like writing, plus the imported material in the input.
+    rewrite: { inputTokens: 100_000, cachedInputTokens: 0, outputTokens: 20_000, webSearchCalls: 8 },
     edit: { inputTokens: 30_000, cachedInputTokens: 0, outputTokens: 16_000, webSearchCalls: 4 },
     translate: { inputTokens: 12_000, cachedInputTokens: 0, outputTokens: 12_000, webSearchCalls: 0 },
   }[kind];

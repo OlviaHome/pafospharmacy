@@ -20,7 +20,7 @@ import {
 } from "./cards";
 import { blockingFailures, failedChecks, formatChecks, prePublishChecks, type CheckResult } from "./checks";
 import { claimsFromEntries, confirmFact } from "./facts";
-import { verifyClaims } from "./source-text";
+import { fetchSourceText, verifyClaims } from "./source-text";
 import { editorialLimits, openAiModel, siteOrigin, telegramConfig, unsplashKey } from "./config";
 import { removeStoredImage, storeImageBytes } from "./images";
 import { addInlineImage, applyManualEdit, isManualPart, partLabel, partText, removeInlineImage, type ManualPart } from "./manual";
@@ -29,9 +29,30 @@ import type { JobKind } from "./limits";
 import { nextStockImage, refreshSourceChecks, setNotifier, startJob, type StartResult } from "./pipeline";
 import { findSimilar } from "./similar";
 import {
+  assembleParts,
+  languageLabel,
+  LANGUAGE_CHOICES,
+  otherLanguage,
+  forwardLabel,
+  importChecks,
+  importTopic,
+  MAX_IMPORT_CHARS,
+  messageText,
+  singleUrl,
+  type PartKind,
+} from "./imports";
+import {
+  addImportPart,
+  createImport,
   createPost,
+  deleteImport,
   deletePost,
+  expireImports,
   findMessage,
+  importParts,
+  loadImport,
+  openImport,
+  transitionImport,
   hasActiveJob,
   hasUndo,
   listPosts,
@@ -56,6 +77,7 @@ import {
   sendDocument,
   sendMessage,
   sendTyping,
+  type InlineKeyboard,
 } from "./telegram";
 
 const MAX_TOPIC_LENGTH = 500;
@@ -70,7 +92,7 @@ function adminChatId(): number {
 /* ---------- checks and cards ---------- */
 
 function checksFor(post: EditorialPost, locales: Locale[]): CheckResult[] {
-  return prePublishChecks(post.translations, locales, post.sourceChecks, post.factChecks);
+  return prePublishChecks(post.translations, locales, post.sourceChecks, post.factChecks, importChecks(post));
 }
 
 const TRANSLATION_LOCALES: Locale[] = ["el", "ar"];
@@ -143,7 +165,12 @@ setNotifier({
   card: (post) => sendCard(adminChatId(), post),
   translations: (post) => sendTranslationsCard(adminChatId(), post),
   failure: async (post, kind, message) => {
-    const what: Record<JobKind, string> = { write: "написать статью", edit: "внести правку", translate: "перевести" };
+    const what: Record<JobKind, string> = {
+      write: "написать статью",
+      edit: "внести правку",
+      translate: "перевести",
+      rewrite: "написать статью из импорта",
+    };
     await sendMessage(
       adminChatId(),
       `⚠️ Не получилось ${what[kind]} для #${post.number} «${escapeHtml(postTitle(post))}».\n<code>${escapeHtml(message.slice(0, 500))}</code>`,
@@ -176,7 +203,10 @@ const HELP = `Я пишу статьи для блога HealthGuide Cyprus. Н�
 4. 🖼 Картинки: другое стоковое фото, своя картинка, свой поисковый запрос, ➕ новая картинка в нужный раздел, 🗑 убрать.
 5. ✅ Опубликовать RU + EN. После этого переведу на греческий и арабский и тоже покажу перед публикацией.
 
+<b>Импорт</b>: /import — пришлите ссылку, текст, файл .txt/.md или перешлите сообщение. Я проверю утверждения по первоисточникам и напишу самостоятельную статью; дальше всё как обычно.
+
 <b>Команды</b>
+/import: статья из чужого материала
 /drafts: черновики
 /published: опубликованные
 /usage: расходы и лимиты`;
@@ -306,6 +336,9 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
           await rememberMessage(chatId, sent.message_id, "topic_confirm", null, { payload: "ask" });
         }
         return;
+      case "/import":
+        await startImport(chatId);
+        return;
       case "/drafts":
         await listDrafts(chatId);
         return;
@@ -318,6 +351,19 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
       default:
         await sendMessage(chatId, "Не знаю такой команды. /help");
         return;
+    }
+  }
+
+  // While an /import is collecting, every text, file or forwarded post goes into it (Telegram
+  // splits a long paste into several messages, and only the first is a reply). Commands and replies
+  // to the bot's other messages are handled above as always; after «Это весь текст» or «Отменить»
+  // messages are topics again. An import older than a day is dropped first and never takes a message.
+  if (message.forward_origin || message.text || message.document) {
+    await expireImports(chatId);
+    const open = await openImport(chatId);
+    if (open?.status === "collecting") {
+      await acceptImportPart(message, open.id);
+      return;
     }
   }
 
@@ -341,6 +387,23 @@ async function handleReply(
   text: string,
 ): Promise<void> {
   const chatId = message.chat.id;
+  if (context.purpose === "import" && context.slot && context.payload === "language") {
+    const language = otherLanguage(text);
+    if (!language) {
+      await sendMessage(chatId, "Напишите название языка словами, до 40 символов (например, «польский»). Ответьте на сообщение выше ещё раз.");
+      return;
+    }
+    if (await setImportLanguage(chatId, context.slot, language)) {
+      await sendImportSummary(chatId, context.slot);
+    } else {
+      await sendMessage(chatId, "Этот импорт уже передан в работу или закрыт.");
+    }
+    return;
+  }
+  if (context.purpose === "import" && context.slot) {
+    await acceptImportPart(message, context.slot);
+    return;
+  }
   if (context.purpose === "topic_confirm" && context.payload === "ask") {
     await startArticle(chatId, text);
     return;
@@ -499,6 +562,15 @@ async function handleFactConfirmation(message: TelegramMessage, post: EditorialP
   }
   const answer = (message.text ?? "").trim();
   const sourceUrl = answer === "+" && item.sourceUrl ? item.sourceUrl : (/https:\/\/\S+/.exec(answer)?.[0] ?? "");
+  // A statement that contradicts its source stays only with a written reason.
+  const reason = answer.replace(/https:\/\/\S+/, "").trim();
+  if (item.conflict && sourceUrl && reason.length < 10) {
+    await sendMessage(
+      chatId,
+      "Этот факт противоречит источнику. Оставить его можно только с объяснением: ответьте ссылкой https://… и через пробел — почему текст статьи верен. Или нажмите ✏️ в «🔎 Факты», чтобы внести предлагаемую правку.",
+    );
+    return;
+  }
   if (!sourceUrl) {
     await sendMessage(
       chatId,
@@ -508,7 +580,7 @@ async function handleFactConfirmation(message: TelegramMessage, post: EditorialP
     );
     return;
   }
-  await updatePost(post.id, { fact_checks: confirmFact(post.factChecks, item, sourceUrl) });
+  await updatePost(post.id, { fact_checks: confirmFact(post.factChecks, item, sourceUrl, new Date(), item.conflict ? reason : undefined) });
   await sendMessage(chatId, `✅ Факт отмечен как проверенный вручную (${new Date().toLocaleDateString("ru-RU")}, источник сохранён).`);
   await sendFactsMenu(chatId, (await loadPost({ id: post.id }))!);
 }
@@ -650,6 +722,11 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     const topic = taken.topic;
     await editMessage(chatId, messageId, `Тема: «${escapeHtml(topic)}»`);
     await startArticle(chatId, topic, { force: action === "newforce" });
+    return;
+  }
+
+  if (IMPORT_ACTIONS.has(action)) {
+    await handleImportCallback(query, action, rawNumber ?? "");
     return;
   }
 
@@ -979,14 +1056,37 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
           `<i>${escapeHtml(item.claim.slice(0, 500))}</i>`,
           ...(item.sourceUrl ? [`Указанный источник: ${escapeHtml(item.sourceUrl)}`] : []),
           "",
-          item.sourceUrl
-            ? "Проверьте и ответьте на это сообщение ссылкой https://… на источник, где вы это подтвердили, или «+», если по указанному источнику."
-            : "Проверьте и ответьте на это сообщение ссылкой https://… на источник, где вы это подтвердили.",
+          ...(item.conflict
+            ? [
+                `❗ Противоречит источнику: ${escapeHtml(item.conflict.slice(0, 400))}`,
+                "Чтобы оставить текст как есть, ответьте ссылкой https://… на источник и через пробел объясните, почему текст верен. Исправить можно кнопкой ✏️ в «🔎 Факты».",
+              ]
+            : [
+                item.sourceUrl
+                  ? "Проверьте и ответьте на это сообщение ссылкой https://… на источник, где вы это подтвердили, или «+», если по указанному источнику."
+                  : "Проверьте и ответьте на это сообщение ссылкой https://… на источник, где вы это подтвердили.",
+              ]),
           "Отметка сохранится с датой и сбросится, если факт, цитата или источник изменятся.",
         ].join("\n"),
         { forceReply: true },
       );
       await rememberMessage(chatId, sent.message_id, "edit_prompt", post.id, { slot: `fact|${item.id}` });
+      return;
+    }
+
+    case "ffx": {
+      // Accepting a proposed correction is an ordinary AI edit; the facts are then checked again.
+      await answerCallback(query.id);
+      const item = renderFactsMenu(post).items.find((candidate) => candidate.id === slot);
+      if (!item?.suggestedFix) {
+        await sendMessage(chatId, "Этот факт уже изменился. Откройте «🔎 Факты» заново.");
+        return;
+      }
+      await requestEdit(
+        chatId,
+        post,
+        `Замени в статье утверждение «${item.claim}» формулировкой: «${item.suggestedFix}». Обнови это утверждение в claims, с источником и дословной цитатой. Остальное не меняй.`,
+      );
       return;
     }
 
@@ -1048,7 +1148,10 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         await answerCallback(query.id, "Статья не в статусе ошибки");
         return;
       }
-      const result = await startJob(post.id, "write", {});
+      // A draft from /import is written again from its material.
+      const result = post.importInfo
+        ? await startJob(post.id, "rewrite", { importId: post.importInfo.id })
+        : await startJob(post.id, "write", {});
       const blocked = limitMessage(result);
       await answerCallback(query.id);
       if (blocked) {
@@ -1098,6 +1201,287 @@ async function startTranslations(chatId: number, post: EditorialPost): Promise<v
     return;
   }
   await sendMessage(chatId, `🌍 Перевожу #${post.number} на греческий и арабский. Покажу перед публикацией.`);
+}
+
+/* ---------- /import: material for a new article (mode A, «Рерайт + фактчек») ---------- */
+
+const IMPORT_LANGUAGE_ACTIONS = ["impru", "impen", "impel", "impuk"] as const;
+const IMPORT_ACTIONS = new Set(["impdone", "impcancel", "impcont", "imprestart", "impmore", "imprw", "impother", ...IMPORT_LANGUAGE_ACTIONS]);
+
+const IMPORT_PROMPT = [
+  "📥 <b>Импорт материала</b>",
+  "Пришлите ответом на это сообщение ссылку, текст или файл .txt/.md, или перешлите сюда сообщение из канала.",
+  "Длинный текст можно присылать частями. Пока идёт сбор, все сообщения добавляются к материалу; когда всё — нажмите «✅ Это весь текст» или «Отменить».",
+  "Материал — только отправная точка: утверждения я проверю по первоисточникам, статья будет самостоятельной.",
+].join("\n");
+
+function collectingKeyboard(importId: string): InlineKeyboard {
+  return [
+    [{ text: "✅ Это весь текст", callback_data: `impdone:${importId}` }],
+    [{ text: "Отменить", callback_data: `impcancel:${importId}` }],
+  ];
+}
+
+async function sendImportPrompt(chatId: number, importId: string): Promise<void> {
+  const sent = await sendMessage(chatId, IMPORT_PROMPT, { forceReply: true });
+  await rememberMessage(chatId, sent.message_id, "import", null, { slot: importId });
+}
+
+async function startImport(chatId: number): Promise<void> {
+  await expireImports(chatId);
+  const open = await openImport(chatId);
+  if (open) {
+    const started = new Date(open.createdAt).toLocaleString("ru-RU", { timeZone: "Asia/Nicosia", dateStyle: "short", timeStyle: "short" });
+    const sent = await sendMessage(
+      chatId,
+      `📥 Есть незавершённый импорт: частей ${open.parts}, ${open.chars} символов, начат ${started}. Продолжить его или начать заново?`,
+      {
+        keyboard: [
+          [{ text: "Продолжить", callback_data: `impcont:${open.id}` }],
+          [{ text: "Начать заново", callback_data: `imprestart:${open.id}` }],
+          [{ text: "Отменить", callback_data: `impcancel:${open.id}` }],
+        ],
+      },
+    );
+    await rememberMessage(chatId, sent.message_id, "import", null, { slot: open.id });
+    return;
+  }
+  await sendImportPrompt(chatId, await createImport(chatId));
+}
+
+/** One part of the material from a message: a file, a forwarded post, a page behind a link, or text. */
+async function partFromMessage(
+  message: TelegramMessage,
+): Promise<{ kind: PartKind; body: string; sourceUrl?: string; sourceLabel?: string } | null> {
+  if (message.document) {
+    const body = (await readReplyText(message)).trim();
+    return body ? { kind: "file", body, sourceLabel: `файл ${message.document.file_name ?? ""}`.trim() } : null;
+  }
+  const body = messageText(message).trim();
+  if (!body) return null;
+  const forward = forwardLabel(message);
+  if (forward) return { kind: "forward", body, sourceLabel: forward };
+  const url = singleUrl(body);
+  if (url) {
+    // Loaded like every other source: public https hosts only, checked addresses and redirects, size and time limits.
+    const page = await fetchSourceText(url);
+    if (page.state !== "ok") {
+      throw new Error(`Не получилось прочитать страницу: ${page.detail}. Вставьте текст статьи сюда или пришлите его файлом .txt.`);
+    }
+    return { kind: "url", body: page.text.slice(0, MAX_IMPORT_CHARS), sourceUrl: url, sourceLabel: `ссылка ${url}` };
+  }
+  return { kind: "text", body };
+}
+
+async function acceptImportPart(message: TelegramMessage, importId: string): Promise<void> {
+  const chatId = message.chat.id;
+  const current = await loadImport(importId);
+  if (!current || current.status === "started" || current.status === "cancelled") {
+    await sendMessage(chatId, "Этот импорт уже закрыт. Начните новый: /import");
+    return;
+  }
+  if (current.status === "ready") {
+    await sendMessage(chatId, "Материал уже собран. Чтобы добавить ещё, нажмите «➕ Добавить ещё» под сводкой.");
+    return;
+  }
+  let part;
+  try {
+    part = await partFromMessage(message);
+  } catch (error) {
+    await sendMessage(chatId, `⚠️ ${escapeHtml(error instanceof Error ? error.message : "Не получилось прочитать сообщение.")}`);
+    return;
+  }
+  if (!part) {
+    await sendMessage(chatId, "В сообщении нет текста. Пришлите ссылку, текст или файл .txt/.md.");
+    return;
+  }
+  const added = await addImportPart(importId, message.message_id, part);
+  if (!added.ok) {
+    await sendMessage(
+      chatId,
+      added.reason === "too_long"
+        ? `Материал вышел бы длиннее ${MAX_IMPORT_CHARS} символов — эта часть не добавлена. Нажмите «✅ Это весь текст» или пришлите материал короче.`
+        : "Этот импорт уже закрыт. Начните новый: /import",
+    );
+    return;
+  }
+  const sent = await sendMessage(
+    chatId,
+    `📥 Часть ${added.parts} добавлена${part.kind === "url" ? " (текст страницы)" : part.kind === "forward" ? " (пересланное сообщение)" : ""}. Всего ${added.chars} символов.\nВсё, что пришлёте дальше, добавлю к материалу. Готово — «✅ Это весь текст».`,
+    { keyboard: collectingKeyboard(importId) },
+  );
+  await rememberMessage(chatId, sent.message_id, "import", null, { slot: importId });
+}
+
+function importSummary(record: NonNullable<Awaited<ReturnType<typeof loadImport>>>): { text: string; keyboard: InlineKeyboard } {
+  const importId = record.id;
+  const sourceText = record.sourceText ?? "";
+  const preview = sourceText.replace(/\s+/g, " ").slice(0, 300);
+  const mark = (code: string, label: string) => `${record.language === code ? "✓ " : ""}${label}`;
+  const otherSelected = record.language?.startsWith("other:") ?? false;
+  const choices = LANGUAGE_CHOICES.map((choice, index) => ({
+    text: mark(choice.code, choice.label),
+    callback_data: `${IMPORT_LANGUAGE_ACTIONS[index]}:${importId}`,
+  }));
+  const keyboard: InlineKeyboard = [
+    choices.slice(0, 3),
+    [choices[3], { text: otherSelected ? "✓ Другой язык" : "Другой язык", callback_data: `impother:${importId}` }],
+  ];
+  // The article is not started until the language of the original is chosen.
+  if (record.language) keyboard.push([{ text: "🔍 Рерайт + фактчек", callback_data: `imprw:${importId}` }]);
+  keyboard.push([{ text: "➕ Добавить ещё", callback_data: `impmore:${importId}` }], [{ text: "Отменить", callback_data: `impcancel:${importId}` }]);
+  return {
+    text: [
+      "📥 <b>Материал собран</b>",
+      `Частей: ${record.parts} · символов: ${sourceText.length} · язык оригинала: <b>${escapeHtml(languageLabel(record.language))}</b>`,
+      `Откуда: ${escapeHtml(record.sourceLabel ?? "текст от редактора")}`,
+      "",
+      `<i>${escapeHtml(preview)}${sourceText.length > 300 ? "…" : ""}</i>`,
+      "",
+      record.language
+        ? "Язык можно поменять, пока статья не запущена. «🔍 Рерайт + фактчек»: найду первоисточники, проверю утверждения и напишу самостоятельную статью на русском, затем английский перевод и обычная карточка. Материал не публикуется и не считается источником."
+        : "Выберите язык оригинала — без этого рерайт не запустится.",
+    ].join("\n"),
+    keyboard,
+  };
+}
+
+async function sendImportSummary(chatId: number, importId: string): Promise<void> {
+  const record = await loadImport(importId);
+  if (!record?.sourceText) return;
+  const summary = importSummary(record);
+  const sent = await sendMessage(chatId, summary.text, { keyboard: summary.keyboard });
+  await rememberMessage(chatId, sent.message_id, "import", null, { slot: importId });
+}
+
+/** Saves the chosen language while the import is ready, and refreshes the summary it was chosen on. */
+async function setImportLanguage(chatId: number, importId: string, language: string, summaryMessageId?: number): Promise<boolean> {
+  if (!(await transitionImport(importId, ["ready"], { language }))) return false;
+  if (summaryMessageId) {
+    const record = await loadImport(importId);
+    if (record?.sourceText) {
+      const summary = importSummary(record);
+      await editMessage(chatId, summaryMessageId, summary.text, summary.keyboard);
+    }
+  }
+  return true;
+}
+
+async function handleImportCallback(query: TelegramCallbackQuery, action: string, importId: string): Promise<void> {
+  const chatId = query.message!.chat.id;
+  const messageId = query.message!.message_id;
+  switch (action) {
+    case "impcancel": {
+      const removed = await deleteImport(importId);
+      await answerCallback(query.id, removed ? "Отменено" : undefined);
+      await editMessage(chatId, messageId, removed ? "📥 Импорт отменён." : "Этот импорт уже передан в работу или закрыт.");
+      return;
+    }
+    case "impcont": {
+      const record = await loadImport(importId);
+      await answerCallback(query.id);
+      if (record?.status === "collecting") await sendImportPrompt(chatId, importId);
+      else if (record?.status === "ready") await sendImportSummary(chatId, importId);
+      else await sendMessage(chatId, "Этот импорт уже закрыт. Начните новый: /import");
+      return;
+    }
+    case "imprestart": {
+      await deleteImport(importId);
+      await answerCallback(query.id);
+      await editMessage(chatId, messageId, "📥 Старый импорт удалён.");
+      await sendImportPrompt(chatId, await createImport(chatId));
+      return;
+    }
+    case "impmore": {
+      if (!(await transitionImport(importId, ["ready"], { status: "collecting" }))) {
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      await answerCallback(query.id);
+      await sendImportPrompt(chatId, importId);
+      return;
+    }
+    case "impru":
+    case "impen":
+    case "impel":
+    case "impuk": {
+      const index = (IMPORT_LANGUAGE_ACTIONS as readonly string[]).indexOf(action);
+      if (!(await setImportLanguage(chatId, importId, LANGUAGE_CHOICES[index].code, messageId))) {
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      await answerCallback(query.id, `Язык: ${LANGUAGE_CHOICES[index].label}`);
+      return;
+    }
+    case "impother": {
+      const record = await loadImport(importId);
+      if (record?.status !== "ready") {
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      await answerCallback(query.id);
+      const sent = await sendMessage(chatId, "Напишите название языка оригинала ответом на это сообщение (например, «польский»).", { forceReply: true });
+      await rememberMessage(chatId, sent.message_id, "import", null, { slot: importId, payload: "language" });
+      return;
+    }
+    case "impdone": {
+      const parts = await importParts(importId);
+      if (parts.length === 0) {
+        await answerCallback(query.id, "Сначала пришлите материал");
+        return;
+      }
+      const material = assembleParts(parts);
+      const won = await transitionImport(importId, ["collecting"], {
+        status: "ready",
+        source_text: material.text,
+        // Chosen by the editor on the summary, every time the material is closed.
+        language: null,
+        source_url: material.sourceUrl,
+        source_label: material.sourceLabel,
+      });
+      if (!won) {
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      await answerCallback(query.id);
+      await editMessage(chatId, messageId, "📥 Материал собран.");
+      await sendImportSummary(chatId, importId);
+      return;
+    }
+    case "imprw": {
+      const record = await loadImport(importId);
+      if (record?.status !== "ready" || !record.sourceText) {
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      if (!record.language) {
+        await answerCallback(query.id, "Сначала выберите язык оригинала");
+        return;
+      }
+      // The draft is created first and attached by a conditional update: of two simultaneous taps
+      // only one attaches its draft, the other removes its own.
+      const post = await createPost(importTopic(record.sourceText));
+      if (!(await transitionImport(importId, ["ready"], { status: "started", mode: "rewrite", post_id: post.id }))) {
+        await deletePost(post.id);
+        await answerCallback(query.id, "Уже обрабатывается");
+        return;
+      }
+      await answerCallback(query.id);
+      await editMessage(chatId, messageId, `📥 Материал передан в работу: статья #${post.number}.`);
+      const result = await startJob(post.id, "rewrite", { importId });
+      const blocked = limitMessage(result);
+      if (blocked) {
+        await updatePost(post.id, { status: "failed", last_error: result.ok ? null : result.reason });
+        await sendMessage(chatId, `${blocked}\nЧерновик #${post.number} сохранён: его можно запустить позже кнопкой «Написать заново».`);
+        return;
+      }
+      await sendMessage(
+        chatId,
+        `🔍 Начала статью <b>#${post.number}</b> из импорта: ищу первоисточники и проверяю утверждения.\nОбычно это занимает 3–6 минут. Пришлю карточку, когда будет готово.`,
+      );
+      return;
+    }
+  }
 }
 
 /** Entry point for one verified admin update. */

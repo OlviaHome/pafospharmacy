@@ -13,6 +13,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
 vi.mock("@/lib/blog/repository", () => ({ BLOG_CACHE_TAG: "blog" }));
 
+let downloadedText = "";
 const sent: { chatId: number; text: string; keyboard?: unknown; forceReply?: boolean }[] = [];
 const edited: { messageId: number; text: string }[] = [];
 const answered: { id: string; text?: string }[] = [];
@@ -32,7 +33,7 @@ vi.mock("@/lib/editorial/telegram", () => ({
   }),
   sendTyping: vi.fn(async () => undefined),
   sendDocument: vi.fn(async () => ({ message_id: nextMessageId++ })),
-  downloadFile: vi.fn(async () => ({ bytes: new Uint8Array(), path: "x.jpg" })),
+  downloadFile: vi.fn(async () => ({ bytes: new TextEncoder().encode(downloadedText), path: "file.txt" })),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -45,6 +46,11 @@ vi.mock("@/lib/editorial/pipeline", () => ({
 }));
 vi.mock("@/lib/editorial/source-text", () => ({
   verifyClaims: vi.fn(async (_claims: unknown, previous: FactEntry[]) => previous),
+  fetchSourceText: vi.fn(async (url: string) =>
+    url.includes("gov.cy")
+      ? { state: "unreachable", detail: "сайт не пускает автоматическую проверку (HTTP 403)" }
+      : { state: "ok", kind: "html", text: `Текст страницы ${url}: скорая помощь будет реорганизована.` },
+  ),
 }));
 vi.mock("@/lib/editorial/images", () => ({
   removeStoredImage: vi.fn(async () => undefined),
@@ -54,9 +60,43 @@ vi.mock("@/lib/editorial/images", () => ({
 /* ---------- in-memory store ---------- */
 
 const posts = new Map<string, EditorialPost>();
+
+interface FakeImport {
+  id: string;
+  chatId: number;
+  status: "collecting" | "ready" | "started" | "cancelled";
+  postId: string | null;
+  sourceText: string | null;
+  language: string | null;
+  sourceUrl: string | null;
+  sourceLabel: string | null;
+  sourceTextRu: string | null;
+  createdAt: string;
+  lastPartAt: string | null;
+  updatedAt: number;
+  parts: { messageId: number; kind: string; body: string; sourceUrl: string | null; sourceLabel: string | null }[];
+}
+const imports = new Map<string, FakeImport>();
+let nextImport = 1;
+
+function importRecord(row: FakeImport) {
+  const { parts, ...rest } = row;
+  return { ...rest, parts: parts.length, chars: parts.reduce((sum, part) => sum + part.body.length, 0) };
+}
+
+function withImport(post: EditorialPost): EditorialPost {
+  const row = [...imports.values()].find((candidate) => candidate.postId === post.id);
+  return {
+    ...post,
+    importInfo: row
+      ? { id: row.id, mode: "rewrite", language: row.language, sourceUrl: row.sourceUrl, sourceLabel: row.sourceLabel, sourceText: row.sourceText, sourceTextRu: row.sourceTextRu }
+      : post.importInfo,
+  };
+}
 const messages = new Map<string, { postId: string | null; purpose: MessagePurpose; slot: string | null; payload: string | null }>();
 const activeJobs: { postId: string; kind: string }[] = [];
 let nextNumber = 1;
+const updatedFactChecks: FactEntry[][] = [];
 let failNextTranslationUpdate = false;
 
 /** Lets two "simultaneous" requests interleave at every store call, like two webhook invocations. */
@@ -70,7 +110,7 @@ vi.mock("@/lib/editorial/store", () => ({
   loadPost: vi.fn(async (ref: { id: string } | { number: number }) => {
     await tick();
     const post = "id" in ref ? posts.get(ref.id) : [...posts.values()].find((p) => p.number === ref.number);
-    return post ? clone(post) : null;
+    return post ? withImport(clone(post)) : null;
   }),
   createPost: vi.fn(async (topic: string) => {
     await tick();
@@ -85,6 +125,10 @@ vi.mock("@/lib/editorial/store", () => ({
     if (patch.status) post.status = patch.status as EditorialPost["status"];
     if ("last_error" in patch) post.lastError = patch.last_error as string | null;
     if ("published_at" in patch) post.publishedAt = patch.published_at as string | null;
+    if ("fact_checks" in patch) {
+      post.factChecks = patch.fact_checks as FactEntry[];
+      updatedFactChecks.push(post.factChecks);
+    }
   }),
   transitionPost: vi.fn(async (id: string, from: string[], patch: Record<string, unknown>) => {
     await tick();
@@ -128,12 +172,75 @@ vi.mock("@/lib/editorial/store", () => ({
     found.payload = "";
     return { status: "taken", topic };
   }),
+  loadImport: vi.fn(async (id: string) => {
+    await tick();
+    const row = imports.get(id);
+    return row ? importRecord(row) : null;
+  }),
+  expireImports: vi.fn(async (chatId: number) => {
+    for (const [id, row] of imports) {
+      if (row.chatId === chatId && row.status !== "started" && row.updatedAt < Date.now() - 24 * 60 * 60 * 1000) imports.delete(id);
+    }
+  }),
+  openImport: vi.fn(async (chatId: number) => {
+    await tick();
+    const row = [...imports.values()].reverse().find((r) => r.chatId === chatId && (r.status === "collecting" || r.status === "ready"));
+    return row ? importRecord(row) : null;
+  }),
+  createImport: vi.fn(async (chatId: number) => {
+    await tick();
+    const id = `00000000-0000-4000-8000-${String(nextImport++).padStart(12, "0")}`;
+    imports.set(id, {
+      id, chatId, status: "collecting", postId: null, sourceText: null, language: null, sourceUrl: null, sourceLabel: null,
+      sourceTextRu: null, createdAt: new Date().toISOString(), lastPartAt: null, updatedAt: Date.now(), parts: [],
+    });
+    return id;
+  }),
+  addImportPart: vi.fn(async (id: string, messageId: number, part: { kind: string; body: string; sourceUrl?: string; sourceLabel?: string }) => {
+    await tick();
+    const row = imports.get(id);
+    if (!row || row.status !== "collecting") return { ok: false, reason: "closed" };
+    const chars = row.parts.reduce((sum, p) => sum + p.body.length, 0);
+    if (chars + part.body.length > 60_000) return { ok: false, reason: "too_long" };
+    if (!row.parts.some((p) => p.messageId === messageId)) {
+      row.parts.push({ messageId, kind: part.kind, body: part.body, sourceUrl: part.sourceUrl ?? null, sourceLabel: part.sourceLabel ?? null });
+    }
+    row.lastPartAt = new Date().toISOString();
+    row.updatedAt = Date.now();
+    return { ok: true, parts: row.parts.length, chars: row.parts.reduce((sum, p) => sum + p.body.length, 0) };
+  }),
+  importParts: vi.fn(async (id: string) => {
+    await tick();
+    return [...(imports.get(id)?.parts ?? [])].sort((a, b) => a.messageId - b.messageId);
+  }),
+  transitionImport: vi.fn(async (id: string, from: string[], patch: Record<string, unknown>) => {
+    await tick();
+    const row = imports.get(id);
+    if (!row || !from.includes(row.status)) return false;
+    if (patch.status) row.status = patch.status as FakeImport["status"];
+    if ("post_id" in patch) row.postId = patch.post_id as string;
+    if ("source_text" in patch) row.sourceText = patch.source_text as string;
+    if ("language" in patch) row.language = patch.language as string;
+    if ("source_url" in patch) row.sourceUrl = patch.source_url as string | null;
+    if ("source_label" in patch) row.sourceLabel = patch.source_label as string;
+    return true;
+  }),
+  deleteImport: vi.fn(async (id: string) => {
+    await tick();
+    const row = imports.get(id);
+    if (!row || row.status === "started") return false;
+    imports.delete(id);
+    return true;
+  }),
   listTopics: vi.fn(async () => []),
   listPosts: vi.fn(async () => []),
   postCostUsd: vi.fn(async () => 0),
   hasUndo: vi.fn(async () => false),
   undoLastChange: vi.fn(async () => []),
-  deletePost: vi.fn(async () => undefined),
+  deletePost: vi.fn(async (id: string) => {
+    await tick();
+    posts.delete(id);
+  }),
   upsertImage: vi.fn(async () => undefined),
   usageSnapshot: vi.fn(async () => ({ activeJobs: 0, jobsToday: 0, articlesToday: 0, spentThisMonthUsd: 0 })),
 }));
@@ -159,6 +266,7 @@ function makePost(overrides: Partial<EditorialPost> = {}): EditorialPost {
     updatedAt: "2026-11-18T00:00:00Z",
     translations: [],
     images: [],
+    importInfo: null,
     ...overrides,
   };
 }
@@ -248,6 +356,9 @@ beforeEach(() => {
   vi.stubEnv("EDITORIAL_ALLOW_NON_PRODUCTION", "true");
   posts.clear();
   messages.clear();
+  imports.clear();
+  updatedFactChecks.length = 0;
+  downloadedText = "";
   activeJobs.length = 0;
   failNextTranslationUpdate = false;
   sent.length = 0;
@@ -459,5 +570,352 @@ describe("publishing", () => {
     expect(posts.get(post.id)!.status).toBe("review");
     expect(texts().at(-1)).toContain("заблокирована");
     expect(startJob).not.toHaveBeenCalled();
+  });
+});
+
+/* ---------- /import ---------- */
+
+function forwardUpdate(text: string, channel = "Cyprus Health News") {
+  const update = textUpdate(text);
+  return { ...update, message: { ...update.message, forward_origin: { type: "channel", chat: { title: channel } } } };
+}
+
+function fileUpdate(name: string, replyTo: number) {
+  const update = textUpdate("", replyTo);
+  const message: Omit<typeof update.message, "text"> & { text?: string } = { ...update.message };
+  delete message.text;
+  return { ...update, message: { ...message, document: { file_id: "f1", file_name: name, mime_type: "text/plain", file_size: 100 } } };
+}
+
+/** The id of the last message the bot remembered for /import. */
+function lastImportMessage(): number {
+  const keys = [...messages.entries()].filter(([, value]) => value.purpose === "import").map(([key]) => Number(key.split(":")[1]));
+  return keys.at(-1)!;
+}
+
+const onlyImport = () => [...imports.values()][0];
+
+describe("/import: receiving material", () => {
+  it("/import opens a collection and asks for the material", async () => {
+    await handleUpdate(textUpdate("/import"));
+    expect(imports.size).toBe(1);
+    expect(sent[0].text).toContain("Импорт материала");
+    expect(sent[0].forceReply).toBe(true);
+  });
+
+  it("takes text sent as a reply, then «Это весь текст» shows a summary", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Министерство объявило о реорганизации скорой помощи с 1 января 2027 года.", lastImportMessage()));
+    expect(onlyImport().parts).toHaveLength(1);
+    expect(texts().at(-1)).toContain("Часть 1 добавлена");
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain("impdone:");
+
+    await handleUpdate(callbackUpdate(`impdone:${onlyImport().id}`, lastImportMessage()));
+    expect(onlyImport().status).toBe("ready");
+    expect(onlyImport().language).toBeNull();
+    expect(texts().at(-1)).toContain("Материал собран");
+    expect(texts().at(-1)).toContain("не указан");
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain("impru:");
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("imprw:");
+  });
+
+  it("joins a long text that Telegram split into several messages, in message order", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Первая часть длинного текста.", lastImportMessage()));
+    await handleUpdate(textUpdate("Вторая часть, без ответа: Telegram разрезал сообщение."));
+    expect(onlyImport().parts.map((p) => p.body)).toEqual(["Первая часть длинного текста.", "Вторая часть, без ответа: Telegram разрезал сообщение."]);
+    await handleUpdate(callbackUpdate(`impdone:${onlyImport().id}`));
+    expect(onlyImport().sourceText).toBe("Первая часть длинного текста.\n\nВторая часть, без ответа: Telegram разрезал сообщение.");
+  });
+
+  it("while collecting, every plain message goes into the import, however late", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Часть материала.", lastImportMessage()));
+    onlyImport().lastPartAt = new Date(Date.now() - 10 * 60_000).toISOString();
+    await handleUpdate(textUpdate("Ещё кусок через десять минут."));
+    expect(onlyImport().parts.map((p) => p.body)).toEqual(["Часть материала.", "Ещё кусок через десять минут."]);
+    expect(texts().some((t) => t.startsWith("Написать статью на тему"))).toBe(false);
+  });
+
+  it("an import older than 24 hours does not take messages, even without a new /import", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Старый материал.", lastImportMessage()));
+    onlyImport().updatedAt = Date.now() - 25 * 60 * 60 * 1000;
+    await handleUpdate(textUpdate("Как найти дежурную аптеку"));
+    expect(texts().at(-1)).toBe("Написать статью на тему «Как найти дежурную аптеку»?");
+    expect(imports.size).toBe(0);
+  });
+
+  it("an import that is still fresh keeps taking messages", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Материал.", lastImportMessage()));
+    onlyImport().updatedAt = Date.now() - 23 * 60 * 60 * 1000;
+    await handleUpdate(textUpdate("Продолжение материала."));
+    expect(onlyImport().parts).toHaveLength(2);
+  });
+
+  it("while collecting, commands and replies to other bot messages work as before", async () => {
+    const post = reviewPost();
+    messages.set(`${ADMIN}:900`, { postId: post.id, purpose: "edit_prompt", slot: null, payload: null });
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("/help"));
+    expect(texts().at(-1)).toContain("Ничего не публикуется без вашей кнопки");
+    await handleUpdate(textUpdate("Сократи вступление", 900));
+    expect(jobsOfKind("edit")).toHaveLength(1);
+    expect(onlyImport().parts).toHaveLength(0);
+  });
+
+  it("after «Это весь текст» or «Отменить» plain messages are topics again", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Материал.", lastImportMessage()));
+    await handleUpdate(callbackUpdate(`impdone:${onlyImport().id}`));
+    await handleUpdate(textUpdate("Как найти дежурную аптеку"));
+    expect(onlyImport().parts).toHaveLength(1);
+    expect(texts().at(-1)).toBe("Написать статью на тему «Как найти дежурную аптеку»?");
+
+    await handleUpdate(callbackUpdate(`impcancel:${onlyImport().id}`));
+    expect(imports.size).toBe(0);
+    await handleUpdate(textUpdate("Что такое ГеСИ"));
+    expect(texts().at(-1)).toBe("Написать статью на тему «Что такое ГеСИ»?");
+  });
+
+  it("takes a forwarded post while collecting, and leaves forwards alone otherwise", async () => {
+    await handleUpdate(forwardUpdate("Пост из канала о скорой помощи."));
+    expect(texts().at(-1)).toContain("Написать статью на тему");
+    expect(imports.size).toBe(0);
+
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(forwardUpdate("Пост из канала о скорой помощи."));
+    expect(onlyImport().parts[0]).toMatchObject({ kind: "forward", sourceLabel: "пересланное сообщение из «Cyprus Health News»" });
+  });
+
+  it("reads a page behind a link, and explains when the site refuses", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("https://news.example.com/ambulance", lastImportMessage()));
+    expect(onlyImport().parts[0]).toMatchObject({ kind: "url", sourceUrl: "https://news.example.com/ambulance" });
+
+    await handleUpdate(textUpdate("https://www.gov.cy/moh/announcement", lastImportMessage()));
+    expect(onlyImport().parts).toHaveLength(1);
+    expect(texts().at(-1)).toContain("Не получилось прочитать страницу");
+    expect(texts().at(-1)).toContain("Вставьте текст");
+  });
+
+  it("reads a .txt file sent as a reply", async () => {
+    downloadedText = "Текст из файла о реорганизации.";
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(fileUpdate("news.txt", lastImportMessage()));
+    expect(onlyImport().parts[0]).toMatchObject({ kind: "file", body: "Текст из файла о реорганизации." });
+  });
+
+  it("refuses a part that would make the material too long", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("а".repeat(59_990), lastImportMessage()));
+    await handleUpdate(textUpdate("б".repeat(100), lastImportMessage()));
+    expect(onlyImport().parts).toHaveLength(1);
+    expect(texts().at(-1)).toContain("длиннее 60000 символов");
+  });
+
+  it("offers to continue, restart or cancel an unfinished import, and never mixes their parts", async () => {
+    await handleUpdate(textUpdate("/import"));
+    const firstPrompt = lastImportMessage();
+    await handleUpdate(textUpdate("Материал А.", firstPrompt));
+    const first = onlyImport().id;
+
+    await handleUpdate(textUpdate("/import"));
+    expect(texts().at(-1)).toContain("незавершённый импорт");
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain(`imprestart:${first}`);
+
+    await handleUpdate(callbackUpdate(`imprestart:${first}`));
+    expect(imports.has(first)).toBe(false);
+    const second = onlyImport().id;
+    // A late reply to the old import's prompt does not land in the new one.
+    await handleUpdate(textUpdate("Ещё к материалу А.", firstPrompt));
+    expect(imports.get(second)!.parts).toHaveLength(0);
+    expect(texts().at(-1)).toContain("уже закрыт");
+
+    await handleUpdate(callbackUpdate(`impcancel:${second}`));
+    expect(imports.size).toBe(0);
+  });
+});
+
+describe("/import: starting the article", () => {
+  async function readyImport(text = "Министерство объявило о реорганизации скорой помощи с 1 января 2027 года.") {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate(text, lastImportMessage()));
+    await handleUpdate(callbackUpdate(`impdone:${onlyImport().id}`));
+    await handleUpdate(callbackUpdate(`impru:${onlyImport().id}`));
+    return onlyImport().id;
+  }
+
+  it("does not start without a language: the start button is hidden and a tap is refused", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Материал.", lastImportMessage()));
+    const id = onlyImport().id;
+    await handleUpdate(callbackUpdate(`impdone:${id}`));
+    await handleUpdate(callbackUpdate(`imprw:${id}`));
+    expect(answered.at(-1)?.text).toBe("Сначала выберите язык оригинала");
+    expect(posts.size).toBe(0);
+    expect(jobsOfKind("rewrite")).toHaveLength(0);
+    expect(onlyImport().status).toBe("ready");
+  });
+
+  it("the button sets the language, shows it in the summary, and it can be changed before the start", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Material in English.", lastImportMessage()));
+    const id = onlyImport().id;
+    await handleUpdate(callbackUpdate(`impdone:${id}`));
+    await handleUpdate(callbackUpdate(`impen:${id}`, 700));
+    expect(onlyImport().language).toBe("en");
+    expect(edited.at(-1)).toMatchObject({ messageId: 700 });
+    expect(edited.at(-1)!.text).toContain("язык оригинала: <b>English</b>");
+    await handleUpdate(callbackUpdate(`impuk:${id}`, 700));
+    expect(onlyImport().language).toBe("uk");
+    expect(edited.at(-1)!.text).toContain("Українська");
+    await handleUpdate(callbackUpdate(`imprw:${id}`));
+    expect(jobsOfKind("rewrite")).toHaveLength(1);
+    // After the start the choice is closed.
+    await handleUpdate(callbackUpdate(`impru:${id}`));
+    expect(onlyImport().language).toBe("uk");
+  });
+
+  it("«Другой язык» asks for a name; the reply is saved and shown", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Tekst po polsku.", lastImportMessage()));
+    const id = onlyImport().id;
+    await handleUpdate(callbackUpdate(`impdone:${id}`));
+    await handleUpdate(callbackUpdate(`impother:${id}`));
+    expect(sent.at(-1)!.forceReply).toBe(true);
+    expect(texts().at(-1)).toContain("название языка");
+    await handleUpdate(textUpdate("польский", lastImportMessage()));
+    expect(onlyImport().language).toBe("other:польский");
+    expect(texts().at(-1)).toContain("язык оригинала: <b>польский</b>");
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain("imprw:");
+    expect(onlyImport().parts).toHaveLength(1);
+  });
+
+  it("«Рерайт + фактчек» creates one draft and queues a rewrite job for this material", async () => {
+    const id = await readyImport();
+    await handleUpdate(callbackUpdate(`imprw:${id}`));
+    expect(posts.size).toBe(1);
+    const post = [...posts.values()][0];
+    expect(post.topic).toBe("Импорт: Министерство объявило о реорганизации скорой помощи с 1 января 2027 года.");
+    expect(onlyImport()).toMatchObject({ status: "started", postId: post.id });
+    expect(jobsOfKind("rewrite")).toEqual([[post.id, "rewrite", { importId: id }]]);
+  });
+
+  it("two simultaneous taps create one draft and one job", async () => {
+    const id = await readyImport();
+    await Promise.all([handleUpdate(callbackUpdate(`imprw:${id}`)), handleUpdate(callbackUpdate(`imprw:${id}`))]);
+    expect(posts.size).toBe(1);
+    expect(jobsOfKind("rewrite")).toHaveLength(1);
+    expect(answered.map((a) => a.text)).toContain("Уже обрабатывается");
+  });
+
+  it("two simultaneous «Это весь текст» taps show one summary", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Материал.", lastImportMessage()));
+    const id = onlyImport().id;
+    await Promise.all([handleUpdate(callbackUpdate(`impdone:${id}`)), handleUpdate(callbackUpdate(`impdone:${id}`))]);
+    expect(texts().filter((t) => t.includes("Материал собран"))).toHaveLength(1);
+  });
+
+  it("«Написать заново» on a failed imported draft rewrites from the same material", async () => {
+    const id = await readyImport();
+    startJob.mockImplementationOnce(async () => ({ ok: false, reason: "Дневной лимит новых статей (5) исчерпан." }) as never);
+    await handleUpdate(callbackUpdate(`imprw:${id}`));
+    const post = [...posts.values()][0];
+    expect(post.status).toBe("failed");
+    await handleUpdate(callbackUpdate(`retry:${post.number}`));
+    expect(jobsOfKind("rewrite").at(-1)).toEqual([post.id, "rewrite", { importId: id }]);
+    expect(jobsOfKind("write")).toHaveLength(0);
+  });
+});
+
+describe("/import: checks of the imported draft", () => {
+  const MATERIAL_URL = "https://news.example.com/ambulance";
+
+  function importedPost(overrides: Partial<EditorialPost> = {}, sourceText = "Короткий материал о скорой помощи.") {
+    const post = reviewPost(overrides);
+    imports.set("imp-1", {
+      id: "imp-1", chatId: ADMIN, status: "started", postId: post.id, sourceText, language: "ru", sourceUrl: MATERIAL_URL,
+      sourceLabel: `ссылка ${MATERIAL_URL}`, sourceTextRu: null, createdAt: "", lastPartAt: null, updatedAt: 0, parts: [],
+    });
+    return post;
+  }
+
+  it("blocks publication when the article copies the material", async () => {
+    const copied = "Министерство здравоохранения объявило о реорганизации службы скорой помощи с 1 января 2027 года, и все бригады перейдут под единое управление из одного центра.";
+    const post = importedPost(
+      { translations: [{ ...translation("ru"), bodyMd: `## Коротко\n\n- Пункт.\n\n${copied}\n\n${"слово ".repeat(300)}` }, translation("en")] },
+      copied,
+    );
+    await handleUpdate(callbackUpdate(`pubok:${post.number}`));
+    expect(posts.get(post.id)!.status).toBe("review");
+    expect(texts().at(-1)).toContain("слишком близок к исходному материалу");
+  });
+
+  it("does not count the material itself as a primary source for a critical fact", async () => {
+    const fact = { ...confirmedFact(), sourceUrl: MATERIAL_URL, id: "from-material" };
+    const post = importedPost({ factChecks: [fact] });
+    await handleUpdate(callbackUpdate(`pubok:${post.number}`));
+    expect(posts.get(post.id)!.status).toBe("review");
+    expect(texts().at(-1)).toContain("важных не подтверждены");
+  });
+
+  it("checks figures in the FAQ of an imported draft", async () => {
+    const ru = { ...translation("ru"), faq: [{ question: "Когда?", answer: "С 1 января 2027 года, время прибытия 18 минут." }] };
+    const post = importedPost({ translations: [ru, translation("en")] });
+    await handleUpdate(callbackUpdate(`pubok:${post.number}`));
+    expect(posts.get(post.id)!.status).toBe("review");
+  });
+
+  it("an ordinary draft keeps the old rules: FAQ figures are not checked", async () => {
+    const ru = { ...translation("ru"), faq: [{ question: "Когда?", answer: "С 1 января 2027 года, время прибытия 18 минут." }] };
+    const post = reviewPost({ translations: [ru, translation("en")] });
+    await handleUpdate(callbackUpdate(`pubok:${post.number}`));
+    expect(posts.get(post.id)!.status).toBe("published");
+  });
+});
+
+describe("/import: a fact that contradicts its source", () => {
+  function conflictPost() {
+    const fact: FactEntry = {
+      ...confirmedFact(),
+      id: "conflict-1",
+      claim: "Реорганизация начнётся 1 января 2027 года.",
+      conflict: "в материале 1 января 2027, на сайте министерства — 1 марта 2027",
+      suggestedFix: "Реорганизация планируется с 1 марта 2027 года.",
+    };
+    return reviewPost({ factChecks: [fact] });
+  }
+
+  it("blocks publication even though its quote was found", async () => {
+    const post = conflictPost();
+    await handleUpdate(callbackUpdate(`pubok:${post.number}`));
+    expect(posts.get(post.id)!.status).toBe("review");
+  });
+
+  it("✏️ applies the proposed correction as an ordinary AI edit", async () => {
+    const post = conflictPost();
+    await handleUpdate(callbackUpdate(`ffx:${post.number}:conflict-1`));
+    expect(jobsOfKind("edit")).toHaveLength(1);
+    expect(String((jobsOfKind("edit")[0][2] as { instruction: string }).instruction)).toContain("Реорганизация планируется с 1 марта 2027 года.");
+  });
+
+  it("✅ needs a link and a written reason; a link alone does not unblock", async () => {
+    const post = conflictPost();
+    await handleUpdate(callbackUpdate(`fok:${post.number}:conflict-1`));
+    const prompt = Number([...messages.entries()].find(([, v]) => v.slot === "fact|conflict-1")![0].split(":")[1]);
+    expect(texts().at(-1)).toContain("Противоречит источнику");
+
+    await handleUpdate(textUpdate("https://www.gov.cy/moh/schedule", prompt));
+    expect(posts.get(post.id)!.factChecks[0].manual).toBeNull();
+    expect(texts().at(-1)).toContain("только с объяснением");
+
+    await handleUpdate(textUpdate("https://www.gov.cy/moh/schedule на сайте обновили дату, материал устарел", prompt));
+    expect(updatedFactChecks.at(-1)?.[0].manual).toMatchObject({
+      sourceUrl: "https://www.gov.cy/moh/schedule",
+      reason: "на сайте обновили дату, материал устарел",
+    });
   });
 });

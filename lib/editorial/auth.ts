@@ -42,6 +42,24 @@ export interface TelegramMessage {
   photo?: TelegramPhotoSize[];
   document?: TelegramDocument;
   reply_to_message?: { message_id: number };
+  /** Set when the message was forwarded; its type says from where (Bot API 7.0+). */
+  forward_origin?: {
+    type: string;
+    chat?: { title?: string; username?: string };
+    sender_chat?: { title?: string; username?: string };
+    sender_user?: { first_name?: string; username?: string };
+    sender_user_name?: string;
+  };
+  /** Links inside the text: plain URLs and text_link entities. */
+  entities?: TelegramEntity[];
+  caption_entities?: TelegramEntity[];
+}
+
+export interface TelegramEntity {
+  type: string;
+  offset: number;
+  length: number;
+  url?: string;
 }
 
 export interface TelegramCallbackQuery {

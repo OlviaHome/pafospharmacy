@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { FactEntry } from "./facts";
+
 import {
   asFactEntries,
   cleanClaims,
@@ -163,5 +165,67 @@ describe("old drafts and bad input", () => {
     expect(cleanClaims([{ claim: " A ", importance: "weird", source_url: GESY, quote: "q" }, { claim: "" }, null])).toEqual([
       { claim: "A", importance: "critical", source_url: GESY, quote: "q" },
     ]);
+  });
+});
+
+
+describe("imported drafts (/import)", () => {
+  const URL_OFFICIAL = "https://www.gov.cy/moh/schedule";
+  const MATERIAL = "https://news.example.com/ambulance";
+  const base = (overrides: Partial<FactEntry>): FactEntry => ({
+    id: "x",
+    kind: "claim",
+    claim: "Реорганизация планируется с 2027 года.",
+    importance: "critical",
+    sourceUrl: URL_OFFICIAL,
+    quote: "The reorganisation is planned for 2027 onwards.",
+    state: "quote_found",
+    detail: null,
+    checkedAt: null,
+    manual: null,
+    ...overrides,
+  });
+
+  it("keeps nature, conflict and suggested fix from the model", () => {
+    const [claim] = cleanClaims([{ claim: "A", importance: "critical", source_url: URL_OFFICIAL, quote: "q", nature: "plan", conflict: "c", suggested_fix: "f" }]);
+    expect(claim).toMatchObject({ nature: "plan", conflict: "c", suggested_fix: "f" });
+    expect(cleanClaims([{ claim: "A", importance: "critical", source_url: URL_OFFICIAL, quote: "q", nature: "nonsense", conflict: "" }])[0]).not.toHaveProperty("nature");
+  });
+
+  it("an unconfirmed report blocks even with its quote found; the editor's confirmation clears it", () => {
+    const entry = base({ nature: "unconfirmed" });
+    expect(factItems([entry], "Текст.")[0]).toMatchObject({ blocking: true, note: "не подтверждено первоисточником" });
+    const confirmed = { ...entry, manual: { at: "2026-11-18", sourceUrl: URL_OFFICIAL } };
+    expect(factItems([confirmed], "Текст.")[0].blocking).toBe(false);
+  });
+
+  it("the imported material itself is not a primary source", () => {
+    const entry = base({ sourceUrl: MATERIAL });
+    expect(factItems([entry], "Текст.")[0].blocking).toBe(false);
+    const item = factItems([entry], "Текст.", { materialUrls: [`${MATERIAL}/`] })[0];
+    expect(item).toMatchObject({ blocking: true, note: "источник — сам импортированный материал, а не первоисточник" });
+  });
+
+  it("a contradicted statement needs a written reason, not just a link", () => {
+    const entry = base({ conflict: "в материале другая дата", suggestedFix: "с 1 марта 2027" });
+    expect(factItems([entry], "Текст.")[0].blocking).toBe(true);
+    const linkOnly = { ...entry, manual: { at: "2026-11-18", sourceUrl: URL_OFFICIAL } };
+    expect(factItems([linkOnly], "Текст.")[0].blocking).toBe(true);
+    const withReason = { ...entry, manual: { at: "2026-11-18", sourceUrl: URL_OFFICIAL, reason: "дата подтверждена письмом" } };
+    expect(factItems([withReason], "Текст.")[0]).toMatchObject({ blocking: false, status: "manual" });
+  });
+
+  it("an AI edit that keeps a claim unchanged keeps its import fields", () => {
+    const claim = { claim: "A", importance: "critical" as const, source_url: URL_OFFICIAL, quote: "quote text long enough here" };
+    const previous = evaluateClaims([{ ...claim, nature: "plan", conflict: "c" }], new Map(), []);
+    const after = evaluateClaims([claim], new Map(), previous);
+    expect(after[0]).toMatchObject({ nature: "plan", conflict: "c" });
+  });
+
+  it("covers figures in the FAQ when asked to", () => {
+    const text = "## Коротко\n\nТекст без цифр.";
+    const faq = `${text}\n\nСколько ждать?\nОколо 18 минут.`;
+    expect(factItems([base({})], text).some((item) => item.kind === "sentence")).toBe(false);
+    expect(factItems([base({})], text, { coverageText: faq }).some((item) => item.kind === "sentence" && item.blocking)).toBe(true);
   });
 });

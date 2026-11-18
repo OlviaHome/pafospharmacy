@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Locale } from "@/lib/i18n/types";
 
-import { editorialLimits, isProductionRuntime, openAiModel, siteOrigin, telegramConfig } from "./config";
+import { editorialLimits, isProductionRuntime, openAiModel, siteOrigin, telegramConfig, utilityModel } from "./config";
 import type { SourceCheck } from "./checks";
 import { materializeStock, removeStoredImage, searchStock } from "./images";
 import { claimsFromEntries } from "./facts";
@@ -17,6 +17,11 @@ import { callResponses, OpenAiError } from "./openai";
 import { estimateCostUsd, reservedCostUsd } from "./pricing";
 import {
   ARTICLE_SCHEMA,
+  MATERIAL_TRANSLATION_INSTRUCTIONS,
+  MATERIAL_TRANSLATION_SCHEMA,
+  REWRITE_SCHEMA,
+  rewriteInput,
+  rewriteInstructions,
   editInstructions,
   sourceKind,
   TRANSLATION_SCHEMA,
@@ -24,17 +29,22 @@ import {
   writeInstructions,
   type ArticleDraft,
   type ArticleImagePlan,
+  type MaterialIssue,
+  type RewriteDraft,
   type TranslationDraft,
 } from "./prompts";
 import { activeImages } from "./cards";
+import { languageLabel } from "./imports";
 import {
   claimJob,
   enqueueJob,
   failStaleJobs,
   finishJob,
   firstActiveJobId,
+  loadImport,
   loadPost,
   recordUsage,
+  setImportTranslation,
   saveTranslation,
   setTranslationStatus,
   updatePost,
@@ -54,6 +64,8 @@ export interface JobPayload {
   locales?: Locale[];
   instruction?: string;
   batchId?: string;
+  /** "rewrite" jobs: the /import material to write from. */
+  importId?: string;
   /** What to send the editor when the job chain finishes. */
   notify?: "card" | "translations";
 }
@@ -147,6 +159,7 @@ export async function runJob(jobId: number): Promise<void> {
   }
   try {
     if (job.kind === "write") await runWrite(job, post);
+    else if (job.kind === "rewrite") await runRewrite(job, post);
     else if (job.kind === "translate") await runTranslate(job, post);
     else await runEdit(job, post);
     await finishJob(job.id, "done");
@@ -263,6 +276,133 @@ async function runWrite(job: JobRecord, post: EditorialPost): Promise<void> {
     existingImages: [],
     finalPatch: { slug: slugChoice.slug },
     leadingWarnings: slugWarning(slugChoice),
+  });
+}
+
+/** Notes for the editor about statements of the imported material that sources contradict or do not confirm. */
+function materialIssueNotes(issues: MaterialIssue[] | undefined): string[] {
+  return (issues ?? []).slice(0, 8).map((issue) =>
+    [
+      `Исходный материал: «${issue.fragment.slice(0, 200)}» — ${issue.problem}`,
+      issue.source_url ? ` Источник: ${issue.source_url}.` : "",
+      issue.suggested_fix ? ` Верно: ${issue.suggested_fix}` : "",
+    ].join(""),
+  );
+}
+
+/** The working translation is made in paragraph-sized pieces of at most this many characters. */
+export const TRANSLATION_CHUNK_CHARS = 12_000;
+
+/** Splits the material at paragraph breaks into pieces short enough for one translation call. */
+export function translationChunks(text: string, limit = TRANSLATION_CHUNK_CHARS): string[] {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .flatMap((paragraph) => {
+      // A single paragraph longer than a piece is cut at sentence ends, or hard as a last resort.
+      if (paragraph.length <= limit) return [paragraph];
+      const pieces: string[] = [];
+      let rest = paragraph;
+      while (rest.length > limit) {
+        const window = rest.slice(0, limit);
+        const cut = Math.max(window.lastIndexOf(". "), window.lastIndexOf("! "), window.lastIndexOf("? "));
+        const at = cut > limit / 2 ? cut + 1 : limit;
+        pieces.push(rest.slice(0, at).trim());
+        rest = rest.slice(at).trim();
+      }
+      return rest ? [...pieces, rest] : pieces;
+    });
+  const chunks: string[] = [];
+  let current = "";
+  for (const paragraph of paragraphs) {
+    if (current && current.length + paragraph.length + 2 > limit) {
+      chunks.push(current);
+      current = "";
+    }
+    current = current ? `${current}\n\n${paragraph}` : paragraph;
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+/**
+ * Working Russian translation of the whole material, piece by piece. A piece that comes back
+ * empty, much shorter or with paragraphs missing stops the job: the independence check must
+ * never run against half a material.
+ */
+async function translateMaterial(job: JobRecord, text: string): Promise<string> {
+  const model = utilityModel();
+  const translated: string[] = [];
+  for (const piece of translationChunks(text)) {
+    const result = await callResponses<{ text_ru: string }>({
+      model,
+      instructions: MATERIAL_TRANSLATION_INSTRUCTIONS,
+      input: JSON.stringify({ text: piece }),
+      schemaName: "material_translation",
+      schema: MATERIAL_TRANSLATION_SCHEMA,
+      maxSearches: 0,
+      maxOutputTokens: 16_000,
+      reasoningEffort: "low",
+      timeoutMs: TRANSLATE_TIMEOUT_MS,
+    });
+    await recordUsage(job.id, model, result.usage, result.costUsd);
+    const russian = result.data.text_ru.trim();
+    const expected = piece.split(/\n\s*\n/).length;
+    const got = russian ? russian.split(/\n\s*\n/).length : 0;
+    if (!russian || got < Math.ceil(expected * 0.8) || russian.length < piece.length * 0.5) {
+      throw new Error(
+        "Служебный перевод материала получился неполным, поэтому проверить самостоятельность статьи нельзя. Нажмите «Написать заново».",
+      );
+    }
+    translated.push(russian);
+  }
+  return translated.join("\n\n");
+}
+
+/**
+ * /import, mode A: an independent article from the editor's material. The material goes to the
+ * model only as marked data; a non-Russian material is first given a working Russian translation
+ * (cheap model), used only by the independence check.
+ */
+async function runRewrite(job: JobRecord, post: EditorialPost): Promise<void> {
+  const importId = String((job.payload as JobPayload).importId ?? post.importInfo?.id ?? "");
+  const material = importId ? await loadImport(importId) : null;
+  if (!material?.sourceText) throw new Error("Импортированный материал не найден.");
+
+  // The editor chooses the original's language; a Russian one needs no working translation.
+  if (!material.language) throw new Error("Язык оригинала не выбран: вернитесь к сводке импорта и выберите его.");
+  if (material.language !== "ru" && !material.sourceTextRu) {
+    await setImportTranslation(material.id, await translateMaterial(job, material.sourceText));
+  }
+
+  const model = openAiModel();
+  const result = await callResponses<RewriteDraft>({
+    model,
+    instructions: rewriteInstructions(new Date()),
+    input: rewriteInput({
+      text: material.sourceText,
+      language: languageLabel(material.language),
+      origin: material.sourceLabel ?? "текст от редактора",
+      url: material.sourceUrl,
+    }),
+    schemaName: "blog_import_article",
+    schema: REWRITE_SCHEMA,
+    maxSearches: editorialLimits().maxSearchesPerArticle,
+    maxOutputTokens: 24_000,
+    reasoningEffort: "medium",
+    timeoutMs: WRITE_TIMEOUT_MS,
+  });
+  await recordUsage(job.id, model, result.usage, result.costUsd);
+
+  const article = normalizeArticle(result.data);
+  const slugChoice = await uniqueSlug(article.slug || article.title, post.id);
+  await finishArticle(post, article, {
+    revision: "import: rewrite",
+    citedUrls: result.citedUrls,
+    existingImages: [],
+    finalPatch: { slug: slugChoice.slug },
+    leadingWarnings: [...slugWarning(slugChoice), ...materialIssueNotes(result.data.material_issues)],
   });
 }
 

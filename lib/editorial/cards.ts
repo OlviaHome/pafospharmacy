@@ -6,6 +6,7 @@ import { markerSlots, wordCount } from "./normalize";
 import { splitSections } from "./sections";
 import { formatChecks, type CheckResult } from "./checks";
 import { factItems, type FactItem } from "./facts";
+import { importFactOptions } from "./imports";
 import { sourceKind } from "./prompts";
 import type { EditorialPost } from "./store";
 import { escapeHtml, type InlineKeyboard } from "./telegram";
@@ -68,6 +69,10 @@ export function renderCard(
     `Статус: ${POST_STATUS_LABEL[post.status]}`,
   ];
   if (ru && ru.title !== post.topic) lines.push(`Тема: <i>${escapeHtml(post.topic.slice(0, 200))}</i>`);
+  if (post.importInfo) {
+    const origin = post.importInfo.sourceUrl ? link(post.importInfo.sourceUrl, hostLabel(post.importInfo.sourceUrl)) : escapeHtml(post.importInfo.sourceLabel ?? "текст от редактора");
+    lines.push(`📥 Из импорта (рерайт + фактчек): ${origin}`);
+  }
 
   const languages = LOCALE_ORDER.map((locale) => {
     const t = post.translations.find((candidate) => candidate.locale === locale);
@@ -290,6 +295,13 @@ const FACT_STATUS: Record<FactItem["status"], string> = {
   no_claims: "факты не выделены",
 };
 
+const NATURE_LABEL: Record<NonNullable<FactItem["nature"]>, string> = {
+  fact: "факт",
+  plan: "план, ещё не действует",
+  forecast: "прогноз",
+  unconfirmed: "не подтверждено первоисточником",
+};
+
 /** The automatic check could not be completed (the source did not open or gave no text): only the editor can check. */
 const NEEDS_MANUAL_CHECK: ReadonlySet<FactItem["status"]> = new Set(["source_unavailable", "no_text", "no_quote"]);
 
@@ -304,7 +316,7 @@ function hostLabel(url: string): string {
 /** Facts that need attention first (blocking, then weak), then the rest as a short count. */
 export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: InlineKeyboard; items: FactItem[] } {
   const ru = post.translations.find((t) => t.locale === "ru");
-  const items = ru ? factItems(post.factChecks, ru.bodyMd) : [];
+  const items = ru ? factItems(post.factChecks, ru.bodyMd, importFactOptions(post)) : [];
   const open = items.filter(
     (item) => item.blocking || (item.importance === "normal" && item.status !== "quote_found" && item.status !== "manual"),
   );
@@ -324,16 +336,30 @@ export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: 
     const status = `${FACT_STATUS[item.status]}${item.detail ? `: ${escapeHtml(item.detail)}` : ""}`;
     lines.push(`${mark} <b>${index + 1}.</b> ${escapeHtml(item.claim.slice(0, 300))}`);
     lines.push(NEEDS_MANUAL_CHECK.has(item.status) ? `   🔎 Проверить вручную — ${status}` : `   ${status}`);
+    if (item.nature && item.nature !== "fact") lines.push(`   Характер: ${NATURE_LABEL[item.nature]}`);
+    if (item.note) lines.push(`   ❗ ${escapeHtml(item.note.slice(0, 400))}`);
     if (item.sourceUrl) lines.push(`   Источник: ${link(item.sourceUrl, hostLabel(item.sourceUrl))}`);
     if (item.quote) lines.push(`   «${escapeHtml(item.quote.slice(0, 200))}»`);
+    if (item.suggestedFix) lines.push(`   Предлагаемая правка: ${escapeHtml(item.suggestedFix.slice(0, 300))}`);
   });
   if (open.length > shown.length) lines.push("", `…и ещё ${open.length - shown.length}. Исправьте текст или подтвердите эти, затем откройте меню снова.`);
   if (open.length === 0) lines.push("Всё, что требовало внимания, подтверждено.");
   if (byHand > 0) lines.push("", "🔎 Проверить вручную — бот не смог открыть или прочитать источник (например, сайт не пускает автоматические запросы). Ссылка сохранена: откройте её сами.");
   lines.push("", "✅ — проверила сама: бот спросит, по какому источнику, и сохранит ссылку и дату. 📝 Править самой — исправить текст.");
+  if (shown.some((item) => item.conflict)) {
+    lines.push(
+      "Факт, который противоречит источнику: ✏️ — внести предлагаемую правку (правка через ИИ, затем проверка заново); ✅ — оставить как есть, только со ссылкой и объяснением.",
+    );
+  }
   const keyboard: InlineKeyboard = [];
   for (let i = 0; i < shown.length; i += 4) {
     keyboard.push(shown.slice(i, i + 4).map((item, j) => ({ text: `✅ ${i + j + 1}`, callback_data: `fok:${post.number}:${item.id}` })));
+  }
+  const fixable = shown.map((item, index) => ({ item, index })).filter(({ item }) => item.conflict && item.suggestedFix);
+  for (let i = 0; i < fixable.length; i += 4) {
+    keyboard.push(
+      fixable.slice(i, i + 4).map(({ item, index }) => ({ text: `✏️ ${index + 1}`, callback_data: `ffx:${post.number}:${item.id}` })),
+    );
   }
   keyboard.push([
     { text: "🔁 Перепроверить цитаты", callback_data: `frc:${post.number}` },
