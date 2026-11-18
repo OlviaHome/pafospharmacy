@@ -29,9 +29,34 @@ async function call<T>(method: string, params: Record<string, unknown>): Promise
   return json.result as T;
 }
 
-/** Telegram rejects messages over 4096 characters; long texts are cut with an ellipsis. */
-function fit(text: string): string {
-  return text.length > 4000 ? `${text.slice(0, 3990)}…` : text;
+const MAX_TEXT = 4000;
+const PAIRED_TAGS = new Set(["b", "strong", "i", "em", "u", "ins", "s", "strike", "del", "code", "pre", "a", "blockquote", "tg-spoiler"]);
+
+/**
+ * Telegram rejects messages over 4096 characters, so long texts are cut with an ellipsis. The text is
+ * HTML: a cut must never leave a half-written tag or entity, and every tag still open at the cut is
+ * closed, otherwise Telegram answers "can't parse entities" and the whole message is lost.
+ */
+export function fitHtml(text: string, max = MAX_TEXT): string {
+  if (text.length <= max) return text;
+  let cut = text.slice(0, max - 10);
+  // A tag cut in the middle ("<a href=…") goes entirely.
+  const lastOpen = cut.lastIndexOf("<");
+  if (lastOpen > cut.lastIndexOf(">")) cut = cut.slice(0, lastOpen);
+  // So does an entity cut in the middle ("&am").
+  cut = cut.replace(/&[a-zA-Z#0-9]{0,10}$/, "");
+  const open: string[] = [];
+  for (const match of cut.matchAll(/<(\/?)([a-zA-Z-]+)[^>]*>/g)) {
+    const name = match[2].toLowerCase();
+    if (!PAIRED_TAGS.has(name)) continue;
+    if (match[1]) {
+      const index = open.lastIndexOf(name);
+      if (index >= 0) open.length = index;
+    } else {
+      open.push(name);
+    }
+  }
+  return `${cut}…${open.reverse().map((name) => `</${name}>`).join("")}`;
 }
 
 export async function sendMessage(
@@ -41,7 +66,7 @@ export async function sendMessage(
 ): Promise<{ message_id: number }> {
   return call("sendMessage", {
     chat_id: chatId,
-    text: fit(text),
+    text: fitHtml(text),
     parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
     ...(options.replyTo ? { reply_parameters: { message_id: options.replyTo, allow_sending_without_reply: true } } : {}),
@@ -64,7 +89,7 @@ export async function sendDocument(
   const { botToken } = telegramConfig();
   const form = new FormData();
   form.append("chat_id", String(chatId));
-  form.append("caption", fit(caption).slice(0, 1000));
+  form.append("caption", fitHtml(caption, 1000));
   form.append("parse_mode", "HTML");
   if (options.forceReply) form.append("reply_markup", JSON.stringify({ force_reply: true, selective: true }));
   form.append("document", new Blob([content], { type: "text/markdown; charset=utf-8" }), fileName);
@@ -92,7 +117,7 @@ export async function editMessage(
     await call("editMessageText", {
       chat_id: chatId,
       message_id: messageId,
-      text: fit(text),
+      text: fitHtml(text),
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
       reply_markup: { inline_keyboard: keyboard ?? [] },
