@@ -11,6 +11,8 @@ export interface ResponsesCallOptions {
   schema: Record<string, unknown>;
   /** Enables the hosted web_search tool with this many calls at most. 0 disables search. */
   maxSearches: number;
+  /** Restricts web search to these domains (and their subdomains). */
+  allowedDomains?: string[];
   maxOutputTokens: number;
   reasoningEffort: "low" | "medium" | "high";
   timeoutMs: number;
@@ -99,7 +101,11 @@ export async function callResponses<T>(options: ResponsesCallOptions): Promise<R
     },
   };
   if (options.maxSearches > 0) {
-    body.tools = [{ type: "web_search" }];
+    body.tools = [
+      options.allowedDomains?.length
+        ? { type: "web_search", filters: { allowed_domains: options.allowedDomains } }
+        : { type: "web_search" },
+    ];
     body.max_tool_calls = options.maxSearches;
     body.include = ["web_search_call.action.sources"];
   }

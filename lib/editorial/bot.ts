@@ -30,6 +30,7 @@ import { splitSections } from "./sections";
 import type { JobKind } from "./limits";
 import { nextStockImage, refreshSourceChecks, setNotifier, startJob, type StartResult } from "./pipeline";
 import { findSimilar } from "./similar";
+import { handleScoutCallback, handleScoutCommand, SCOUT_ACTIONS, scoutUsageLines, sendScoutOutcome, sendSources } from "./scout-bot";
 import {
   assembleParts,
   languageLabel,
@@ -169,6 +170,7 @@ async function sendTranslationsCard(chatId: number, post: EditorialPost): Promis
 setNotifier({
   card: (post) => sendCard(adminChatId(), post),
   translations: (post) => sendTranslationsCard(adminChatId(), post),
+  scout: (outcome) => sendScoutOutcome(adminChatId(), outcome),
   failure: async (post, kind, message) => {
     const what: Record<JobKind, string> = {
       write: "написать статью",
@@ -176,6 +178,7 @@ setNotifier({
       translate: "перевести",
       rewrite: "написать статью из импорта",
       prepare: "подготовить текст к публикации",
+      scout: "выполнить мониторинг новостей",
     };
     await sendMessage(
       adminChatId(),
@@ -215,6 +218,8 @@ const HELP = `Я пишу статьи для блога HealthGuide Cyprus. Н�
 /import: статья из чужого материала
 /drafts: черновики
 /published: опубликованные
+/scout: мониторинг новостей сейчас; /scout test: пробный запуск (ничего не сохраняется)
+/sources: источники мониторинга
 /usage: расходы и лимиты`;
 
 async function startArticle(chatId: number, topic: string, options: { force?: boolean } = {}): Promise<void> {
@@ -304,6 +309,7 @@ async function showUsage(chatId: number): Promise<void> {
       `OpenAI в этом месяце: ~$${usage.spentThisMonthUsd.toFixed(2)} из $${limits.monthlyBudgetUsd.toFixed(2)}`,
       `Сегодня статей: ${usage.articlesToday} из ${limits.dailyArticles}`,
       `Сегодня задач (статьи, правки, переводы): ${usage.jobsToday} из ${limits.dailyJobs}`,
+      ...(await scoutUsageLines()),
       `Сейчас выполняется: ${usage.activeJobs} (максимум ${limits.parallelJobs})`,
       `Модель: <code>${escapeHtml(openAiModel())}</code>`,
       `Стоковые фото: ${unsplashKey() ? "Unsplash" : "Openverse (без ключа)"}`,
@@ -353,6 +359,12 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
         return;
       case "/usage":
         await showUsage(chatId);
+        return;
+      case "/scout":
+        await handleScoutCommand(chatId, argument);
+        return;
+      case "/sources":
+        await sendSources(chatId);
         return;
       default:
         await sendMessage(chatId, "Не знаю такой команды. /help");
@@ -733,6 +745,10 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
 
   if (IMPORT_ACTIONS.has(action)) {
     await handleImportCallback(query, action, rawNumber ?? "");
+    return;
+  }
+  if (SCOUT_ACTIONS.has(action)) {
+    await handleScoutCallback(query, action, rawNumber ?? "");
     return;
   }
 

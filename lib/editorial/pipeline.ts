@@ -38,6 +38,10 @@ import {
   type TranslationDraft,
 } from "./prompts";
 import { activeImages } from "./cards";
+import { runScout, type ScoutOptions } from "./scout-run";
+import { peekRun, type RunKind } from "./scout-store";
+import { cyprusDate } from "./scout";
+import type { ScoutOutcome } from "./scout-render";
 import { languageLabel } from "./imports";
 import { assembleBody, checkParagraph, splitParagraphs, applySuggestion, type Suggestion } from "./prepare";
 import {
@@ -90,7 +94,7 @@ export type StartResult =
  */
 export async function startJob(
   postId: string,
-  kind: JobKind,
+  kind: Exclude<JobKind, "scout">,
   payload: JobPayload,
   options: { chained?: boolean; exclusive?: boolean; dispatch?: (jobId: number) => Promise<void> } = {},
 ): Promise<StartResult> {
@@ -145,6 +149,8 @@ export interface Notifier {
   card(post: EditorialPost): Promise<void>;
   translations(post: EditorialPost): Promise<void>;
   failure(post: EditorialPost, kind: JobKind, message: string): Promise<void>;
+  /** The Scout's digest, or its failure, for the editor. */
+  scout?(outcome: ScoutOutcome): Promise<void>;
 }
 
 let notifier: Notifier | null = null;
@@ -158,6 +164,11 @@ export function setNotifier(value: Notifier): void {
 export async function runJob(jobId: number): Promise<void> {
   const job = await claimJob(jobId);
   if (!job) return;
+  // The News Scout has no draft: it records its own run and tells the editor the outcome.
+  if (job.kind === "scout") {
+    await runScoutJob(job);
+    return;
+  }
   const post = job.postId ? await loadPost({ id: job.postId }) : null;
   if (!post) {
     await finishJob(job.id, "failed", "post not found");
@@ -190,6 +201,46 @@ export async function runJob(jobId: number): Promise<void> {
     const fresh = (await loadPost({ id: post.id }).catch(() => null)) ?? post;
     await notifier?.failure(fresh, job.kind, message).catch(() => undefined);
   }
+}
+
+async function runScoutJob(job: JobRecord): Promise<void> {
+  const payload = job.payload as { kind?: RunKind; trigger?: "manual" | "schedule"; model?: string };
+  const options: ScoutOptions = {
+    jobId: job.id,
+    kind: payload.kind === "test" ? "test" : "real",
+    trigger: payload.trigger === "schedule" ? "schedule" : "manual",
+    ...(payload.model ? { model: payload.model } : {}),
+  };
+  let outcome: ScoutOutcome | null = null;
+  try {
+    outcome = await runScout(options);
+    await finishJob(job.id, "done", outcome === null ? "skipped: the run of this day is done or running" : undefined);
+  } catch (error) {
+    // Only reachable when the run record itself could not be taken: nothing ran.
+    console.error(`editorial: scout job ${job.id} failed`, error instanceof Error ? error.name : "unknown");
+    await finishJob(job.id, "failed", "run record").catch(() => undefined);
+    outcome = { kind: "failed", test: options.kind === "test", code: "internal", reason: "внутренняя ошибка", unavailable: [] };
+  }
+  if (outcome) await notifier?.scout?.(outcome).catch((error) => console.error("editorial: scout notification failed", error instanceof Error ? error.name : "unknown"));
+}
+
+export type StartScoutResult =
+  | { ok: true; jobId: number }
+  | { ok: false; reason: "done" | "running" };
+
+/**
+ * Queues a Scout run. The limits are checked by the run itself (it must record and report a limit
+ * refusal like any other failure); here only a run that is pointless to queue is turned down: the
+ * real run of today is done, or a run of this kind is going on.
+ */
+export async function startScoutJob(options: { kind: RunKind; trigger: "manual" | "schedule"; model?: string }): Promise<StartScoutResult> {
+  await failStaleJobs();
+  const existing = await peekRun(cyprusDate(new Date()), options.kind);
+  if (existing?.status === "done" && options.kind === "real") return { ok: false, reason: "done" };
+  if (existing?.status === "running" && Date.now() - Date.parse(existing.startedAt) < 15 * 60 * 1000) return { ok: false, reason: "running" };
+  const jobId = await enqueueJob(null, "scout", options as Record<string, unknown>);
+  await dispatchJob(jobId);
+  return { ok: true, jobId };
 }
 
 async function chain(postId: string, payload: JobPayload): Promise<void> {

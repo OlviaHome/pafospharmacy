@@ -56,9 +56,14 @@ const store = {
 };
 vi.mock("@/lib/editorial/store", () => store);
 
+const runScoutMock = vi.fn<(options: unknown) => Promise<unknown>>();
+vi.mock("@/lib/editorial/scout-run", () => ({ runScout: (options: unknown) => runScoutMock(options) }));
+const peekRun = vi.fn<(date: string, kind: string) => Promise<unknown>>(async () => null);
+vi.mock("@/lib/editorial/scout-store", () => ({ peekRun: (date: string, kind: string) => peekRun(date, kind) }));
+
 const fetchMock = vi.fn(async () => new Response(null, { status: 202 }));
 
-const { runJob, dispatchJob, setNotifier, startJob, translationChunks } = await import("./pipeline");
+const { runJob, dispatchJob, setNotifier, startJob, startScoutJob, translationChunks } = await import("./pipeline");
 
 function post(overrides: Partial<EditorialPost> = {}): EditorialPost {
   return {
@@ -533,5 +538,69 @@ describe("preparing the editor's own text (/import, mode B)", () => {
     await runJob(36);
     expect(callResponses).not.toHaveBeenCalled();
     expect(store.finishJob).toHaveBeenCalledWith(36, "failed", expect.stringContaining("Язык оригинала не выбран"));
+  });
+});
+
+describe("the News Scout job", () => {
+  const scoutNotify = vi.fn<(outcome: unknown) => Promise<undefined>>(async () => undefined);
+  beforeEach(() => {
+    runScoutMock.mockReset();
+    peekRun.mockReset();
+    peekRun.mockResolvedValue(null);
+    scoutNotify.mockClear();
+    setNotifier({ card: vi.fn(async () => undefined), translations: vi.fn(async () => undefined), failure: vi.fn(async () => undefined), scout: (outcome) => scoutNotify(outcome) });
+  });
+
+  const claimScout = (id: number, payload: Record<string, unknown>) =>
+    store.claimJob.mockResolvedValue({ id, postId: null, kind: "scout", status: "running", payload });
+
+  it("runs without a draft and hands the outcome to the notifier", async () => {
+    claimScout(51, { kind: "test", trigger: "manual", model: "gpt-5.6-luna" });
+    const outcome = { kind: "empty", test: true, unavailable: [], collected: 3, model: "gpt-5.6-luna" };
+    runScoutMock.mockResolvedValue(outcome);
+
+    await runJob(51);
+
+    expect(runScoutMock).toHaveBeenCalledWith({ jobId: 51, kind: "test", trigger: "manual", model: "gpt-5.6-luna" });
+    expect(store.loadPost).not.toHaveBeenCalled();
+    expect(scoutNotify).toHaveBeenCalledWith(outcome);
+    expect(store.finishJob).toHaveBeenCalledWith(51, "done", undefined);
+  });
+
+  it("a run that was already done or is running is skipped without telling the editor again", async () => {
+    claimScout(52, { kind: "real", trigger: "schedule" });
+    runScoutMock.mockResolvedValue(null);
+    await runJob(52);
+    expect(runScoutMock).toHaveBeenCalledWith({ jobId: 52, kind: "real", trigger: "schedule" });
+    expect(scoutNotify).not.toHaveBeenCalled();
+    expect(store.finishJob).toHaveBeenCalledWith(52, "done", expect.stringContaining("skipped"));
+  });
+
+  it("if the run itself cannot be taken, the job fails and the editor is told", async () => {
+    claimScout(53, { kind: "real", trigger: "manual" });
+    runScoutMock.mockRejectedValue(new Error("db down: password=hunter2"));
+    await runJob(53);
+    expect(store.finishJob).toHaveBeenCalledWith(53, "failed", "run record");
+    expect(scoutNotify).toHaveBeenCalledWith(expect.objectContaining({ kind: "failed", code: "internal" }));
+    expect(JSON.stringify(scoutNotify.mock.calls)).not.toContain("hunter2");
+  });
+
+  it("queues a run with no draft; limits are decided by the run, which can report them", async () => {
+    const result = await startScoutJob({ kind: "real", trigger: "manual" });
+    expect(result).toEqual({ ok: true, jobId: 42 });
+    expect(store.enqueueJob).toHaveBeenCalledWith(null, "scout", { kind: "real", trigger: "manual" });
+  });
+
+  it("turns down a real run when today's is done, and any run while one is going on", async () => {
+    peekRun.mockResolvedValueOnce({ id: "r", status: "done", startedAt: new Date().toISOString() });
+    expect(await startScoutJob({ kind: "real", trigger: "manual" })).toEqual({ ok: false, reason: "done" });
+    peekRun.mockResolvedValueOnce({ id: "r", status: "running", startedAt: new Date().toISOString() });
+    expect(await startScoutJob({ kind: "test", trigger: "manual" })).toEqual({ ok: false, reason: "running" });
+    expect(store.enqueueJob).not.toHaveBeenCalled();
+    // A test run may be repeated; a run that died long ago may be retaken.
+    peekRun.mockResolvedValueOnce({ id: "r", status: "done", startedAt: new Date().toISOString() });
+    expect(await startScoutJob({ kind: "test", trigger: "manual" })).toMatchObject({ ok: true });
+    peekRun.mockResolvedValueOnce({ id: "r", status: "running", startedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString() });
+    expect(await startScoutJob({ kind: "real", trigger: "schedule" })).toMatchObject({ ok: true });
   });
 });
