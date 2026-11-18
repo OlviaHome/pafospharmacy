@@ -29,6 +29,13 @@ describe("evaluateLimits", () => {
     expect(evaluateLimits("edit", busy, limits, 0.1).ok).toBe(true);
   });
 
+  it("counts an imported draft of either mode as a new article", () => {
+    const busy = { ...idle, articlesToday: 5 };
+    expect(evaluateLimits("rewrite", busy, limits, 0.5).ok).toBe(false);
+    expect(evaluateLimits("prepare", busy, limits, 0.3).ok).toBe(false);
+    expect(evaluateLimits("prepare", idle, limits, 0.3)).toEqual({ ok: true });
+  });
+
   it("blocks everything when the budget is zero", () => {
     expect(evaluateLimits("translate", idle, { ...limits, monthlyBudgetUsd: 0 }, 0.01).ok).toBe(false);
   });

@@ -1,7 +1,7 @@
 import { getCyprusDayWindow, localDateTimeToInstant } from "@/lib/domain/date";
 
-/** "rewrite": a new article written from imported material (/import, mode A). */
-export type JobKind = "write" | "edit" | "translate" | "rewrite";
+/** "rewrite": a new article written from imported material (/import, mode A); "prepare": the editor's own text kept as it is (mode B). */
+export type JobKind = "write" | "edit" | "translate" | "rewrite" | "prepare";
 
 /** A running job older than this is treated as dead (the function was killed). */
 export const STALE_JOB_MS = 7 * 60 * 1000;
@@ -44,7 +44,7 @@ export function evaluateLimits(
   if (usage.jobsToday >= limits.dailyJobs) {
     return { ok: false, reason: `Дневной лимит задач (${limits.dailyJobs}) исчерпан. Продолжим завтра.` };
   }
-  if ((kind === "write" || kind === "rewrite") && usage.articlesToday >= limits.dailyArticles) {
+  if ((kind === "write" || kind === "rewrite" || kind === "prepare") && usage.articlesToday >= limits.dailyArticles) {
     return { ok: false, reason: `Дневной лимит новых статей (${limits.dailyArticles}) исчерпан. Продолжим завтра.` };
   }
   return { ok: true };

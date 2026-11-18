@@ -6,7 +6,7 @@ import { markerSlots, wordCount } from "./normalize";
 import { splitSections } from "./sections";
 import { formatChecks, type CheckResult } from "./checks";
 import { factItems, type FactItem } from "./facts";
-import { importFactOptions } from "./imports";
+import { importFactOptions, languageLabel } from "./imports";
 import { sourceKind } from "./prompts";
 import type { EditorialPost } from "./store";
 import { escapeHtml, type InlineKeyboard } from "./telegram";
@@ -71,7 +71,13 @@ export function renderCard(
   if (ru && ru.title !== post.topic) lines.push(`Тема: <i>${escapeHtml(post.topic.slice(0, 200))}</i>`);
   if (post.importInfo) {
     const origin = post.importInfo.sourceUrl ? link(post.importInfo.sourceUrl, hostLabel(post.importInfo.sourceUrl)) : escapeHtml(post.importInfo.sourceLabel ?? "текст от редактора");
-    lines.push(`📥 Из импорта (рерайт + фактчек): ${origin}`);
+    const mode =
+      post.importInfo.mode === "prepare"
+        ? post.importInfo.language && post.importInfo.language !== "ru"
+          ? `без рерайта, перевод с языка «${escapeHtml(languageLabel(post.importInfo.language))}»`
+          : "без рерайта"
+        : "рерайт + фактчек";
+    lines.push(`📥 Из импорта (${mode}): ${origin}`);
   }
 
   const languages = LOCALE_ORDER.map((locale) => {
@@ -110,7 +116,7 @@ export function renderCard(
   }
   if (links.length) lines.push("", links.join(" · "));
 
-  return { text: lines.join("\n"), keyboard: cardKeyboard(post, extras.canUndo) };
+  return { text: lines.join("\n"), keyboard: cardKeyboard(post, extras.canUndo, extras.checks) };
 }
 
 /** English is missing or no longer matches the Russian text. */
@@ -119,7 +125,25 @@ export function englishOutdated(post: EditorialPost): boolean {
   return post.translations.some((t) => t.locale === "ru") && (!english || english.status === "draft");
 }
 
-function editRows(n: number): InlineKeyboard {
+/** Extra buttons of a draft made in mode B («Без рерайта»). */
+function prepareRows(post: EditorialPost, checks?: CheckResult[]): InlineKeyboard {
+  const info = post.importInfo;
+  if (!info || info.mode !== "prepare") return [];
+  const n = post.number;
+  const rows: InlineKeyboard = [];
+  const pending = post.suggestions.filter((suggestion) => suggestion.status === "pending").length;
+  const row: InlineKeyboard[number] = [];
+  if (pending > 0) row.push({ text: `✍️ Предложения (${pending})`, callback_data: `sug:${n}` });
+  if (info.language !== "ru" && info.prepared) row.push({ text: "📑 Сравнить с оригиналом", callback_data: `cmp:${n}` });
+  if (row.length) rows.push(row);
+  if (checks?.some((check) => check.id === "preservation" && !check.ok)) {
+    rows.push([{ text: "✅ Расхождения проверены", callback_data: `prv:${n}` }]);
+  }
+  return rows;
+}
+
+function editRows(post: EditorialPost, checks?: CheckResult[]): InlineKeyboard {
+  const n = post.number;
   return [
     [
       { text: "📝 Править самой", callback_data: `med:${n}` },
@@ -129,10 +153,11 @@ function editRows(n: number): InlineKeyboard {
       { text: "🖼 Картинки", callback_data: `img:${n}` },
       { text: "🔎 Факты", callback_data: `facts:${n}` },
     ],
+    ...prepareRows(post, checks),
   ];
 }
 
-function cardKeyboard(post: EditorialPost, canUndo: boolean): InlineKeyboard {
+function cardKeyboard(post: EditorialPost, canUndo: boolean, checks?: CheckResult[]): InlineKeyboard {
   const n = post.number;
   const hasRu = post.translations.some((t) => t.locale === "ru");
   const refreshEnglish = englishOutdated(post)
@@ -145,7 +170,7 @@ function cardKeyboard(post: EditorialPost, canUndo: boolean): InlineKeyboard {
       return [
         ...(hasRussianAndEnglish(post) ? [[{ text: "✅ Опубликовать RU + EN", callback_data: `pub:${n}` }]] : []),
         ...refreshEnglish,
-        ...editRows(n),
+        ...editRows(post, checks),
         ...(canUndo ? [[{ text: "↩️ Откатить последнюю правку", callback_data: `undo:${n}` }]] : []),
         [
           { text: "⏸ Отложить", callback_data: `pause:${n}` },
@@ -155,7 +180,7 @@ function cardKeyboard(post: EditorialPost, canUndo: boolean): InlineKeyboard {
     case "paused":
       return [
         [{ text: "▶️ Вернуть на проверку", callback_data: `resume:${n}` }],
-        ...(hasRu ? [...refreshEnglish, ...editRows(n)] : []),
+        ...(hasRu ? [...refreshEnglish, ...editRows(post, checks)] : []),
         [{ text: "🗄 В архив", callback_data: `arch:${n}` }],
       ];
     case "failed":
@@ -163,7 +188,7 @@ function cardKeyboard(post: EditorialPost, canUndo: boolean): InlineKeyboard {
         hasRu
           ? [{ text: "▶️ Вернуть на проверку", callback_data: `resume:${n}` }]
           : [{ text: "🔁 Написать заново", callback_data: `retry:${n}` }],
-        ...(hasRu ? [...refreshEnglish, ...editRows(n)] : []),
+        ...(hasRu ? [...refreshEnglish, ...editRows(post, checks)] : []),
         [{ text: "🗄 В архив", callback_data: `arch:${n}` }],
       ];
     case "published": {
@@ -317,6 +342,8 @@ function hostLabel(url: string): string {
 export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: InlineKeyboard; items: FactItem[] } {
   const ru = post.translations.find((t) => t.locale === "ru");
   const items = ru ? factItems(post.factChecks, ru.bodyMd, importFactOptions(post)) : [];
+  // In mode B the author's text is never corrected automatically: the editor decides.
+  const autoFix = post.importInfo?.mode !== "prepare";
   const open = items.filter(
     (item) => item.blocking || (item.importance === "normal" && item.status !== "quote_found" && item.status !== "manual"),
   );
@@ -346,7 +373,7 @@ export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: 
   if (open.length === 0) lines.push("Всё, что требовало внимания, подтверждено.");
   if (byHand > 0) lines.push("", "🔎 Проверить вручную — бот не смог открыть или прочитать источник (например, сайт не пускает автоматические запросы). Ссылка сохранена: откройте её сами.");
   lines.push("", "✅ — проверила сама: бот спросит, по какому источнику, и сохранит ссылку и дату. 📝 Править самой — исправить текст.");
-  if (shown.some((item) => item.conflict)) {
+  if (autoFix && shown.some((item) => item.conflict)) {
     lines.push(
       "Факт, который противоречит источнику: ✏️ — внести предлагаемую правку (правка через ИИ, затем проверка заново); ✅ — оставить как есть, только со ссылкой и объяснением.",
     );
@@ -355,7 +382,7 @@ export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: 
   for (let i = 0; i < shown.length; i += 4) {
     keyboard.push(shown.slice(i, i + 4).map((item, j) => ({ text: `✅ ${i + j + 1}`, callback_data: `fok:${post.number}:${item.id}` })));
   }
-  const fixable = shown.map((item, index) => ({ item, index })).filter(({ item }) => item.conflict && item.suggestedFix);
+  const fixable = shown.map((item, index) => ({ item, index })).filter(({ item }) => autoFix && item.conflict && item.suggestedFix);
   for (let i = 0; i < fixable.length; i += 4) {
     keyboard.push(
       fixable.slice(i, i + 4).map(({ item, index }) => ({ text: `✏️ ${index + 1}`, callback_data: `ffx:${post.number}:${item.id}` })),
@@ -367,4 +394,29 @@ export function renderFactsMenu(post: EditorialPost): { text: string; keyboard: 
   ]);
   keyboard.push([{ text: "⬅️ К статье", callback_data: `open:${post.number}` }]);
   return { text: lines.join("\n"), keyboard, items };
+}
+
+/** Mode B: the proposed changes to the author's text, a few at a time, each with accept / reject. */
+export function renderSuggestionsMenu(post: EditorialPost): { text: string; keyboard: InlineKeyboard; shown: string[] } {
+  const pending = post.suggestions.filter((suggestion) => suggestion.status === "pending");
+  const shown = pending.slice(0, 5);
+  const lines = [
+    `✍️ <b>#${post.number} · предложения по тексту автора</b>`,
+    `Ожидают решения: ${pending.length}. Текст автора не менялся: ✅ внесёт точную замену без ИИ (английская версия станет устаревшей), ❌ уберёт предложение.`,
+    "",
+  ];
+  shown.forEach((suggestion, index) => {
+    lines.push(`<b>${index + 1}.</b> Было: «${escapeHtml(suggestion.before.slice(0, 400))}»`);
+    lines.push(`   Стало: «${escapeHtml(suggestion.after.slice(0, 400))}»`);
+    if (suggestion.reason) lines.push(`   Почему: ${escapeHtml(suggestion.reason.slice(0, 300))}`);
+    lines.push("");
+  });
+  if (pending.length > shown.length) lines.push(`…и ещё ${pending.length - shown.length}: откройте меню снова после решений.`);
+  if (pending.length === 0) lines.push("Предложений, ожидающих решения, нет.");
+  const keyboard: InlineKeyboard = shown.map((suggestion, index) => [
+    { text: `✅ ${index + 1}`, callback_data: `sugok:${post.number}:${suggestion.id}` },
+    { text: `❌ ${index + 1}`, callback_data: `sugno:${post.number}:${suggestion.id}` },
+  ]);
+  keyboard.push([{ text: "⬅️ К статье", callback_data: `open:${post.number}` }]);
+  return { text: lines.join("\n"), keyboard, shown: shown.map((suggestion) => suggestion.id) };
 }

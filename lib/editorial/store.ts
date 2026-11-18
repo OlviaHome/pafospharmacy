@@ -9,7 +9,8 @@ import type { Locale } from "@/lib/i18n/types";
 
 import type { SourceCheck } from "./checks";
 import { asFactEntries, type FactEntry } from "./facts";
-import { IMPORT_TTL_MS, MAX_IMPORT_CHARS, type ImportInfo, type PartKind, type StoredPart } from "./imports";
+import { IMPORT_TTL_MS, MAX_IMPORT_CHARS, type ImportInfo, type PartKind, type PreparedMaterial, type StoredPart } from "./imports";
+import type { Suggestion } from "./prepare";
 import { supabaseAdminConfig } from "./config";
 import { cyprusDayStart, cyprusMonthStart, STALE_JOB_MS, type JobKind, type UsageSnapshot } from "./limits";
 import type { UsageNumbers } from "./pricing";
@@ -82,6 +83,8 @@ export interface EditorialPost {
   images: ImageRecord[];
   /** The /import material the draft was written from; null for ordinary drafts. */
   importInfo: ImportInfo | null;
+  /** Mode B: proposed changes to the author's text. */
+  suggestions: Suggestion[];
 }
 
 const POST_COLUMNS = `
@@ -90,7 +93,8 @@ const POST_COLUMNS = `
   translations:blog_post_translations(locale, status, title, description, body_md, faq, sources, published_at, updated_at),
   images:blog_images(id, slot, url, width, height, alt, placeholder_note, source, credit_name, credit_url, source_page_url,
     license_name, license_url, provider_photo_id, tried_photo_ids, search_query, storage_path),
-  import:blog_imports(id, mode, language, source_url, source_label, source_text, source_text_ru)
+  suggestions,
+  import:blog_imports(id, mode, language, source_url, source_label, source_text, source_text_ru, prepared, accepted_hash)
 `;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -99,18 +103,40 @@ function mapImport(raw: any): ImportInfo | null {
   if (!row) return null;
   return {
     id: row.id,
-    mode: row.mode === "rewrite" ? "rewrite" : null,
+    mode: row.mode === "rewrite" || row.mode === "prepare" ? row.mode : null,
     language: row.language ?? null,
     sourceUrl: row.source_url ?? null,
     sourceLabel: row.source_label ?? null,
     sourceText: row.source_text ?? null,
     sourceTextRu: row.source_text_ru ?? null,
+    prepared: asPrepared(row.prepared),
+    acceptedHash: row.accepted_hash ?? null,
   };
+}
+
+function asPrepared(raw: any): PreparedMaterial | null {
+  if (!raw || !Array.isArray(raw.pairs)) return null;
+  const pairs = raw.pairs.filter((pair: any) => pair && typeof pair.o === "string" && typeof pair.t === "string");
+  return { pairs, text: typeof raw.text === "string" ? raw.text : pairs.map((pair: any) => pair.t).join("\n\n") };
+}
+
+function asSuggestions(raw: any): Suggestion[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((item: any) => item && typeof item.id === "string" && typeof item.before === "string" && typeof item.after === "string")
+    .map((item: any) => ({
+      id: item.id,
+      before: item.before,
+      after: item.after,
+      reason: typeof item.reason === "string" ? item.reason : "",
+      status: item.status === "accepted" || item.status === "rejected" ? item.status : "pending",
+    }));
 }
 
 function mapPost(row: any): EditorialPost {
   return {
     importInfo: mapImport(row.import),
+    suggestions: asSuggestions(row.suggestions),
     id: row.id,
     number: Number(row.number),
     slug: row.slug,
@@ -207,6 +233,7 @@ export async function updatePost(
     editor_notes: string | null;
     source_checks: SourceCheck[];
     fact_checks: FactEntry[];
+    suggestions: Suggestion[];
     published_at: string | null;
   }>,
 ): Promise<void> {
@@ -572,7 +599,7 @@ export async function usageSnapshot(now = new Date()): Promise<UsageSnapshot> {
     db
       .from("blog_agent_jobs")
       .select("id", { count: "exact", head: true })
-      .in("kind", ["write", "rewrite"])
+      .in("kind", ["write", "rewrite", "prepare"])
       .gte("created_at", dayStart),
     db.from("blog_ai_usage").select("cost_usd").gte("created_at", cyprusMonthStart(now)),
   ]);
@@ -813,7 +840,8 @@ export async function transitionImport(
   from: ImportRecord["status"][],
   patch: Partial<{
     status: ImportRecord["status"];
-    mode: "rewrite";
+    mode: "rewrite" | "prepare";
+    rights_confirmed_at: string;
     post_id: string;
     source_text: string;
     language: string | null;
@@ -846,5 +874,18 @@ export async function setImportTranslation(id: string, textRu: string): Promise<
   check(
     await adminClient().from("blog_imports").update({ source_text_ru: textRu, updated_at: new Date().toISOString() }).eq("id", id),
     "import translation",
+  );
+}
+
+/** Mode B, material in another language: the paragraph pairs and the translation, stored for the comparison and the checks. */
+export async function setImportPrepared(id: string, prepared: PreparedMaterial): Promise<void> {
+  check(await adminClient().from("blog_imports").update({ prepared, updated_at: new Date().toISOString() }).eq("id", id), "import prepared");
+}
+
+/** The editor confirmed the article's own text as it is now (a fingerprint of its words). */
+export async function setImportAcceptedHash(id: string, hash: string | null): Promise<void> {
+  check(
+    await adminClient().from("blog_imports").update({ accepted_hash: hash, updated_at: new Date().toISOString() }).eq("id", id),
+    "import accepted hash",
   );
 }

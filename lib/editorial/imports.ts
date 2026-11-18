@@ -2,6 +2,7 @@ import type { TelegramEntity, TelegramMessage } from "./auth";
 import type { CheckResult } from "./checks";
 import type { FactItemOptions } from "./facts";
 import { checkOriginality } from "./originality";
+import { diffTokens, explainedByAccepted, mainTextOf, pairsProblems, textHash, tokens, type Pair } from "./prepare";
 import type { EditorialPost } from "./store";
 
 /**
@@ -12,17 +13,29 @@ import type { EditorialPost } from "./store";
 
 /** Total material per import. Longer texts belong in several articles. */
 export const MAX_IMPORT_CHARS = 60_000;
+/** Mode B sends the whole text through one model call, so it has a smaller limit than the import itself. */
+export const MAX_PREPARE_CHARS = 25_000;
 /** An unfinished import is dropped after this long. */
 export const IMPORT_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Mode B, material in another language: the original paragraphs with their Russian translation. */
+export interface PreparedMaterial {
+  pairs: Pair[];
+  /** The translation as one text: what the article's own text is compared with. */
+  text: string;
+}
+
 export interface ImportInfo {
   id: string;
-  mode: "rewrite" | null;
+  mode: "rewrite" | "prepare" | null;
   language: string | null;
   sourceUrl: string | null;
   sourceLabel: string | null;
   sourceText: string | null;
   sourceTextRu: string | null;
+  prepared: PreparedMaterial | null;
+  /** Fingerprint of the article's own words that the editor confirmed as they are. */
+  acceptedHash: string | null;
 }
 
 export type PartKind = "text" | "url" | "forward" | "file";
@@ -161,10 +174,99 @@ export function originalityCheck(post: EditorialPost): CheckResult | null {
   };
 }
 
+/** The text the article's own words are compared with: the author's text, or its stored Russian translation. */
+function preservationBaseline(info: ImportInfo): string | null {
+  if (info.language === "ru") return info.sourceText;
+  return info.prepared?.text ?? null;
+}
+
+/** Mode B: the article's own text (without the added blocks), as the editor sees it now. */
+export function authorTextOf(post: EditorialPost): string | null {
+  const info = post.importInfo;
+  const ru = post.translations.find((t) => t.locale === "ru");
+  if (!info || info.mode !== "prepare" || !ru) return null;
+  const baseline = preservationBaseline(info);
+  return baseline ? mainTextOf(ru.bodyMd, baseline) : null;
+}
+
+function hunkLine(hunk: { before: string; after: string }): string {
+  const before = hunk.before ? `«${hunk.before.slice(0, 80)}»` : "(пусто)";
+  const after = hunk.after ? `«${hunk.after.slice(0, 80)}»` : "(пусто)";
+  return `было ${before} → стало ${after}`;
+}
+
+/**
+ * Mode B: the article's own text must still be the author's text (see prepare.ts). Allowed
+ * differences: typography, small spelling fixes in a Russian text, and what the editor accepted
+ * in «✍️ Предложения». Anything else blocks until the editor confirms the places ("Расхождения
+ * проверены"), which stores a fingerprint of the text as it is then.
+ */
+export function preservationCheck(post: EditorialPost): CheckResult | null {
+  const info = post.importInfo;
+  const ru = post.translations.find((t) => t.locale === "ru");
+  if (!info || info.mode !== "prepare" || !ru) return null;
+  const baseline = preservationBaseline(info);
+  if (!baseline) {
+    return {
+      id: "preservation",
+      ok: false,
+      blocking: true,
+      label: "Проверка сохранности текста автора не выполнена: нет исходного текста или его сохранённого перевода — запустите импорт заново",
+    };
+  }
+  const main = mainTextOf(ru.bodyMd, baseline);
+  if (info.acceptedHash && info.acceptedHash === textHash(main)) {
+    return { id: "preservation", ok: true, blocking: true, label: "Текст автора: расхождения с оригиналом проверены редактором" };
+  }
+  const hunks = diffTokens(tokens(baseline), tokens(main), info.language === "ru").filter(
+    (hunk) => !explainedByAccepted(hunk, post.suggestions),
+  );
+  if (hunks.length === 0) {
+    return { id: "preservation", ok: true, blocking: true, label: "Текст автора сохранён: отличается только оформление и принятые вами предложения" };
+  }
+  const shown = hunks.slice(0, 3).map(hunkLine).join("; ");
+  return {
+    id: "preservation",
+    ok: false,
+    blocking: true,
+    label: `Текст автора изменён (мест: ${hunks.length}): ${shown}. Верните текст или нажмите «Расхождения проверены» на карточке`,
+  };
+}
+
+/** Mode B, material in another language: the translation against the original, paragraph by paragraph. */
+export function translationChecks(post: EditorialPost): CheckResult[] {
+  const info = post.importInfo;
+  if (!info || info.mode !== "prepare" || info.language === "ru") return [];
+  if (!info.prepared || info.prepared.pairs.length === 0) {
+    return [{ id: "translation", ok: false, blocking: true, label: "Нет сохранённого перевода по абзацам — запустите импорт заново" }];
+  }
+  const problems = pairsProblems(info.prepared.pairs);
+  const blocking = problems.filter((problem) => problem.blocking);
+  const soft = problems.filter((problem) => !problem.blocking);
+  const results: CheckResult[] = [
+    blocking.length === 0
+      ? { id: "translation", ok: true, blocking: true, label: `Перевод: ${info.prepared.pairs.length} абзацев, числа, даты и ссылки совпадают с оригиналом` }
+      : {
+          id: "translation",
+          ok: false,
+          blocking: true,
+          label: `Перевод расходится с оригиналом (${blocking.length}): ${blocking.slice(0, 4).map((problem) => problem.text).join("; ")} — «📑 Сравнить с оригиналом»`,
+        },
+  ];
+  if (soft.length > 0) {
+    results.push({ id: "translation-names", ok: false, label: soft.slice(0, 3).map((problem) => problem.text).join("; ") });
+  }
+  return results;
+}
+
 /** Everything the pre-publish checks need for an imported draft. */
 export function importChecks(post: EditorialPost): { facts: FactItemOptions; extra: CheckResult[] } | undefined {
   const facts = importFactOptions(post);
   if (!facts) return undefined;
+  if (post.importInfo?.mode === "prepare") {
+    const preservation = preservationCheck(post);
+    return { facts, extra: [...(preservation ? [preservation] : []), ...translationChecks(post)] };
+  }
   const originality = originalityCheck(post);
   return { facts, extra: originality ? [originality] : [] };
 }

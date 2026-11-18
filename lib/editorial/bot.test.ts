@@ -15,7 +15,7 @@ vi.mock("@/lib/blog/repository", () => ({ BLOG_CACHE_TAG: "blog" }));
 
 let downloadedText = "";
 const sent: { chatId: number; text: string; keyboard?: unknown; forceReply?: boolean }[] = [];
-const edited: { messageId: number; text: string }[] = [];
+const edited: { messageId: number; text: string; keyboard?: unknown }[] = [];
 const answered: { id: string; text?: string }[] = [];
 let nextMessageId = 1000;
 
@@ -25,8 +25,8 @@ vi.mock("@/lib/editorial/telegram", () => ({
     sent.push({ chatId, text, ...options });
     return { message_id: nextMessageId++ };
   }),
-  editMessage: vi.fn(async (_chatId: number, messageId: number, text: string) => {
-    edited.push({ messageId, text });
+  editMessage: vi.fn(async (_chatId: number, messageId: number, text: string, keyboard?: unknown) => {
+    edited.push({ messageId, text, keyboard });
   }),
   answerCallback: vi.fn(async (id: string, text?: string) => {
     answered.push({ id, text });
@@ -71,6 +71,10 @@ interface FakeImport {
   sourceUrl: string | null;
   sourceLabel: string | null;
   sourceTextRu: string | null;
+  mode?: "rewrite" | "prepare";
+  prepared?: { pairs: { o: string; t: string }[]; text: string } | null;
+  acceptedHash?: string | null;
+  rightsConfirmedAt?: string | null;
   createdAt: string;
   lastPartAt: string | null;
   updatedAt: number;
@@ -89,7 +93,7 @@ function withImport(post: EditorialPost): EditorialPost {
   return {
     ...post,
     importInfo: row
-      ? { id: row.id, mode: "rewrite", language: row.language, sourceUrl: row.sourceUrl, sourceLabel: row.sourceLabel, sourceText: row.sourceText, sourceTextRu: row.sourceTextRu }
+      ? { id: row.id, mode: row.mode ?? "rewrite", language: row.language, sourceUrl: row.sourceUrl, sourceLabel: row.sourceLabel, sourceText: row.sourceText, sourceTextRu: row.sourceTextRu, prepared: row.prepared ?? null, acceptedHash: row.acceptedHash ?? null }
       : post.importInfo,
   };
 }
@@ -129,6 +133,17 @@ vi.mock("@/lib/editorial/store", () => ({
       post.factChecks = patch.fact_checks as FactEntry[];
       updatedFactChecks.push(post.factChecks);
     }
+    if ("suggestions" in patch) post.suggestions = patch.suggestions as EditorialPost["suggestions"];
+  }),
+  saveTranslation: vi.fn(async (post: EditorialPost, locale: string, fields: { bodyMd: string }) => {
+    await tick();
+    const target = posts.get(post.id)?.translations.find((t) => t.locale === locale);
+    if (target) target.bodyMd = fields.bodyMd;
+  }),
+  setImportAcceptedHash: vi.fn(async (id: string, hash: string | null) => {
+    await tick();
+    const row = imports.get(id);
+    if (row) row.acceptedHash = hash;
   }),
   transitionPost: vi.fn(async (id: string, from: string[], patch: Record<string, unknown>) => {
     await tick();
@@ -221,6 +236,8 @@ vi.mock("@/lib/editorial/store", () => ({
     if ("post_id" in patch) row.postId = patch.post_id as string;
     if ("source_text" in patch) row.sourceText = patch.source_text as string;
     if ("language" in patch) row.language = patch.language as string;
+    if ("mode" in patch) row.mode = patch.mode as "rewrite" | "prepare";
+    if ("rights_confirmed_at" in patch) row.rightsConfirmedAt = patch.rights_confirmed_at as string;
     if ("source_url" in patch) row.sourceUrl = patch.source_url as string | null;
     if ("source_label" in patch) row.sourceLabel = patch.source_label as string;
     return true;
@@ -267,6 +284,7 @@ function makePost(overrides: Partial<EditorialPost> = {}): EditorialPost {
     translations: [],
     images: [],
     importInfo: null,
+    suggestions: [],
     ...overrides,
   };
 }
@@ -917,5 +935,181 @@ describe("/import: a fact that contradicts its source", () => {
       sourceUrl: "https://www.gov.cy/moh/schedule",
       reason: "на сайте обновили дату, материал устарел",
     });
+  });
+});
+
+describe("/import, mode B: «Без рерайта»", () => {
+  const SOURCE = "Скорая помощь на Кипре работает круглосуточно. Вызов бесплатный.";
+
+  async function summary(text: string, language: "impru" | "impen") {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate(text, lastImportMessage()));
+    const id = onlyImport().id;
+    await handleUpdate(callbackUpdate(`impdone:${id}`));
+    await handleUpdate(callbackUpdate(`${language}:${id}`));
+    return id;
+  }
+
+  it("shows the second button only after a language is chosen, and refuses a tap without one", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate(SOURCE, lastImportMessage()));
+    const id = onlyImport().id;
+    await handleUpdate(callbackUpdate(`impdone:${id}`));
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("impb:");
+    await handleUpdate(callbackUpdate(`impb:${id}`));
+    expect(answered.at(-1)?.text).toBe("Сначала выберите язык оригинала");
+    await handleUpdate(callbackUpdate(`impru:${id}`, 700));
+    expect(JSON.stringify(edited.at(-1)!.keyboard)).toContain(`impb:${id}`);
+  });
+
+  it("warns about the rights first and starts nothing until «Права есть» is pressed", async () => {
+    const id = await summary(SOURCE, "impru");
+    await handleUpdate(callbackUpdate(`impb:${id}`));
+    expect(edited.at(-1)!.text).toContain("только материал, на который у редакции есть права");
+    expect(JSON.stringify(edited.at(-1)!.keyboard)).toContain(`impbok:${id}`);
+    expect(posts.size).toBe(0);
+    expect(jobsOfKind("prepare")).toHaveLength(0);
+    // «Назад» returns to the summary with both start buttons.
+    await handleUpdate(callbackUpdate(`impbback:${id}`));
+    expect(JSON.stringify(edited.at(-1)!.keyboard)).toContain(`impb:${id}`);
+    expect(onlyImport().status).toBe("ready");
+  });
+
+  it("tells the editor that a foreign text will be translated exactly before the launch", async () => {
+    const id = await summary("Calls to 112 are free.", "impen");
+    await handleUpdate(callbackUpdate(`impb:${id}`));
+    expect(edited.at(-1)!.text).toContain("переведёт его на русский точно по смыслу");
+    expect(edited.at(-1)!.text).toContain("English");
+  });
+
+  it("«Права есть» creates one draft, stores the confirmation date and queues a prepare job", async () => {
+    const id = await summary(SOURCE, "impru");
+    await handleUpdate(callbackUpdate(`impbok:${id}`));
+    expect(posts.size).toBe(1);
+    const post = [...posts.values()][0];
+    expect(onlyImport()).toMatchObject({ status: "started", mode: "prepare", postId: post.id });
+    expect(Date.parse(onlyImport().rightsConfirmedAt!)).toBeGreaterThan(0);
+    expect(jobsOfKind("prepare")).toEqual([[post.id, "prepare", { importId: id }]]);
+    expect(jobsOfKind("rewrite")).toHaveLength(0);
+  });
+
+  it("two simultaneous confirmations create one draft and one job", async () => {
+    const id = await summary(SOURCE, "impru");
+    await Promise.all([handleUpdate(callbackUpdate(`impbok:${id}`)), handleUpdate(callbackUpdate(`impbok:${id}`))]);
+    expect(posts.size).toBe(1);
+    expect(jobsOfKind("prepare")).toHaveLength(1);
+  });
+
+  it("refuses a text longer than the mode's limit and suggests the alternatives", async () => {
+    const id = await summary("а".repeat(25_100), "impru");
+    await handleUpdate(callbackUpdate(`impb:${id}`));
+    expect(texts().at(-1)).toContain("длиннее 25000 символов");
+    expect(posts.size).toBe(0);
+  });
+
+  it("«Написать заново» on a failed mode B draft prepares it again, not rewrites it", async () => {
+    const id = await summary(SOURCE, "impru");
+    startJob.mockImplementationOnce(async () => ({ ok: false, reason: "Дневной лимит новых статей (5) исчерпан." }) as never);
+    await handleUpdate(callbackUpdate(`impbok:${id}`));
+    const post = [...posts.values()][0];
+    expect(post.status).toBe("failed");
+    await handleUpdate(callbackUpdate(`retry:${post.number}`));
+    expect(jobsOfKind("prepare").at(-1)).toEqual([post.id, "prepare", { importId: id }]);
+    expect(jobsOfKind("rewrite")).toHaveLength(0);
+  });
+});
+
+describe("mode B: suggestions, comparison and confirmation", () => {
+  const FILLER = "слово ".repeat(60);
+  const BODY = `## Коротко\n\n- Вызов бесплатный.\n\nСкорая помощь работает в среднем за 18 минут. ${FILLER}\n\nДежурная аптека работает до 22:00.`;
+  const SOURCE = BODY.replace("## Коротко\n\n- Вызов бесплатный.\n\n", "");
+
+  function preparedPost(info: Partial<FakeImport> = {}, suggestions: EditorialPost["suggestions"] = []) {
+    const post = reviewPost({ translations: [{ ...translation("ru"), bodyMd: BODY }, translation("en")], suggestions });
+    imports.set("imp-b", {
+      id: "imp-b", chatId: ADMIN, status: "started", postId: post.id, sourceText: SOURCE, language: "ru", sourceUrl: null,
+      sourceLabel: "текст от редактора", sourceTextRu: null, mode: "prepare", createdAt: "", lastPartAt: null, updatedAt: 0, parts: [], ...info,
+    });
+    return post;
+  }
+  const suggestion = (overrides = {}) => ({ id: "s1", before: "в среднем за 18 минут", after: "примерно за 18 минут", reason: "точнее", status: "pending" as const, ...overrides });
+
+  it("the card offers «Предложения» only while some are pending", async () => {
+    const withPending = preparedPost({}, [suggestion()]);
+    await handleUpdate(callbackUpdate(`open:${withPending.number}`));
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain(`sug:${withPending.number}`);
+    expect(sent.at(-1)!.text).toContain("без рерайта");
+    const none = preparedPost({}, [suggestion({ status: "rejected" })]);
+    await handleUpdate(callbackUpdate(`open:${none.number}`));
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("sug:");
+  });
+
+  it("accepting a suggestion replaces exactly that fragment, marks English outdated and keeps the preservation check green", async () => {
+    const post = preparedPost({}, [suggestion()]);
+    await handleUpdate(callbackUpdate(`sugok:${post.number}:s1`));
+    const saved = posts.get(post.id)!;
+    expect(saved.translations[0].bodyMd).toContain("работает примерно за 18 минут.");
+    expect(saved.translations[0].bodyMd).not.toContain("в среднем за 18 минут");
+    expect(saved.suggestions[0].status).toBe("accepted");
+    expect(saved.translations.find((t) => t.locale === "en")!.status).toBe("draft");
+    // The confirmation of the card is not needed: the accepted suggestion explains the change.
+    await handleUpdate(callbackUpdate(`open:${post.number}`));
+    expect(sent.at(-1)!.text).toContain("Текст автора сохранён");
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("prv:");
+  });
+
+  it("a suggestion whose fragment has changed is not applied, and a repeated tap does nothing", async () => {
+    const post = preparedPost({}, [suggestion({ before: "такого фрагмента нет" })]);
+    await handleUpdate(callbackUpdate(`sugok:${post.number}:s1`));
+    expect(answered.at(-1)?.text).toBe("Этот фрагмент уже изменился");
+    expect(posts.get(post.id)!.suggestions[0].status).toBe("pending");
+    const done = preparedPost({}, [suggestion({ status: "accepted" })]);
+    await handleUpdate(callbackUpdate(`sugok:${done.number}:s1`));
+    expect(answered.at(-1)?.text).toBe("Это предложение уже обработано");
+  });
+
+  it("rejecting leaves the text untouched", async () => {
+    const post = preparedPost({}, [suggestion()]);
+    await handleUpdate(callbackUpdate(`sugno:${post.number}:s1`));
+    expect(posts.get(post.id)!.translations[0].bodyMd).toBe(BODY);
+    expect(posts.get(post.id)!.suggestions[0].status).toBe("rejected");
+  });
+
+  it("a manual change of the author's text blocks publication until the editor confirms the places", async () => {
+    const post = preparedPost();
+    posts.get(post.id)!.translations[0].bodyMd = BODY.replace("до 22:00", "до 21:00");
+    await handleUpdate(callbackUpdate(`pubok:${post.number}`));
+    expect(posts.get(post.id)!.status).toBe("review");
+    expect(texts().at(-1)).toContain("Текст автора изменён");
+    await handleUpdate(callbackUpdate(`open:${post.number}`));
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain(`prv:${post.number}`);
+    await handleUpdate(callbackUpdate(`prv:${post.number}`));
+    expect(imports.get("imp-b")!.acceptedHash).toBeTruthy();
+    await handleUpdate(callbackUpdate(`open:${post.number}`));
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("prv:");
+    expect(sent.at(-1)!.text).toContain("расхождения с оригиналом проверены");
+  });
+
+  it("«Сравнить с оригиналом» sends the paragraph pairs of a translated text", async () => {
+    const pairs = [{ o: "Calls to 112 are free.", t: "Звонки на 112 бесплатны." }];
+    const post = preparedPost({ language: "en", prepared: { pairs, text: pairs[0].t } });
+    await handleUpdate(callbackUpdate(`open:${post.number}`));
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).toContain(`cmp:${post.number}`);
+    await handleUpdate(callbackUpdate(`cmp:${post.number}`));
+    expect(texts().at(-1)).toContain("ОРИГИНАЛ:\nCalls to 112 are free.");
+    expect(texts().at(-1)).toContain("ПЕРЕВОД:\nЗвонки на 112 бесплатны.");
+    const russian = preparedPost();
+    await handleUpdate(callbackUpdate(`open:${russian.number}`));
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("cmp:");
+  });
+
+  it("never offers or applies an automatic correction of the author's text for a fact conflict", async () => {
+    const post = preparedPost();
+    posts.get(post.id)!.factChecks = [{ ...confirmedFact(), id: "c1", state: "quote_not_found", conflict: "источник говорит 20 минут", suggestedFix: "за 20 минут" } as never];
+    await handleUpdate(callbackUpdate(`facts:${post.number}`));
+    expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("ffx:");
+    await handleUpdate(callbackUpdate(`ffx:${post.number}:c1`));
+    expect(texts().at(-1)).toContain("текст автора не правится автоматически");
+    expect(jobsOfKind("edit")).toHaveLength(0);
   });
 });
