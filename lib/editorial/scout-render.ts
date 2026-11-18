@@ -1,5 +1,5 @@
 import { cyprusDate } from "./scout";
-import { escapeHtml } from "./telegram";
+import { escapeHtml, type InlineKeyboard } from "./telegram";
 
 /** What a Scout run tells the editor, and how the three outcomes are worded. */
 
@@ -24,8 +24,8 @@ export interface DigestTopic {
 }
 
 export type ScoutOutcome =
-  | { kind: "topics"; test: boolean; topics: DigestTopic[]; unavailable: UnavailableSource[]; collected: number; model: string }
-  | { kind: "empty"; test: boolean; unavailable: UnavailableSource[]; collected: number; model: string }
+  | { kind: "topics"; test: boolean; topics: DigestTopic[]; unavailable: UnavailableSource[]; collected: number; model: string; runId?: string }
+  | { kind: "empty"; test: boolean; unavailable: UnavailableSource[]; collected: number; model: string; runId?: string }
   | { kind: "failed"; test: boolean; code: ScoutErrorCode; reason: string; unavailable: UnavailableSource[] };
 
 export const FAILURE_REASON: Record<ScoutErrorCode, string> = {
@@ -78,7 +78,7 @@ export function renderDigestHeader(outcome: ScoutOutcome, today: string): string
 }
 
 /** One topic: Russian headline, gist, why it matters, date, links and the score with its reason. */
-export function renderTopic(topic: DigestTopic, index: number): string {
+export function renderTopic(topic: DigestTopic, index: number | null): string {
   const links = topic.links.slice(0, 4).map((link) => {
     let label = link.title.slice(0, 40);
     try {
@@ -89,12 +89,46 @@ export function renderTopic(topic: DigestTopic, index: number): string {
     return `<a href="${escapeHtml(link.url)}">${escapeHtml(label)}</a>`;
   });
   return [
-    `<b>${index}. ${escapeHtml(topic.title)}</b>`,
+    `<b>${index === null ? "" : `${index}. `}${escapeHtml(topic.title)}</b>`,
     escapeHtml(topic.gist),
     "",
     ...(topic.why ? [`<b>Почему важно:</b> ${escapeHtml(topic.why)}`] : []),
     `Оценка: ${topic.score}/5${topic.scoreReason ? ` — ${escapeHtml(topic.scoreReason)}` : ""}`,
     `Найдено: ${dateLabel(topic.firstSeenAt)}`,
     ...(links.length ? [`Источники: ${links.join(" · ")}`] : []),
+  ].join("\n");
+}
+
+/** The buttons under a topic message (a test run has no saved event, so no buttons). */
+export function topicKeyboard(number: number): InlineKeyboard {
+  return [
+    [{ text: "✍️ Написать статью", callback_data: `scw:${number}` }],
+    [
+      { text: "📎 Открыть источники", callback_data: `sco:${number}` },
+      { text: "⏭ Пропустить", callback_data: `scs:${number}` },
+    ],
+  ];
+}
+
+/** The material a topic becomes for the editor (mode A): the summary and the publications it rests on. */
+export function eventMaterial(event: Pick<DigestTopic, "title" | "gist" | "why" | "links">): { text: string; url: string | null } {
+  const lines = [
+    event.title,
+    "",
+    event.gist,
+    ...(event.why ? ["", `Почему важно: ${event.why}`] : []),
+    "",
+    "Это краткое изложение, составленное при отборе новостей, а не первоисточник: все факты нужно найти и проверить по первоисточникам.",
+    ...(event.links.length ? ["", "Публикации, на которых основана тема:", ...event.links.map((link) => `- ${link.title} — ${link.url}`)] : []),
+  ];
+  return { text: lines.join("\n"), url: event.links[0]?.url ?? null };
+}
+
+/** The list of sources of a topic (a click on "Открыть источники"). */
+export function renderSourceLinks(topic: Pick<DigestTopic, "title" | "links">): string {
+  if (topic.links.length === 0) return `<b>${escapeHtml(topic.title)}</b>\nСсылок нет.`;
+  return [
+    `<b>Источники: ${escapeHtml(topic.title)}</b>`,
+    ...topic.links.map((link) => `• <a href="${escapeHtml(link.url)}">${escapeHtml(link.title || link.url)}</a>`),
   ].join("\n");
 }

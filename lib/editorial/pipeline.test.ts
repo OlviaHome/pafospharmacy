@@ -59,7 +59,11 @@ vi.mock("@/lib/editorial/store", () => store);
 const runScoutMock = vi.fn<(options: unknown) => Promise<unknown>>();
 vi.mock("@/lib/editorial/scout-run", () => ({ runScout: (options: unknown) => runScoutMock(options) }));
 const peekRun = vi.fn<(date: string, kind: string) => Promise<unknown>>(async () => null);
-vi.mock("@/lib/editorial/scout-store", () => ({ peekRun: (date: string, kind: string) => peekRun(date, kind) }));
+const undoUndelivered = vi.fn<(runId: string, numbers: number[]) => Promise<undefined>>(async () => undefined);
+vi.mock("@/lib/editorial/scout-store", () => ({
+  peekRun: (date: string, kind: string) => peekRun(date, kind),
+  undoUndelivered: (runId: string, numbers: number[]) => undoUndelivered(runId, numbers),
+}));
 
 const fetchMock = vi.fn(async () => new Response(null, { status: 202 }));
 
@@ -583,6 +587,29 @@ describe("the News Scout job", () => {
     expect(store.finishJob).toHaveBeenCalledWith(53, "failed", "run record");
     expect(scoutNotify).toHaveBeenCalledWith(expect.objectContaining({ kind: "failed", code: "internal" }));
     expect(JSON.stringify(scoutNotify.mock.calls)).not.toContain("hunter2");
+  });
+
+  it("a digest Telegram refused is marked as failed; only the undelivered topics go back to new", async () => {
+    claimScout(54, { kind: "real", trigger: "schedule" });
+    const outcome = { kind: "topics", test: false, topics: [], unavailable: [], collected: 3, model: "m", runId: "run-9" };
+    runScoutMock.mockResolvedValue(outcome);
+    undoUndelivered.mockClear();
+    scoutNotify.mockRejectedValueOnce(Object.assign(new Error("digest delivery failed"), { unsent: [8, 9] }));
+    await runJob(54);
+    expect(undoUndelivered).toHaveBeenCalledWith("run-9", [8, 9]);
+  });
+
+  it("a refused test digest or failure message changes nothing in the journal", async () => {
+    undoUndelivered.mockClear();
+    claimScout(55, { kind: "test", trigger: "manual" });
+    runScoutMock.mockResolvedValue({ kind: "empty", test: true, unavailable: [], collected: 0, model: "m" });
+    scoutNotify.mockRejectedValueOnce(new Error("telegram down"));
+    await runJob(55);
+    claimScout(56, { kind: "real", trigger: "schedule" });
+    runScoutMock.mockResolvedValue({ kind: "failed", test: false, code: "openai", reason: "x", unavailable: [] });
+    scoutNotify.mockRejectedValueOnce(new Error("telegram down"));
+    await runJob(56);
+    expect(undoUndelivered).not.toHaveBeenCalled();
   });
 
   it("queues a run with no draft; limits are decided by the run, which can report them", async () => {

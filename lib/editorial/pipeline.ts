@@ -39,7 +39,7 @@ import {
 } from "./prompts";
 import { activeImages } from "./cards";
 import { runScout, type ScoutOptions } from "./scout-run";
-import { peekRun, type RunKind } from "./scout-store";
+import { peekRun, undoUndelivered, type RunKind } from "./scout-store";
 import { cyprusDate } from "./scout";
 import type { ScoutOutcome } from "./scout-render";
 import { languageLabel } from "./imports";
@@ -221,7 +221,23 @@ async function runScoutJob(job: JobRecord): Promise<void> {
     await finishJob(job.id, "failed", "run record").catch(() => undefined);
     outcome = { kind: "failed", test: options.kind === "test", code: "internal", reason: "внутренняя ошибка", unavailable: [] };
   }
-  if (outcome) await notifier?.scout?.(outcome).catch((error) => console.error("editorial: scout notification failed", error instanceof Error ? error.name : "unknown"));
+  if (outcome) await deliverScoutOutcome(outcome);
+}
+
+/**
+ * Sends the digest. If Telegram refuses a message, the run is marked as failed and the topics that
+ * were not delivered go back to "new": the repeated run (the scheduler's second call, or /scout)
+ * shows exactly those, and nothing already delivered is sent twice.
+ */
+async function deliverScoutOutcome(outcome: ScoutOutcome): Promise<void> {
+  try {
+    await notifier?.scout?.(outcome);
+  } catch (error) {
+    console.error("editorial: scout notification failed", error instanceof Error ? error.name : "unknown");
+    if (outcome.kind === "failed" || outcome.test || !outcome.runId) return;
+    const unsent = error instanceof Error && "unsent" in error && Array.isArray((error as { unsent: unknown }).unsent) ? ((error as { unsent: number[] }).unsent) : [];
+    await undoUndelivered(outcome.runId, unsent).catch(() => console.error("editorial: could not mark the undelivered digest"));
+  }
 }
 
 export type StartScoutResult =
