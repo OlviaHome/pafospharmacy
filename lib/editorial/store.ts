@@ -842,7 +842,7 @@ export async function deleteImport(id: string): Promise<boolean> {
 
 export async function setImportTranslation(id: string, textRu: string): Promise<void> {
   check(
-    await adminClient().from("blog_imports").update({ source_text_ru: textRu.slice(0, 80_000), updated_at: new Date().toISOString() }).eq("id", id),
+    await adminClient().from("blog_imports").update({ source_text_ru: textRu, updated_at: new Date().toISOString() }).eq("id", id),
     "import translation",
   );
 }

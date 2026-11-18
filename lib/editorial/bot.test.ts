@@ -613,7 +613,7 @@ describe("/import: receiving material", () => {
     expect(JSON.stringify(sent.at(-1)!.keyboard)).not.toContain("Без рерайта");
   });
 
-  it("joins the continuation of a long text that Telegram split, in message order", async () => {
+  it("joins a long text that Telegram split into several messages, in message order", async () => {
     await handleUpdate(textUpdate("/import"));
     await handleUpdate(textUpdate("Первая часть длинного текста.", lastImportMessage()));
     await handleUpdate(textUpdate("Вторая часть, без ответа: Telegram разрезал сообщение."));
@@ -622,13 +622,38 @@ describe("/import: receiving material", () => {
     expect(onlyImport().sourceText).toBe("Первая часть длинного текста.\n\nВторая часть, без ответа: Telegram разрезал сообщение.");
   });
 
-  it("treats a plain message as a topic again once the continuation window has passed", async () => {
+  it("while collecting, every plain message goes into the import, however late", async () => {
     await handleUpdate(textUpdate("/import"));
     await handleUpdate(textUpdate("Часть материала.", lastImportMessage()));
-    onlyImport().lastPartAt = new Date(Date.now() - 60_000).toISOString();
+    onlyImport().lastPartAt = new Date(Date.now() - 10 * 60_000).toISOString();
+    await handleUpdate(textUpdate("Ещё кусок через десять минут."));
+    expect(onlyImport().parts.map((p) => p.body)).toEqual(["Часть материала.", "Ещё кусок через десять минут."]);
+    expect(texts().some((t) => t.startsWith("Написать статью на тему"))).toBe(false);
+  });
+
+  it("while collecting, commands and replies to other bot messages work as before", async () => {
+    const post = reviewPost();
+    messages.set(`${ADMIN}:900`, { postId: post.id, purpose: "edit_prompt", slot: null, payload: null });
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("/help"));
+    expect(texts().at(-1)).toContain("Ничего не публикуется без вашей кнопки");
+    await handleUpdate(textUpdate("Сократи вступление", 900));
+    expect(jobsOfKind("edit")).toHaveLength(1);
+    expect(onlyImport().parts).toHaveLength(0);
+  });
+
+  it("after «Это весь текст» or «Отменить» plain messages are topics again", async () => {
+    await handleUpdate(textUpdate("/import"));
+    await handleUpdate(textUpdate("Материал.", lastImportMessage()));
+    await handleUpdate(callbackUpdate(`impdone:${onlyImport().id}`));
     await handleUpdate(textUpdate("Как найти дежурную аптеку"));
     expect(onlyImport().parts).toHaveLength(1);
     expect(texts().at(-1)).toBe("Написать статью на тему «Как найти дежурную аптеку»?");
+
+    await handleUpdate(callbackUpdate(`impcancel:${onlyImport().id}`));
+    expect(imports.size).toBe(0);
+    await handleUpdate(textUpdate("Что такое ГеСИ"));
+    expect(texts().at(-1)).toBe("Написать статью на тему «Что такое ГеСИ»?");
   });
 
   it("takes a forwarded post while collecting, and leaves forwards alone otherwise", async () => {

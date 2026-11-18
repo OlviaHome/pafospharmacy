@@ -14,7 +14,7 @@ create table public.blog_imports (
   language text,
   source_text text check (source_text is null or char_length(source_text) <= 60000),
   -- Working Russian translation of a non-Russian material, used only to compare the article with it.
-  source_text_ru text check (source_text_ru is null or char_length(source_text_ru) <= 80000),
+  source_text_ru text check (source_text_ru is null or char_length(source_text_ru) <= 200000),
   post_id uuid unique references public.blog_posts(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

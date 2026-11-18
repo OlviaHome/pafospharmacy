@@ -18,7 +18,7 @@ export const ORIGINALITY = {
   /** A shared run this long (in words) blocks: it is a copied sentence. */
   maxSharedRun: 15,
   /** This share of the article's words inside shared runs blocks. */
-  maxSharedShare: 0.05,
+  maxSharedShare: 0.07,
   /** Stem length for the paragraph comparison: shorter than for wording, so a re-translation still matches. */
   paragraphStem: 5,
   /** A paragraph "restates" a material paragraph when this share of its content stems is there. */

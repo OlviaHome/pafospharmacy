@@ -289,6 +289,76 @@ function materialIssueNotes(issues: MaterialIssue[] | undefined): string[] {
   );
 }
 
+/** The working translation is made in paragraph-sized pieces of at most this many characters. */
+export const TRANSLATION_CHUNK_CHARS = 12_000;
+
+/** Splits the material at paragraph breaks into pieces short enough for one translation call. */
+export function translationChunks(text: string, limit = TRANSLATION_CHUNK_CHARS): string[] {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .flatMap((paragraph) => {
+      // A single paragraph longer than a piece is cut at sentence ends, or hard as a last resort.
+      if (paragraph.length <= limit) return [paragraph];
+      const pieces: string[] = [];
+      let rest = paragraph;
+      while (rest.length > limit) {
+        const window = rest.slice(0, limit);
+        const cut = Math.max(window.lastIndexOf(". "), window.lastIndexOf("! "), window.lastIndexOf("? "));
+        const at = cut > limit / 2 ? cut + 1 : limit;
+        pieces.push(rest.slice(0, at).trim());
+        rest = rest.slice(at).trim();
+      }
+      return rest ? [...pieces, rest] : pieces;
+    });
+  const chunks: string[] = [];
+  let current = "";
+  for (const paragraph of paragraphs) {
+    if (current && current.length + paragraph.length + 2 > limit) {
+      chunks.push(current);
+      current = "";
+    }
+    current = current ? `${current}\n\n${paragraph}` : paragraph;
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+/**
+ * Working Russian translation of the whole material, piece by piece. A piece that comes back
+ * empty, much shorter or with paragraphs missing stops the job: the independence check must
+ * never run against half a material.
+ */
+async function translateMaterial(job: JobRecord, text: string): Promise<string> {
+  const model = utilityModel();
+  const translated: string[] = [];
+  for (const piece of translationChunks(text)) {
+    const result = await callResponses<{ text_ru: string }>({
+      model,
+      instructions: MATERIAL_TRANSLATION_INSTRUCTIONS,
+      input: JSON.stringify({ text: piece }),
+      schemaName: "material_translation",
+      schema: MATERIAL_TRANSLATION_SCHEMA,
+      maxSearches: 0,
+      maxOutputTokens: 16_000,
+      reasoningEffort: "low",
+      timeoutMs: TRANSLATE_TIMEOUT_MS,
+    });
+    await recordUsage(job.id, model, result.usage, result.costUsd);
+    const russian = result.data.text_ru.trim();
+    const expected = piece.split(/\n\s*\n/).length;
+    const got = russian ? russian.split(/\n\s*\n/).length : 0;
+    if (!russian || got < Math.ceil(expected * 0.8) || russian.length < piece.length * 0.5) {
+      throw new Error(
+        "Служебный перевод материала получился неполным, поэтому проверить самостоятельность статьи нельзя. Нажмите «Написать заново».",
+      );
+    }
+    translated.push(russian);
+  }
+  return translated.join("\n\n");
+}
+
 /**
  * /import, mode A: an independent article from the editor's material. The material goes to the
  * model only as marked data; a non-Russian material is first given a working Russian translation
@@ -300,20 +370,7 @@ async function runRewrite(job: JobRecord, post: EditorialPost): Promise<void> {
   if (!material?.sourceText) throw new Error("Импортированный материал не найден.");
 
   if (material.language !== "ru" && !material.sourceTextRu) {
-    const model = utilityModel();
-    const translated = await callResponses<{ text_ru: string }>({
-      model,
-      instructions: MATERIAL_TRANSLATION_INSTRUCTIONS,
-      input: JSON.stringify({ text: material.sourceText.slice(0, 20_000) }),
-      schemaName: "material_translation",
-      schema: MATERIAL_TRANSLATION_SCHEMA,
-      maxSearches: 0,
-      maxOutputTokens: 16_000,
-      reasoningEffort: "low",
-      timeoutMs: TRANSLATE_TIMEOUT_MS,
-    });
-    await recordUsage(job.id, model, translated.usage, translated.costUsd);
-    if (translated.data.text_ru.trim()) await setImportTranslation(material.id, translated.data.text_ru);
+    await setImportTranslation(material.id, await translateMaterial(job, material.sourceText));
   }
 
   const model = openAiModel();

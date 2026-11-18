@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { checkOriginality, ORIGINALITY } from "./originality";
 import {
   CLOSE_TRANSLATION_RU,
+  FLU_INDEPENDENT_RU,
+  FLU_RETELLING_RU,
+  FLU_SOURCE_RU,
   INDEPENDENT_RU,
   LIGHT_PARAPHRASE_RU,
   NAMES_AND_QUOTE_RU,
@@ -61,5 +64,18 @@ describe("independence of an imported article (thresholds tuned on these example
 
   it("has nothing to compare without material", () => {
     expect(checkOriginality(INDEPENDENT_RU, []).blocked).toBe(false);
+  });
+
+  it("passes a fact-dense independent article that keeps the source's figures and groups", () => {
+    const result = checkOriginality(FLU_INDEPENDENT_RU, [FLU_SOURCE_RU]);
+    expect(result.blocked).toBe(false);
+    expect(result.sharedShare).toBeGreaterThan(0);
+    expect(result.sharedShare).toBeLessThan(ORIGINALITY.maxSharedShare);
+  });
+
+  it("blocks a retelling of the same news sentence by sentence", () => {
+    const result = checkOriginality(FLU_RETELLING_RU, [FLU_SOURCE_RU]);
+    expect(result.blocked).toBe(true);
+    expect(result.orderRun).toBeGreaterThanOrEqual(ORIGINALITY.orderRun);
   });
 });

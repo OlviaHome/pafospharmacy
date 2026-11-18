@@ -30,7 +30,6 @@ import { nextStockImage, refreshSourceChecks, setNotifier, startJob, type StartR
 import { findSimilar } from "./similar";
 import {
   assembleParts,
-  CONTINUATION_WINDOW_MS,
   detectLanguage,
   forwardLabel,
   importChecks,
@@ -353,16 +352,15 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
     }
   }
 
-  // An open /import takes forwarded messages, and the rest of a long text that Telegram split
-  // into several messages (only the first of them is a reply). Everything else works as before.
+  // While an /import is collecting, every text, file or forwarded post goes into it (Telegram
+  // splits a long paste into several messages, and only the first is a reply). Commands and replies
+  // to the bot's other messages are handled above as always; after «Это весь текст» or «Отменить»
+  // messages are topics again.
   if (message.forward_origin || message.text || message.document) {
     const open = await openImport(chatId);
     if (open?.status === "collecting") {
-      const continuation = open.lastPartAt !== null && Date.now() - Date.parse(open.lastPartAt) < CONTINUATION_WINDOW_MS;
-      if (message.forward_origin || continuation) {
-        await acceptImportPart(message, open.id);
-        return;
-      }
+      await acceptImportPart(message, open.id);
+      return;
     }
   }
 
@@ -1196,7 +1194,7 @@ const IMPORT_ACTIONS = new Set(["impdone", "impcancel", "impcont", "imprestart",
 const IMPORT_PROMPT = [
   "📥 <b>Импорт материала</b>",
   "Пришлите ответом на это сообщение ссылку, текст или файл .txt/.md, или перешлите сюда сообщение из канала.",
-  "Длинный текст можно присылать частями. Когда всё — нажмите «✅ Это весь текст».",
+  "Длинный текст можно присылать частями. Пока идёт сбор, все сообщения добавляются к материалу; когда всё — нажмите «✅ Это весь текст» или «Отменить».",
   "Материал — только отправная точка: утверждения я проверю по первоисточникам, статья будет самостоятельной.",
 ].join("\n");
 
@@ -1292,7 +1290,7 @@ async function acceptImportPart(message: TelegramMessage, importId: string): Pro
   }
   const sent = await sendMessage(
     chatId,
-    `📥 Часть ${added.parts} добавлена${part.kind === "url" ? " (текст страницы)" : part.kind === "forward" ? " (пересланное сообщение)" : ""}. Всего ${added.chars} символов.\nЕщё — ответом на это сообщение или пересылкой. Готово — «✅ Это весь текст».`,
+    `📥 Часть ${added.parts} добавлена${part.kind === "url" ? " (текст страницы)" : part.kind === "forward" ? " (пересланное сообщение)" : ""}. Всего ${added.chars} символов.\nВсё, что пришлёте дальше, добавлю к материалу. Готово — «✅ Это весь текст».`,
     { keyboard: collectingKeyboard(importId) },
   );
   await rememberMessage(chatId, sent.message_id, "import", null, { slot: importId });

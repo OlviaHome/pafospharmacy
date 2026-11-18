@@ -14,11 +14,6 @@ import type { EditorialPost } from "./store";
 export const MAX_IMPORT_CHARS = 60_000;
 /** An unfinished import is dropped after this long. */
 export const IMPORT_TTL_MS = 24 * 60 * 60 * 1000;
-/**
- * Telegram splits a pasted text longer than 4096 characters into several messages, and only the
- * first is a reply. A plain message this soon after an accepted part is taken as its continuation.
- */
-export const CONTINUATION_WINDOW_MS = 15_000;
 
 export interface ImportInfo {
   id: string;
@@ -134,7 +129,17 @@ export function importFactOptions(post: EditorialPost): FactItemOptions | undefi
 export function originalityCheck(post: EditorialPost): CheckResult | null {
   const info = post.importInfo;
   const text = russianText(post);
-  if (!info || !text || !info.sourceText) return null;
+  if (!info || !text) return null;
+  // Without the material, or without the full working translation of a non-Russian one, the check
+  // cannot run: that blocks too, so a missing translation never switches the check off.
+  if (!info.sourceText || (info.language !== "ru" && !info.sourceTextRu)) {
+    return {
+      id: "originality",
+      ok: false,
+      blocking: true,
+      label: "Проверка самостоятельности не выполнена: нет исходного материала или его полного рабочего перевода — статью нужно написать заново из импорта",
+    };
+  }
   const materials = [info.sourceText, ...(info.sourceTextRu ? [info.sourceTextRu] : [])];
   const result = checkOriginality(text.withFaq, materials);
   if (!result.blocked) {
