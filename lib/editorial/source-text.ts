@@ -41,7 +41,7 @@ function httpDetail(status: number): string {
   return `HTTP ${status}`;
 }
 
-async function readLimited(response: Response, limit: number): Promise<Uint8Array | null> {
+export async function readLimited(response: Response, limit: number): Promise<Uint8Array | null> {
   const declared = Number(response.headers.get("content-length") ?? 0);
   if (declared > limit) return null;
   const reader = response.body?.getReader();

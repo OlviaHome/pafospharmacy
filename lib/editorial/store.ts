@@ -511,7 +511,7 @@ export interface JobRecord {
   payload: Record<string, unknown>;
 }
 
-export async function enqueueJob(postId: string, kind: JobKind, payload: Record<string, unknown>): Promise<number> {
+export async function enqueueJob(postId: string | null, kind: JobKind, payload: Record<string, unknown>): Promise<number> {
   const data = check(
     await adminClient().from("blog_agent_jobs").insert({ post_id: postId, kind, payload }).select("id").single(),
     "enqueue job",

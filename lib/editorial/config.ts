@@ -32,6 +32,8 @@ export function editorialLimits() {
     monthlyBudgetUsd: numberFromEnv("BLOG_MONTHLY_BUDGET_USD", 10, 0, 100),
     /** Jobs running at the same time. */
     parallelJobs: intFromEnv("BLOG_MAX_PARALLEL_JOBS", 3, 1, 5),
+    /** The News Scout's share of the monthly budget, in USD (inside the general budget). */
+    scoutBudgetUsd: numberFromEnv("BLOG_SCOUT_BUDGET_USD", 5, 0, 50),
     /** Web searches the model may run while writing one article. */
     maxSearchesPerArticle: intFromEnv("BLOG_MAX_SEARCHES_PER_ARTICLE", 8, 1, 15),
   };
@@ -44,6 +46,11 @@ export function openAiModel(): string {
 /** Cheap model for service tasks that need no judgement (the working translation of imported material). */
 export function utilityModel(): string {
   return process.env.OPENAI_UTILITY_MODEL?.trim() || "gpt-5.6-luna";
+}
+
+/** Model of the News Scout's two calls. The main model until a test comparison shows the cheap one is as good. */
+export function scoutModel(): string {
+  return process.env.OPENAI_SCOUT_MODEL?.trim() || openAiModel();
 }
 
 export function siteOrigin(): string {

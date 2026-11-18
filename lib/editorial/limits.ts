@@ -1,7 +1,7 @@
 import { getCyprusDayWindow, localDateTimeToInstant } from "@/lib/domain/date";
 
 /** "rewrite": a new article written from imported material (/import, mode A); "prepare": the editor's own text kept as it is (mode B). */
-export type JobKind = "write" | "edit" | "translate" | "rewrite" | "prepare";
+export type JobKind = "write" | "edit" | "translate" | "rewrite" | "prepare" | "scout";
 
 /** A running job older than this is treated as dead (the function was killed). */
 export const STALE_JOB_MS = 7 * 60 * 1000;
@@ -46,6 +46,39 @@ export function evaluateLimits(
   }
   if ((kind === "write" || kind === "rewrite" || kind === "prepare") && usage.articlesToday >= limits.dailyArticles) {
     return { ok: false, reason: `Дневной лимит новых статей (${limits.dailyArticles}) исчерпан. Продолжим завтра.` };
+  }
+  return { ok: true };
+}
+
+export interface ScoutLimitSettings {
+  scoutBudgetUsd: number;
+  monthlyBudgetUsd: number;
+  parallelJobs: number;
+}
+
+/** Why the Scout did not run, as the code stored with the run and the line the editor reads. */
+export type ScoutLimitDecision = { ok: true } | { ok: false; code: "limit_scout" | "limit_total" | "busy"; reason: string };
+
+const usd = (value: number) => `$${Number.isInteger(value) ? value : value.toFixed(2)}`;
+
+/**
+ * The Scout has its own monthly share (default $5) inside the general budget. The reservation is
+ * checked before a run, so the last run of the month cannot overshoot by much.
+ */
+export function evaluateScoutLimits(
+  usage: UsageSnapshot,
+  scoutSpentUsd: number,
+  limits: ScoutLimitSettings,
+  reservedUsd: number,
+): ScoutLimitDecision {
+  if (scoutSpentUsd + reservedUsd > limits.scoutBudgetUsd) {
+    return { ok: false, code: "limit_scout", reason: `исчерпан лимит ${usd(limits.scoutBudgetUsd)} на этот месяц` };
+  }
+  if (usage.spentThisMonthUsd + reservedUsd > limits.monthlyBudgetUsd) {
+    return { ok: false, code: "limit_total", reason: `исчерпан общий месячный лимит ${usd(limits.monthlyBudgetUsd)}` };
+  }
+  if (usage.activeJobs >= limits.parallelJobs) {
+    return { ok: false, code: "busy", reason: "сейчас выполняется максимум задач одновременно, повторите через пару минут" };
   }
   return { ok: true };
 }
