@@ -895,7 +895,12 @@ async function failEntry(entry: ScheduleEntry, title: string, reason: string, de
   );
 }
 
-/** Publishes one claimed entry with the same checks and the same publication as the button. */
+/**
+ * Publishes one claimed entry with the same checks and the same publication as the button.
+ * Two phases: deciding and publishing (any refusal or error there returns the article to review),
+ * then, only once the article is live, closing the entry and the notifications — nothing in the
+ * second phase can mark the entry failed, revert the article or report a failed publication.
+ */
 async function publishEntry(entry: ScheduleEntry, deps: ScheduleDeps, summary: RunSummary): Promise<void> {
   const post = await loadPost({ id: entry.postId });
   if (!post) {
@@ -908,59 +913,77 @@ async function publishEntry(entry: ScheduleEntry, deps: ScheduleDeps, summary: R
     await releaseEntry(entry.id, ["publishing"], "cancelled", { error: `при запуске статус статьи: ${post.status}` });
     return;
   }
+  const live = await attemptPublication(entry, post, title, deps, summary);
+  if (live) await afterPublication(entry, live, deps, summary);
+}
+
+/** Phase 1. Returns the published article, or null when it was refused or failed (already handled). */
+async function attemptPublication(
+  entry: ScheduleEntry,
+  post: EditorialPost,
+  title: string,
+  deps: ScheduleDeps,
+  summary: RunSummary,
+): Promise<EditorialPost | null> {
+  const refuse = async (reason: string) => {
+    await failEntry(entry, title, reason, deps);
+    summary.failed.push(entry.postNumber);
+    return null;
+  };
   try {
     if (approvalHash(post) !== entry.approvedHash) {
-      await failEntry(entry, title, "текст RU/EN изменился после одобрения — нужна повторная проверка и подтверждение", deps);
-      summary.failed.push(entry.postNumber);
-      return;
+      return await refuse("текст RU/EN или картинки изменились после одобрения — нужна повторная проверка и подтверждение");
     }
     const checked = await deps.recheck(post);
     const checks = deps.checks(checked);
     const blocking = blockingFailures(checks);
     if (blocking.length > 0) {
-      await failEntry(entry, title, `блокирующие проверки не пройдены: ${blocking.map((check) => check.label).join("; ")}`, deps);
-      summary.failed.push(entry.postNumber);
-      return;
+      return await refuse(`блокирующие проверки не пройдены: ${blocking.map((check) => check.label).join("; ")}`);
     }
     const added = newWarnings(entry.approvedWarnings, warningsOf(checked, checks));
     if (added.length > 0) {
       const lines = warningLines(checked, checks, added).join("\n").replace(/<[^>]+>/g, "");
-      await failEntry(entry, title, `появились новые предупреждения, которых не было при одобрении:\n${lines}`, deps);
-      summary.failed.push(entry.postNumber);
-      return;
+      return await refuse(`появились новые предупреждения, которых не было при одобрении:\n${lines}`);
     }
     const outcome = await deps.publish(checked, ["scheduled"]);
     if (outcome.status === "lost") {
       await releaseEntry(entry.id, ["publishing"], "cancelled", { error: "статус статьи изменился во время публикации" });
-      return;
+      return null;
     }
-    if (outcome.status === "failed") {
-      await failEntry(entry, title, `техническая ошибка при публикации: ${outcome.reason.slice(0, 300)}`, deps);
-      summary.failed.push(entry.postNumber);
-      return;
-    }
-    // The article is live. If closing the entry fails, the next run finds it «publishing» with a
-    // published article and closes it then; it is never published again.
-    await markPostPublished(post.id).catch((error) =>
-      console.error("editorial: closing a schedule entry failed", error instanceof Error ? error.message : error),
-    );
-    summary.published.push(entry.postNumber);
-    const origin = siteOrigin();
-    await notify(
-      deps,
-      `✅ Статья #${entry.postNumber} опубликована по расписанию: <b>${escapeHtml(postTitle(outcome.post))}</b>\n${escapeHtml(publicUrl(origin, outcome.post, "ru"))}\n${escapeHtml(publicUrl(origin, outcome.post, "en"))}`,
-      [[{ text: `Открыть #${entry.postNumber}`, callback_data: `open:${entry.postNumber}` }]],
-    );
-    try {
-      await deps.afterPublish(deps.adminChatId(), outcome.post);
-    } catch (error) {
-      console.error("editorial: translations after scheduled publication failed", error instanceof Error ? error.message : error);
-    }
+    if (outcome.status === "failed") return await refuse(`техническая ошибка при публикации: ${outcome.reason.slice(0, 300)}`);
+    return outcome.post;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.error("editorial: scheduled publication failed", reason);
-    await failEntry(entry, title, `техническая ошибка: ${reason.slice(0, 300)}`, deps).catch(() => undefined);
-    summary.failed.push(entry.postNumber);
+    // An error after the article went live (e.g. reading it back) is not a failed publication.
+    const current = await loadPost({ id: post.id }).catch(() => null);
+    if (current?.status === "published") return current;
+    return await refuse(`техническая ошибка: ${reason.slice(0, 300)}`).catch(() => null);
+  }
+}
+
+/** Phase 2: the article is live. Every step is on its own; a failure is only logged. */
+async function afterPublication(entry: ScheduleEntry, live: EditorialPost, deps: ScheduleDeps, summary: RunSummary): Promise<void> {
+  summary.published.push(entry.postNumber);
+  // If closing the entry fails, the next run finds it «publishing» with a published article and
+  // closes it then; it is never published again.
+  await markPostPublished(live.id).catch((error) =>
+    console.error("editorial: closing a schedule entry failed", error instanceof Error ? error.message : error),
+  );
+  try {
+    const origin = siteOrigin();
+    await notify(
+      deps,
+      `✅ Статья #${entry.postNumber} опубликована по расписанию: <b>${escapeHtml(postTitle(live))}</b>\n${escapeHtml(publicUrl(origin, live, "ru"))}\n${escapeHtml(publicUrl(origin, live, "en"))}`,
+      [[{ text: `Открыть #${entry.postNumber}`, callback_data: `open:${entry.postNumber}` }]],
+    );
+  } catch (error) {
+    console.error("editorial: publication notice failed", error instanceof Error ? error.message : error);
+  }
+  try {
+    await deps.afterPublish(deps.adminChatId(), live);
+  } catch (error) {
+    console.error("editorial: translations after scheduled publication failed", error instanceof Error ? error.message : error);
   }
 }
 

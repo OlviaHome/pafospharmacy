@@ -24,11 +24,21 @@ const answered: { id: string; text?: string }[] = [];
 const log: { text: string; keyboard?: unknown }[] = [];
 let nextMessageId = 1000;
 let telegramDown = false;
+/** Telegram refuses only the messages this returns true for. */
+let refuseMessage: (text: string) => boolean = () => false;
+const spies = vi.hoisted(() => ({
+  nextStockImage: vi.fn(async () => true),
+  upsertImage: vi.fn(async () => undefined),
+  downloadFile: vi.fn(async () => ({ bytes: new Uint8Array([1, 2, 3]), path: "photo.jpg" })),
+  storeImageBytes: vi.fn(async () => ({ url: "https://x/new.jpg", width: 1, height: 1, storagePath: "p" })),
+}));
+let failLoadOncePublished = false;
+let failMarkPublished = false;
 
 vi.mock("@/lib/editorial/telegram", () => ({
   escapeHtml: (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"),
   sendMessage: vi.fn(async (chatId: number, text: string, options: { keyboard?: unknown; forceReply?: boolean } = {}) => {
-    if (telegramDown) throw new Error("Telegram sendMessage: Bad Gateway");
+    if (telegramDown || refuseMessage(text)) throw new Error("Telegram sendMessage: Bad Gateway");
     sent.push({ chatId, text, ...options });
     log.push({ text, keyboard: options.keyboard });
     return { message_id: nextMessageId++ };
@@ -42,7 +52,7 @@ vi.mock("@/lib/editorial/telegram", () => ({
   }),
   sendTyping: vi.fn(async () => undefined),
   sendDocument: vi.fn(async () => ({ message_id: nextMessageId++ })),
-  downloadFile: vi.fn(async () => ({ bytes: new Uint8Array(), path: "file.txt" })),
+  downloadFile: (...args: unknown[]) => (spies.downloadFile as (...a: unknown[]) => unknown)(...args),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -50,7 +60,7 @@ const startJob = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, jobI
 vi.mock("@/lib/editorial/pipeline", () => ({
   startJob: (...args: unknown[]) => startJob(...args),
   setNotifier: vi.fn(),
-  nextStockImage: vi.fn(async () => true),
+  nextStockImage: (...args: unknown[]) => (spies.nextStockImage as (...a: unknown[]) => unknown)(...args),
   refreshSourceChecks: vi.fn(async () => []),
 }));
 vi.mock("@/lib/editorial/source-text", () => ({
@@ -59,7 +69,7 @@ vi.mock("@/lib/editorial/source-text", () => ({
 }));
 vi.mock("@/lib/editorial/images", () => ({
   removeStoredImage: vi.fn(async () => undefined),
-  storeImageBytes: vi.fn(async () => ({ url: "https://x/y.jpg", width: 1, height: 1, storagePath: "p" })),
+  storeImageBytes: (...args: unknown[]) => (spies.storeImageBytes as (...a: unknown[]) => unknown)(...args),
 }));
 
 /* ---------- in-memory posts ---------- */
@@ -76,6 +86,10 @@ vi.mock("@/lib/editorial/store", () => ({
   loadPost: vi.fn(async (ref: { id: string } | { number: number }) => {
     await tick();
     const post = "id" in ref ? posts.get(ref.id) : [...posts.values()].find((p) => p.number === ref.number);
+    if (failLoadOncePublished && post?.status === "published") {
+      failLoadOncePublished = false;
+      throw new Error("load post: connection reset");
+    }
     return post ? clone(post) : null;
   }),
   updatePost: vi.fn(async (id: string, patch: Record<string, unknown>) => {
@@ -120,7 +134,7 @@ vi.mock("@/lib/editorial/store", () => ({
   postCostUsd: vi.fn(async () => 0),
   hasUndo: vi.fn(async () => true),
   undoLastChange: vi.fn(async () => ["ru"]),
-  upsertImage: vi.fn(async () => undefined),
+  upsertImage: (...args: unknown[]) => (spies.upsertImage as (...a: unknown[]) => unknown)(...args),
   usageSnapshot: vi.fn(async () => ({ activeJobs: 0, jobsToday: 0, articlesToday: 0, spentThisMonthUsd: 0 })),
 }));
 
@@ -217,6 +231,7 @@ vi.mock("@/lib/editorial/schedule-store", () => ({
     return true;
   }),
   markPostPublished: vi.fn(async (postId: string, note: string | null = null) => {
+    if (failMarkPublished) throw new Error("close schedule entry: connection reset");
     for (const entry of entries) {
       if (entry.postId === postId && isActive(entry)) {
         entry.status = "published";
@@ -363,6 +378,10 @@ beforeEach(() => {
   answered.length = 0;
   failNextTranslationUpdate = false;
   telegramDown = false;
+  refuseMessage = () => false;
+  failLoadOncePublished = false;
+  failMarkPublished = false;
+  for (const spy of Object.values(spies)) spy.mockClear();
   startJob.mockClear();
 });
 
@@ -720,7 +739,7 @@ describe("the scheduled run", () => {
     const summary = await runScheduledPublications();
     expect(summary.failed).toEqual([post.number]);
     expect(posts.get(post.id)!.status).toBe("review");
-    expect(texts().at(-1)).toContain("изменился после одобрения");
+    expect(texts().at(-1)).toContain("изменились после одобрения");
   });
 
   it("stops on a warning that was not there at the approval", async () => {
@@ -830,5 +849,176 @@ describe("published history and the menu", () => {
     expect(texts().at(-1)).toBe("Опубликованных статей пока нет.");
     await handleUpdate(callbackUpdate("plv:1"));
     expect(texts().at(-1)).toContain("Очередь пуста");
+  });
+});
+
+describe("after a successful scheduled publication", () => {
+  const failureNotices = () => texts().filter((text) => text.includes("Не удалось опубликовать"));
+
+  it("a Telegram error on the success notice and the translation messages changes nothing", async () => {
+    const post = reviewPost();
+    await queue(post);
+    refuseMessage = (text) => text.startsWith("✅ Статья") || text.startsWith("🌍");
+    vi.setSystemTime(at("2026-11-20", "10:05"));
+    const summary = await runScheduledPublications();
+    expect(summary).toMatchObject({ published: [post.number], failed: [] });
+    expect(posts.get(post.id)!.status).toBe("published");
+    expect(posts.get(post.id)!.lastError).toBeNull();
+    expect(entries[0].status).toBe("published");
+    expect(failureNotices()).toEqual([]);
+    expect(startJob.mock.calls.filter((call) => call[1] === "translate")).toHaveLength(1);
+  });
+
+  it("a failure to start EL/AR after publication is not a failed publication", async () => {
+    const post = reviewPost();
+    await queue(post);
+    startJob.mockRejectedValueOnce(new Error("limits: database down"));
+    vi.setSystemTime(at("2026-11-20", "10:05"));
+    expect((await runScheduledPublications()).published).toEqual([post.number]);
+    expect(posts.get(post.id)!.status).toBe("published");
+    expect(entries[0].status).toBe("published");
+    expect(failureNotices()).toEqual([]);
+  });
+
+  it("an error while reading the published article back is not a failed publication", async () => {
+    const post = reviewPost();
+    await queue(post);
+    failLoadOncePublished = true;
+    vi.setSystemTime(at("2026-11-20", "10:05"));
+    const summary = await runScheduledPublications();
+    expect(summary).toMatchObject({ published: [post.number], failed: [] });
+    expect(posts.get(post.id)!.status).toBe("published");
+    expect(entries[0].status).toBe("published");
+    expect(failureNotices()).toEqual([]);
+  });
+
+  it("if the entry cannot be closed, the next run closes it without publishing again", async () => {
+    const post = reviewPost();
+    await queue(post);
+    failMarkPublished = true;
+    vi.setSystemTime(at("2026-11-20", "10:05"));
+    expect((await runScheduledPublications()).published).toEqual([post.number]);
+    expect(entries[0].status).toBe("publishing");
+    expect(posts.get(post.id)!.status).toBe("published");
+    expect(failureNotices()).toEqual([]);
+    failMarkPublished = false;
+    vi.setSystemTime(at("2026-11-20", "10:30"));
+    const next = await runScheduledPublications();
+    expect(next).toMatchObject({ recovered: [post.number], published: [], failed: [] });
+    expect(entries[0].status).toBe("published");
+    expect(posts.get(post.id)!.status).toBe("published");
+    expect(startJob.mock.calls.filter((call) => call[1] === "translate")).toHaveLength(1);
+  });
+});
+
+describe("images of a scheduled article", () => {
+  const image = (id: string, slot: string, url: string) => ({
+    id, slot, url, width: 1, height: 1, alt: { ru: slot }, placeholderNote: null, source: "upload" as const,
+    creditName: null, creditUrl: null, sourcePageUrl: null, licenseName: null, licenseUrl: null,
+    providerPhotoId: null, triedPhotoIds: [], searchQuery: "pharmacy", storagePath: id,
+  });
+
+  function withImages(): EditorialPost {
+    const post = reviewPost({ images: [image("i1", "cover", "https://x/cover.jpg"), image("i2", "inline-1", "https://x/inline.jpg")] });
+    for (const t of post.translations) t.bodyMd = `${t.bodyMd}\n\n[[image:inline-1]]`;
+    return post;
+  }
+
+  function photoReply(replyTo: number, caption?: string) {
+    const update = textUpdate("", replyTo);
+    const message: Record<string, unknown> = { ...update.message, photo: [{ file_id: "ph1", width: 10, height: 10 }] };
+    delete message.text;
+    if (caption) message.caption = caption;
+    return { ...update, message } as unknown as ReturnType<typeof textUpdate>;
+  }
+
+  const nothingChanged = (post: EditorialPost) => {
+    expect(spies.nextStockImage).not.toHaveBeenCalled();
+    expect(spies.upsertImage).not.toHaveBeenCalled();
+    expect(spies.downloadFile).not.toHaveBeenCalled();
+    expect(spies.storeImageBytes).not.toHaveBeenCalled();
+    const after = posts.get(post.id)!;
+    expect(after.images.map((i) => i.url)).toEqual(["https://x/cover.jpg", "https://x/inline.jpg"]);
+    expect(after.translations[0].bodyMd).toContain("[[image:inline-1]]");
+    expect(after.status).toBe("scheduled");
+  };
+
+  it("the scheduled card has no image button", async () => {
+    const post = withImages();
+    await queue(post);
+    await handleUpdate(callbackUpdate(`open:${post.number}`));
+    expect(allButtons(sent.at(-1)!.keyboard).map((b) => b.callback_data)).not.toContain(`img:${post.number}`);
+  });
+
+  it("refuses every image button, including old ones from before the scheduling", async () => {
+    const post = withImages();
+    await queue(post);
+    for (const data of [
+      `img:${post.number}`,
+      `imgnext:${post.number}:cover`,
+      `imgnext:${post.number}:inline-1`,
+      `imgup:${post.number}:cover`,
+      `imgadd:${post.number}`,
+      `imgsec:${post.number}:0`,
+      `imgdel:${post.number}:inline-1`,
+    ]) {
+      sent.length = 0;
+      await handleUpdate(callbackUpdate(data));
+      expect(answered.at(-1)!.text).toBe("Статья в очереди: картинки заблокированы");
+      expect(sent.map((m) => m.text)).toEqual([expect.stringContaining("картинки менять нельзя")]);
+      expect(sent.some((m) => m.forceReply)).toBe(false);
+    }
+    nothingChanged(post);
+  });
+
+  it("refuses replies to upload prompts opened before the scheduling: photo, search query, new picture, photo to the card", async () => {
+    const post = withImages();
+    // The prompts are opened while the article is still in review…
+    await handleUpdate(callbackUpdate(`imgup:${post.number}:cover`));
+    const coverPrompt = nextMessageId - 1;
+    await handleUpdate(callbackUpdate(`imgsec:${post.number}:0`));
+    const addPrompt = nextMessageId - 1;
+    await handleUpdate(callbackUpdate(`open:${post.number}`));
+    const card = nextMessageId - 1;
+    // …then it is scheduled, and only then answered.
+    await queue(post);
+    for (const update of [photoReply(coverPrompt, "новая подпись"), textUpdate("pharmacy cyprus street", coverPrompt), photoReply(addPrompt), photoReply(card)]) {
+      sent.length = 0;
+      await handleUpdate(update);
+      expect(sent.map((m) => m.text)).toEqual([expect.stringContaining("картинки менять нельзя")]);
+    }
+    nothingChanged(post);
+    // The approved article still goes out as approved.
+    vi.setSystemTime(at("2026-11-20", "10:05"));
+    expect((await runScheduledPublications()).published).toEqual([post.number]);
+  });
+
+  it("an image changed some other way stops the automatic publication", async () => {
+    const post = withImages();
+    await queue(post);
+    posts.get(post.id)!.images[0].url = "https://x/other.jpg";
+    vi.setSystemTime(at("2026-11-20", "10:05"));
+    expect((await runScheduledPublications()).failed).toEqual([post.number]);
+    expect(posts.get(post.id)!.status).toBe("review");
+    expect(texts().at(-1)).toContain("картинки изменились после одобрения");
+  });
+
+  it("images of drafts and published articles can still be changed, and again after leaving the queue", async () => {
+    const draft = withImages();
+    await handleUpdate(callbackUpdate(`imgnext:${draft.number}:cover`));
+    expect(spies.nextStockImage).toHaveBeenCalledTimes(1);
+    const published = withImages();
+    published.status = "published";
+    await handleUpdate(callbackUpdate(`imgnext:${published.number}:cover`));
+    expect(spies.nextStockImage).toHaveBeenCalledTimes(2);
+
+    const queued = withImages();
+    await queue(queued);
+    await handleUpdate(callbackUpdate(`imgnext:${queued.number}:cover`));
+    expect(spies.nextStockImage).toHaveBeenCalledTimes(2);
+    await handleUpdate(callbackUpdate(`plrm:${queued.number}`));
+    await handleUpdate(callbackUpdate(`imgup:${queued.number}:cover`));
+    await handleUpdate(photoReply(nextMessageId - 1));
+    expect(spies.upsertImage).toHaveBeenCalledTimes(1);
   });
 });

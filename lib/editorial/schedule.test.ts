@@ -154,6 +154,14 @@ describe("approval", () => {
     expect(approvalHash(el)).toBe(base);
   });
 
+  it("changes when an image file or its alt text changes", () => {
+    const withImage = (url: string, alt: string) => ({ ...post(), images: [{ slot: "cover", url, alt: { ru: alt } }] });
+    const base = approvalHash(withImage("https://x/a.jpg", "аптека"));
+    expect(approvalHash(withImage("https://x/b.jpg", "аптека"))).not.toBe(base);
+    expect(approvalHash(withImage("https://x/a.jpg", "другая подпись"))).not.toBe(base);
+    expect(approvalHash(withImage("https://x/a.jpg", "аптека"))).toBe(base);
+  });
+
   it("binds the button code to the warnings the editor saw", () => {
     const hash = approvalHash(post());
     expect(approvalFingerprint(hash, ["links"])).not.toBe(approvalFingerprint(hash, []));

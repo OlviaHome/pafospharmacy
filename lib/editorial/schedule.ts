@@ -174,16 +174,25 @@ interface HashableTranslation {
   sources: unknown;
 }
 
+interface HashableImage {
+  slot: string;
+  url: string | null;
+  alt: unknown;
+}
+
 /**
  * Fingerprint of what the editor approved: the RU and EN texts (title, description, body, FAQ,
- * sources) and the address. Any change to them invalidates the approval.
+ * sources), the address and the images (slot, file, alt text). Any change invalidates the approval.
  */
-export function approvalHash(post: { slug: string; translations: HashableTranslation[] }): string {
+export function approvalHash(post: { slug: string; translations: HashableTranslation[]; images?: HashableImage[] }): string {
   const texts = ["ru", "en"].map((locale) => {
     const t = post.translations.find((candidate) => candidate.locale === locale);
     return t ? [locale, t.title, t.description, t.bodyMd, t.faq, t.sources] : [locale, null];
   });
-  return createHash("sha256").update(JSON.stringify([post.slug, texts])).digest("hex");
+  const images = [...(post.images ?? [])]
+    .sort((a, b) => a.slot.localeCompare(b.slot))
+    .map((image) => [image.slot, image.url, image.alt]);
+  return createHash("sha256").update(JSON.stringify([post.slug, texts, images])).digest("hex");
 }
 
 /** Short code carried by the buttons: the checked text and the warnings the editor saw. */

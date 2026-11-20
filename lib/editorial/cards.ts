@@ -213,10 +213,7 @@ function cardKeyboard(post: EditorialPost, canUndo: boolean, checks?: CheckResul
           { text: "⬇️ Позже", callback_data: `pldn:${n}` },
         ],
         [{ text: "❌ Убрать из очереди", callback_data: `plrm:${n}` }],
-        [
-          { text: "🖼 Картинки", callback_data: `img:${n}` },
-          { text: "📅 Расписание", callback_data: "plv:1" },
-        ],
+        [{ text: "📅 Расписание", callback_data: "plv:1" }],
       ];
     case "published": {
       const needsTranslation = (["el", "ar"] as Locale[]).some(

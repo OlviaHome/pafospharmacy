@@ -488,6 +488,13 @@ async function handleReply(
     return;
   }
 
+  // Images of a queued article stay as approved: a reply to an old upload prompt, or a photo sent
+  // in reply to its card, changes nothing.
+  if (post.status === "scheduled" && (context.purpose === "image_prompt" || message.photo || message.document)) {
+    await sendMessage(chatId, SCHEDULED_IMAGES_LOCKED(post));
+    return;
+  }
+
   if (context.purpose === "image_prompt" && context.slot?.startsWith("add:")) {
     await handleAddImageReply(message, post, Number(context.slot.slice(4)));
     return;
@@ -524,6 +531,11 @@ async function handleReply(
 /** A queued article keeps the text the editor approved. */
 const SCHEDULED_LOCKED = (post: EditorialPost) =>
   `#${post.number} запланирована к публикации, текст заблокирован. Чтобы править, уберите её из очереди (❌ в карточке), потом запланируйте снова.`;
+
+/** Every image action and reply; on a queued article they are refused, from old messages too. */
+const IMAGE_ACTIONS = new Set(["img", "imgnext", "imgup", "imgadd", "imgsec", "imgdel"]);
+const SCHEDULED_IMAGES_LOCKED = (post: EditorialPost) =>
+  `#${post.number} запланирована к публикации: картинки менять нельзя. Чтобы заменить их, уберите статью из очереди (❌ в карточке), потом запланируйте снова.`;
 
 /** Published or busy articles can't be edited; returns the reason, or null when editing is fine. */
 function editBlocker(post: EditorialPost): string | null {
@@ -836,6 +848,11 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
   const post = Number.isInteger(number) ? await loadPost({ number }) : null;
   if (!post) {
     await answerCallback(query.id, "Статья не найдена");
+    return;
+  }
+  if (post.status === "scheduled" && IMAGE_ACTIONS.has(action)) {
+    await answerCallback(query.id, "Статья в очереди: картинки заблокированы");
+    await sendMessage(chatId, SCHEDULED_IMAGES_LOCKED(post));
     return;
   }
 
