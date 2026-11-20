@@ -12,6 +12,12 @@
       "timezone": "Europe/Nicosia",
       "path": "/api/editorial/scout",
       "requestMethod": "GET"
+    },
+    "publish-queue": {
+      "schedule": "*/15 * * * *",
+      "timezone": "Europe/Nicosia",
+      "path": "/api/editorial/publish",
+      "requestMethod": "GET"
     }
   }
 }

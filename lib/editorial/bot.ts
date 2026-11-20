@@ -32,6 +32,20 @@ import { nextStockImage, refreshSourceChecks, setNotifier, startJob, type StartR
 import { findSimilar } from "./similar";
 import { handleScoutCallback, handleScoutCommand, SCOUT_ACTIONS, scoutUsageLines, sendScoutOutcome, sendSkipped, sendSources } from "./scout-bot";
 import {
+  handleScheduleCallback,
+  handleScheduleReply,
+  MAIN_MENU,
+  runDuePublications,
+  SCHEDULE_ACTIONS,
+  sendPublished,
+  sendQueue,
+  sendSettings,
+  type PublishOutcome,
+  type RunSummary,
+  type ScheduleDeps,
+} from "./schedule-bot";
+import { activeEntryForPost, markPostPublished } from "./schedule-store";
+import {
   assembleParts,
   languageLabel,
   LANGUAGE_CHOICES,
@@ -144,9 +158,13 @@ async function sendBlocked(chatId: number, post: EditorialPost, blocking: CheckR
 }
 
 async function cardFor(post: EditorialPost) {
-  const [costUsd, canUndo] = await Promise.all([postCostUsd(post.id), hasUndo(post.id)]);
+  const [costUsd, canUndo, entry] = await Promise.all([
+    postCostUsd(post.id),
+    hasUndo(post.id),
+    post.status === "scheduled" ? activeEntryForPost(post.id) : Promise.resolve(null),
+  ]);
   const checks = post.translations.some((t) => t.locale === "ru") ? checksFor(post, ["ru", "en"]) : [];
-  return renderCard(post, siteOrigin(), { costUsd, canUndo, checks });
+  return renderCard(post, siteOrigin(), { costUsd, canUndo, checks, schedule: entry ? { at: entry.at, mode: entry.mode } : null });
 }
 
 async function sendCard(chatId: number, post: EditorialPost): Promise<void> {
@@ -197,6 +215,35 @@ function revalidateBlog(): void {
   revalidateTag(BLOG_CACHE_TAG, { expire: 0 });
 }
 
+/**
+ * Publishes RU + EN: one conditional status change (of two simultaneous requests only one wins),
+ * then the texts; if the texts cannot be updated the post goes back to its previous status so the
+ * publication can simply be repeated. Used by the button and by the scheduler alike.
+ */
+async function publishRuEn(post: EditorialPost, from: EditorialPost["status"][]): Promise<PublishOutcome> {
+  const won = await transitionPost(post.id, from, {
+    status: "published",
+    published_at: post.publishedAt ?? new Date().toISOString(),
+    last_error: null,
+  });
+  if (!won) return { status: "lost" };
+  try {
+    await setTranslationStatus(post.id, ["ru", "en"], "published");
+  } catch (error) {
+    // Texts are shown on the site only while the post itself is published, so a language that was
+    // already marked published before the failure stays hidden until the retry.
+    const reason = error instanceof Error ? error.message : String(error);
+    await transitionPost(post.id, ["published"], {
+      status: post.status,
+      published_at: post.publishedAt,
+      last_error: reason.slice(0, 1000),
+    });
+    return { status: "failed", reason };
+  }
+  revalidateBlog();
+  return { status: "published", post: (await loadPost({ id: post.id }))! };
+}
+
 /* ---------- commands ---------- */
 
 const HELP = `Я пишу статьи для блога HealthGuide Cyprus. Ничего не публикуется без вашей кнопки ✅.
@@ -211,13 +258,17 @@ const HELP = `Я пишу статьи для блога HealthGuide Cyprus. Н�
    ✏️ Правки через ИИ: напишите, что изменить, и я перепишу сама. ↩️ Откатить вернёт предыдущую версию.
 4. 🖼 Картинки: другое стоковое фото, своя картинка, свой поисковый запрос, ➕ новая картинка в нужный раздел, 🗑 убрать.
 5. ✅ Опубликовать RU + EN. После этого переведу на греческий и арабский и тоже покажу перед публикацией.
+   📅 Запланировать: те же проверки, затем «в очередь» (ближайший свободный слот, по умолчанию 10:00 и 17:00) или своя дата и время. Статья выйдет сама, EL/AR — как обычно.
 
 <b>Импорт</b>: /import — пришлите ссылку, текст, файл .txt/.md или перешлите сообщение. Я проверю утверждения по первоисточникам и напишу самостоятельную статью; дальше всё как обычно.
 
 <b>Команды</b>
 /import: статья из чужого материала
 /drafts: черновики
-/published: опубликованные
+/published: опубликованные (вся история, по страницам)
+/queue: расписание публикаций
+/settings: настройки публикаций (сколько в день и во сколько)
+/menu: главное меню
 /scout: мониторинг новостей сейчас; /scout test: пробный запуск (ничего не сохраняется)
 /sources: источники мониторинга; /skipped: пропущенные темы (30 дней) и кнопка «Вернуть»
 /usage: расходы и лимиты`;
@@ -283,20 +334,9 @@ async function listDrafts(chatId: number): Promise<void> {
   );
 }
 
+/** The whole history, newest publication first, ten per page (schedule-bot.ts). */
 async function listPublished(chatId: number): Promise<void> {
-  const posts = await listPosts(["published"], 20);
-  if (posts.length === 0) {
-    await sendMessage(chatId, "Опубликованных статей пока нет.");
-    return;
-  }
-  const origin = siteOrigin();
-  await sendMessage(
-    chatId,
-    `<b>Опубликовано (${posts.length})</b>\n${posts
-      .map((post) => `#${post.number} · <a href="${escapeHtml(publicUrl(origin, post))}">${escapeHtml(postTitle(post).slice(0, 70))}</a>`)
-      .join("\n")}`,
-    { keyboard: posts.map((post) => [{ text: `#${post.number} · ${postTitle(post).slice(0, 40)}`, callback_data: `open:${post.number}` }]) },
-  );
+  await sendPublished(chatId, 1);
 }
 
 async function showUsage(chatId: number): Promise<void> {
@@ -339,7 +379,16 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
     switch (command.replace(/@.*$/, "").toLowerCase()) {
       case "/start":
       case "/help":
-        await sendMessage(chatId, HELP);
+        await sendMessage(chatId, HELP, { keyboard: MAIN_MENU });
+        return;
+      case "/menu":
+        await sendMessage(chatId, "Главное меню:", { keyboard: MAIN_MENU });
+        return;
+      case "/queue":
+        await sendQueue(chatId);
+        return;
+      case "/settings":
+        await sendSettings(chatId);
         return;
       case "/new":
         if (argument) await startArticle(chatId, argument);
@@ -425,6 +474,10 @@ async function handleReply(
     await acceptImportPart(message, context.slot);
     return;
   }
+  if (context.purpose === "schedule") {
+    await handleScheduleReply(message, context);
+    return;
+  }
   if (context.purpose === "topic_confirm" && context.payload === "ask") {
     await startArticle(chatId, text);
     return;
@@ -432,6 +485,13 @@ async function handleReply(
   const post = context.postId ? await loadPost({ id: context.postId }) : null;
   if (!post) {
     await sendMessage(chatId, "Эта статья уже удалена.");
+    return;
+  }
+
+  // Images of a queued article stay as approved: a reply to an old upload prompt, or a photo sent
+  // in reply to its card, changes nothing.
+  if (post.status === "scheduled" && (context.purpose === "image_prompt" || message.photo || message.document)) {
+    await sendMessage(chatId, SCHEDULED_IMAGES_LOCKED(post));
     return;
   }
 
@@ -468,12 +528,22 @@ async function handleReply(
   }
 }
 
+/** A queued article keeps the text the editor approved. */
+const SCHEDULED_LOCKED = (post: EditorialPost) =>
+  `#${post.number} запланирована к публикации, текст заблокирован. Чтобы править, уберите её из очереди (❌ в карточке), потом запланируйте снова.`;
+
+/** Every image action and reply; on a queued article they are refused, from old messages too. */
+const IMAGE_ACTIONS = new Set(["img", "imgnext", "imgup", "imgadd", "imgsec", "imgdel"]);
+const SCHEDULED_IMAGES_LOCKED = (post: EditorialPost) =>
+  `#${post.number} запланирована к публикации: картинки менять нельзя. Чтобы заменить их, уберите статью из очереди (❌ в карточке), потом запланируйте снова.`;
+
 /** Published or busy articles can't be edited; returns the reason, or null when editing is fine. */
 function editBlocker(post: EditorialPost): string | null {
   if (post.status === "published") {
     return `#${post.number} опубликована. Чтобы править, сначала снимите её с публикации (⏸), потом опубликуйте снова.`;
   }
   if (post.status === "generating") return `#${post.number} сейчас обновляется. Подождите карточку.`;
+  if (post.status === "scheduled") return SCHEDULED_LOCKED(post);
   if (post.status === "archived") return `#${post.number} в архиве. Сначала восстановите её.`;
   if (!post.translations.some((t) => t.locale === "ru")) return `У #${post.number} ещё нет текста.`;
   return null;
@@ -643,6 +713,10 @@ async function requestEdit(chatId: number, post: EditorialPost, instruction: str
     await sendMessage(chatId, `#${post.number} в архиве. Сначала восстановите её.`);
     return;
   }
+  if (post.status === "scheduled") {
+    await sendMessage(chatId, SCHEDULED_LOCKED(post));
+    return;
+  }
   // Mark as busy before the job starts so the job's own status update always wins. Only one of
   // two simultaneous requests can make this change; the other one stops here.
   if (!(await transitionPost(post.id, EDITABLE_STATUSES, { status: "generating" }))) {
@@ -750,6 +824,10 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     await handleImportCallback(query, action, rawNumber ?? "");
     return;
   }
+  if (SCHEDULE_ACTIONS.has(action)) {
+    await handleScheduleCallback(query, action, rawNumber ?? "", slot, scheduleDeps);
+    return;
+  }
   if (SCOUT_ACTIONS.has(action)) {
     await handleScoutCallback(query, action, rawNumber ?? "", {
       openDraft: async (chat, postId) => {
@@ -772,6 +850,11 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     await answerCallback(query.id, "Статья не найдена");
     return;
   }
+  if (post.status === "scheduled" && IMAGE_ACTIONS.has(action)) {
+    await answerCallback(query.id, "Статья в очереди: картинки заблокированы");
+    await sendMessage(chatId, SCHEDULED_IMAGES_LOCKED(post));
+    return;
+  }
 
   switch (action) {
     case "open":
@@ -781,7 +864,8 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
 
     case "pub":
     case "pubok": {
-      if (!hasRussianAndEnglish(post) || !["review", "paused", "failed"].includes(post.status)) {
+      // A queued article can be published at once («✅ Опубликовать сейчас»); its entry is then closed.
+      if (!hasRussianAndEnglish(post) || !["review", "paused", "failed", "scheduled"].includes(post.status)) {
         await answerCallback(query.id, "Сейчас опубликовать нельзя");
         return;
       }
@@ -831,36 +915,27 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
         }
         await answerCallback(query.id, "Публикую…");
       }
-      // Only one of two simultaneous taps publishes and starts the EL/AR translations.
-      const won = await transitionPost(post.id, EDITABLE_STATUSES, {
-        status: "published",
-        published_at: post.publishedAt ?? new Date().toISOString(),
-        last_error: null,
-      });
-      if (!won) {
+      // Only one of two simultaneous taps (or a tap and the scheduler) publishes and starts the EL/AR translations.
+      const outcome = await publishRuEn(post, [...EDITABLE_STATUSES, "scheduled"]);
+      if (outcome.status === "lost") {
         await sendMessage(chatId, `#${post.number} уже опубликована или обновляется.`);
         return;
       }
-      try {
-        await setTranslationStatus(post.id, ["ru", "en"], "published");
-      } catch (error) {
-        // Put the post back where it was, so publishing can simply be pressed again. Texts are
-        // shown on the site only while the post itself is published, so a language that was
-        // already marked published before the failure stays hidden until the retry.
-        const reason = error instanceof Error ? error.message : String(error);
-        await transitionPost(post.id, ["published"], {
-          status: post.status,
-          published_at: post.publishedAt,
-          last_error: reason.slice(0, 1000),
-        });
+      if (outcome.status === "failed") {
         await sendMessage(
           chatId,
-          `⚠️ #${post.number} не опубликована: не удалось обновить тексты (<code>${escapeHtml(reason.slice(0, 300))}</code>). Статья возвращена в прежний статус, публикацию можно повторить.`,
+          `⚠️ #${post.number} не опубликована: не удалось обновить тексты (<code>${escapeHtml(outcome.reason.slice(0, 300))}</code>). Статья возвращена в прежний статус, публикацию можно повторить.`,
         );
         return;
       }
-      revalidateBlog();
-      const published = (await loadPost({ id: post.id }))!;
+      // A queued article published by hand: its entry is closed (if this fails, the scheduler later
+      // finds the article already published and only closes the entry).
+      if (post.status === "scheduled") {
+        await markPostPublished(post.id, "опубликована вручную раньше срока").catch((error) =>
+          console.error("editorial: closing a schedule entry failed", error instanceof Error ? error.message : error),
+        );
+      }
+      const published = outcome.post;
       if (action === "pub") await refreshCard(chatId, messageId, published);
       else await editMessage(chatId, messageId, `✅ #${post.number} опубликована.`);
       await sendMessage(
@@ -921,6 +996,10 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
       await answerCallback(query.id);
       if (post.status === "published") {
         await sendMessage(chatId, `#${post.number} опубликована. Чтобы править, сначала снимите её с публикации (⏸).`);
+        return;
+      }
+      if (post.status === "scheduled") {
+        await sendMessage(chatId, SCHEDULED_LOCKED(post));
         return;
       }
       const sent = await sendMessage(
@@ -1214,7 +1293,7 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     }
 
     case "undo": {
-      if (post.status === "published" || post.status === "generating") {
+      if (post.status === "published" || post.status === "generating" || post.status === "scheduled") {
         await answerCallback(query.id, "Сейчас откатить нельзя");
         return;
       }
@@ -1239,6 +1318,11 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
       } as const;
       if (post.status === "generating") {
         await answerCallback(query.id, "Статья ещё пишется");
+        return;
+      }
+      // A queued article leaves the queue only through «❌ Убрать из очереди», which closes its entry.
+      if (post.status === "scheduled") {
+        await answerCallback(query.id, "Статья в очереди: сначала уберите её из расписания");
         return;
       }
       await updatePost(post.id, { status: next[action] });
@@ -1296,6 +1380,25 @@ async function handleCallback(query: TelegramCallbackQuery): Promise<void> {
     default:
       await answerCallback(query.id);
   }
+}
+
+/* ---------- editorial calendar (schedule-bot.ts) ---------- */
+
+const scheduleDeps: ScheduleDeps = {
+  adminChatId,
+  checks: (post) => checksFor(post, ["ru", "en"]),
+  recheck: async (post) => recheckFacts(await recheckLinks(post, ["ru", "en"])),
+  sendCard,
+  refreshCard,
+  sendBlocked,
+  publish: publishRuEn,
+  afterPublish: startTranslations,
+  listDrafts,
+};
+
+/** The scheduler's call (app/api/editorial/publish): publishes due articles with the usual checks. */
+export async function runScheduledPublications(now = new Date()): Promise<RunSummary> {
+  return runDuePublications(scheduleDeps, now);
 }
 
 async function startTranslations(chatId: number, post: EditorialPost): Promise<void> {
