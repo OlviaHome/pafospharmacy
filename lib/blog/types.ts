@@ -4,6 +4,8 @@ export type BlogPostStatus =
   | "generating"
   | "review"
   | "paused"
+  /** Approved and queued for automatic publication; never shown on the site. */
+  | "scheduled"
   | "published"
   | "archived"
   | "failed";

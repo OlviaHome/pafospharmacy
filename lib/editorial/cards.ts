@@ -8,6 +8,7 @@ import { formatChecks, type CheckResult } from "./checks";
 import { factItems, type FactItem } from "./facts";
 import { importFactOptions, languageLabel } from "./imports";
 import { sourceKind } from "./prompts";
+import { formatSlotWithWeekday } from "./schedule";
 import type { EditorialPost } from "./store";
 import { escapeHtml, type InlineKeyboard } from "./telegram";
 
@@ -15,6 +16,7 @@ export const POST_STATUS_LABEL: Record<BlogPostStatus, string> = {
   generating: "⏳ пишется",
   review: "👀 на проверке",
   paused: "⏸ отложена",
+  scheduled: "📅 запланирована",
   published: "✅ опубликована",
   archived: "🗄 в архиве",
   failed: "⚠️ ошибка",
@@ -61,13 +63,18 @@ export function hasRussianAndEnglish(post: EditorialPost): boolean {
 export function renderCard(
   post: EditorialPost,
   origin: string,
-  extras: { costUsd: number; canUndo: boolean; checks?: CheckResult[] },
+  extras: { costUsd: number; canUndo: boolean; checks?: CheckResult[]; schedule?: { at: Date; mode: "queue" | "manual" } | null },
 ): { text: string; keyboard: InlineKeyboard } {
   const ru = post.translations.find((t) => t.locale === "ru");
   const lines: string[] = [
     `📝 <b>#${post.number} · ${escapeHtml(postTitle(post))}</b>`,
     `Статус: ${POST_STATUS_LABEL[post.status]}`,
   ];
+  if (post.status === "scheduled" && extras.schedule) {
+    lines.push(
+      `📅 Выйдет: <b>${formatSlotWithWeekday(extras.schedule.at)}</b> (время Кипра) · ${extras.schedule.mode === "queue" ? "очередь" : "время выбрано вручную"}`,
+    );
+  }
   if (ru && ru.title !== post.topic) lines.push(`Тема: <i>${escapeHtml(post.topic.slice(0, 200))}</i>`);
   if (post.importInfo) {
     const origin = post.importInfo.sourceUrl ? link(post.importInfo.sourceUrl, hostLabel(post.importInfo.sourceUrl)) : escapeHtml(post.importInfo.sourceLabel ?? "текст от редактора");
@@ -168,7 +175,12 @@ function cardKeyboard(post: EditorialPost, canUndo: boolean, checks?: CheckResul
       return [[{ text: "🔄 Обновить", callback_data: `open:${n}` }]];
     case "review":
       return [
-        ...(hasRussianAndEnglish(post) ? [[{ text: "✅ Опубликовать RU + EN", callback_data: `pub:${n}` }]] : []),
+        ...(hasRussianAndEnglish(post)
+          ? [[
+              { text: "✅ Опубликовать RU + EN", callback_data: `pub:${n}` },
+              { text: "📅 Запланировать", callback_data: `pls:${n}` },
+            ]]
+          : []),
         ...refreshEnglish,
         ...editRows(post, checks),
         ...(canUndo ? [[{ text: "↩️ Откатить последнюю правку", callback_data: `undo:${n}` }]] : []),
@@ -190,6 +202,21 @@ function cardKeyboard(post: EditorialPost, canUndo: boolean, checks?: CheckResul
           : [{ text: "🔁 Написать заново", callback_data: `retry:${n}` }],
         ...(hasRu ? [...refreshEnglish, ...editRows(post, checks)] : []),
         [{ text: "🗄 В архив", callback_data: `arch:${n}` }],
+      ];
+    case "scheduled":
+      // Approved and queued: the text is locked; take it out of the queue to edit it.
+      return [
+        [{ text: "✅ Опубликовать сейчас", callback_data: `pub:${n}` }],
+        [{ text: "🗓 Изменить дату/время", callback_data: `plm:${n}:r` }],
+        [
+          { text: "⬆️ Раньше", callback_data: `plup:${n}` },
+          { text: "⬇️ Позже", callback_data: `pldn:${n}` },
+        ],
+        [{ text: "❌ Убрать из очереди", callback_data: `plrm:${n}` }],
+        [
+          { text: "🖼 Картинки", callback_data: `img:${n}` },
+          { text: "📅 Расписание", callback_data: "plv:1" },
+        ],
       ];
     case "published": {
       const needsTranslation = (["el", "ar"] as Locale[]).some(

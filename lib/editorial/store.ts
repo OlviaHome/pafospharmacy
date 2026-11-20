@@ -633,7 +633,7 @@ export async function markUpdateProcessed(updateId: number): Promise<boolean> {
   throw new Error(`mark update: ${error.message}`);
 }
 
-export type MessagePurpose = "card" | "edit_prompt" | "image_prompt" | "topic_confirm" | "images" | "import";
+export type MessagePurpose = "card" | "edit_prompt" | "image_prompt" | "topic_confirm" | "images" | "import" | "schedule";
 
 export async function rememberMessage(
   chatId: number,
