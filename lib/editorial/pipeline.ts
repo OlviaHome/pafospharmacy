@@ -39,7 +39,7 @@ import {
 } from "./prompts";
 import { activeImages } from "./cards";
 import { runScout, type ScoutOptions } from "./scout-run";
-import { peekRun, undoUndelivered, type RunKind } from "./scout-store";
+import { loadScoutSettings, peekRun, undoUndelivered, type RunKind } from "./scout-store";
 import { cyprusDate } from "./scout";
 import type { ScoutOutcome } from "./scout-render";
 import { languageLabel } from "./imports";
@@ -214,7 +214,7 @@ async function runScoutJob(job: JobRecord): Promise<void> {
   let outcome: ScoutOutcome | null = null;
   try {
     outcome = await runScout(options);
-    await finishJob(job.id, "done", outcome === null ? "skipped: the run of this day is done or running" : undefined);
+    await finishJob(job.id, "done", outcome === null ? "skipped: paused, or the run of this day is done or running" : undefined);
   } catch (error) {
     // Only reachable when the run record itself could not be taken: nothing ran.
     console.error(`editorial: scout job ${job.id} failed`, error instanceof Error ? error.name : "unknown");
@@ -242,14 +242,19 @@ async function deliverScoutOutcome(outcome: ScoutOutcome): Promise<void> {
 
 export type StartScoutResult =
   | { ok: true; jobId: number }
-  | { ok: false; reason: "done" | "running" };
+  | { ok: false; reason: "done" | "running" | "paused" };
 
 /**
  * Queues a Scout run. The limits are checked by the run itself (it must record and report a limit
  * refusal like any other failure); here only a run that is pointless to queue is turned down: the
  * real run of today is done, or a run of this kind is going on.
+ *
+ * A paused monitoring turns every real run down first, before a job, a run record, a budget check or
+ * an OpenAI call exists (test runs stay available). If the pause state cannot be read the error
+ * propagates: an unknown state never starts a paid run.
  */
 export async function startScoutJob(options: { kind: RunKind; trigger: "manual" | "schedule"; model?: string }): Promise<StartScoutResult> {
+  if (options.kind === "real" && (await loadScoutSettings()).paused) return { ok: false, reason: "paused" };
   await failStaleJobs();
   const existing = await peekRun(cyprusDate(new Date()), options.kind);
   if (existing?.status === "done" && options.kind === "real") return { ok: false, reason: "done" };

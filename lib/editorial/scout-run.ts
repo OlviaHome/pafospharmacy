@@ -36,6 +36,7 @@ import {
   lastSuccessfulRunStart,
   listNewEvents,
   listSources,
+  loadScoutSettings,
   markItemsProcessed,
   pendingItems,
   recentEvents,
@@ -108,6 +109,11 @@ export async function runScout(options: ScoutOptions): Promise<ScoutOutcome | nu
   const model = test && options.model ? options.model : scoutModel();
   const date = cyprusDate(now);
 
+  // The pause comes first: before the run record, the limits and any OpenAI call. startScoutJob
+  // already refuses a paused run; this covers a job queued just before the pause was set.
+  const settings = test ? null : await loadScoutSettings();
+  if (settings?.paused) return null;
+
   const claim = await claimRun(date, options.kind, options.trigger, model);
   if (claim.status !== "claimed") return null;
   const unavailable: UnavailableSource[] = [];
@@ -141,7 +147,10 @@ export async function runScout(options: ScoutOptions): Promise<ScoutOutcome | nu
     const searches = sources.filter((source) => source.kind === "search");
     const fetcher = options.fetcher ?? defaultFetcher;
 
-    const since = windowStart(test ? null : await lastSuccessfulRunStart(), now);
+    // After a pause, only news from the resume on: what came out during the pause is never collected.
+    const resumed = settings?.resumedAt ? new Date(settings.resumedAt) : null;
+    const base = windowStart(test ? null : await lastSuccessfulRunStart(), now);
+    const since = resumed && resumed > base ? resumed : base;
 
     // 3. Collection without AI: feeds, one by one; a failing source is recorded and skipped.
     const collected: CollectedItem[] = [];
