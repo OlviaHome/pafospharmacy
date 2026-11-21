@@ -351,7 +351,7 @@ describe("⏸ Приостановить Scout / ▶️ Возобновить S
     const text = edited.at(-1)!.text;
     expect(text).toContain("Scout возобновлён");
     expect(text).toContain("Поиск сейчас не запускается");
-    expect(text).toContain("09:00");
+    expect(text).toContain("ближайшему срабатыванию расписания (09:00 или резервное 11:00 по Кипру)");
     expect(text).toContain("не собираются");
     expect(callbacks(edited.at(-1)!.keyboard)).toContain("scpause");
   });
