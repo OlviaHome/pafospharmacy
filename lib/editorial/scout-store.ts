@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { BlogPostStatus } from "@/lib/blog/types";
+
 import { adminClient } from "./store";
 
 /** Database access of the Scout (server only; the tables have no public access). */
@@ -169,6 +171,58 @@ export async function lastSuccessfulRunStart(): Promise<Date | null> {
     "last run",
   );
   return row ? new Date(row.started_at) : null;
+}
+
+/* ---------- pause ---------- */
+
+export interface ScoutSettings {
+  paused: boolean;
+  pausedAt: string | null;
+  resumedAt: string | null;
+}
+
+/** The pause switch. No row means the default: monitoring on. A read error is thrown, never read as "on". */
+export async function loadScoutSettings(): Promise<ScoutSettings> {
+  const row = check(
+    await adminClient().from("news_scout_settings").select("paused, paused_at, resumed_at").eq("id", true).maybeSingle(),
+    "scout settings",
+  );
+  return { paused: Boolean(row?.paused), pausedAt: row?.paused_at ?? null, resumedAt: row?.resumed_at ?? null };
+}
+
+/**
+ * Pauses or resumes the automatic monitoring by one conditional update. Returns true when this call
+ * changed the state, false when it already was so: a repeated tap changes nothing and a stale button
+ * can only ever set the state it names (never flips it).
+ */
+export async function setScoutPaused(paused: boolean): Promise<boolean> {
+  const db = adminClient();
+  check(await db.from("news_scout_settings").upsert({ id: true }, { onConflict: "id", ignoreDuplicates: true }), "scout settings row");
+  const now = new Date().toISOString();
+  const rows = check(
+    await db
+      .from("news_scout_settings")
+      .update(paused ? { paused: true, paused_at: now, updated_at: now } : { paused: false, resumed_at: now, updated_at: now })
+      .eq("id", true)
+      .eq("paused", !paused)
+      .select("id"),
+    "set scout paused",
+  );
+  return Boolean(rows?.length);
+}
+
+/** The last real run (the state line of the Scout menu). */
+export async function lastRealRun(): Promise<Pick<NewsRun, "runDate" | "status" | "errorCode"> | null> {
+  const row = check(
+    await adminClient().from("news_runs").select("run_date, status, error_code").eq("kind", "real").order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    "last real run",
+  );
+  return row ? { runDate: row.run_date, status: row.status, errorCode: row.error_code } : null;
+}
+
+/** Publications fetched but not yet looked at are closed on resume, so the news of the pause never comes back. */
+export async function discardPendingItems(): Promise<void> {
+  check(await adminClient().from("news_items").update({ processed_at: new Date().toISOString() }).is("processed_at", null), "discard pending items");
 }
 
 /* ---------- items ---------- */
@@ -479,6 +533,52 @@ export async function eventsOfRun(runId: string): Promise<NewsEvent[]> {
     "events of run",
   );
   return (rows ?? []).map(mapEvent);
+}
+
+/* ---------- found topics (history) ---------- */
+
+export const TOPICS_PAGE = 10;
+
+/** The article an event leads to, as the database has it now (null: none, or it was deleted). */
+export interface TopicPost {
+  id: string;
+  number: number;
+  slug: string;
+  status: BlogPostStatus;
+}
+
+export interface TopicEntry {
+  event: NewsEvent;
+  post: TopicPost | null;
+}
+
+const TOPIC_COLUMNS = `${EVENT_COLUMNS}, post:blog_posts(id, number, slug, status)`;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapTopic(row: any): TopicEntry {
+  const post = Array.isArray(row.post) ? row.post[0] : row.post;
+  return {
+    event: mapEvent(row),
+    post: post ? { id: post.id, number: Number(post.number), slug: post.slug, status: post.status } : null,
+  };
+}
+
+/** Every topic the Scout ever offered, newest first, with the status of the article behind it. */
+export async function listTopicsPage(page: number, size: number): Promise<{ rows: TopicEntry[]; total: number }> {
+  const from = Math.max(0, (page - 1) * size);
+  const result = await adminClient()
+    .from("news_events")
+    .select(TOPIC_COLUMNS, { count: "exact" })
+    .order("first_seen_at", { ascending: false })
+    .order("number", { ascending: false })
+    .range(from, from + size - 1);
+  const rows = check(result, "list topics");
+  return { rows: (rows ?? []).map(mapTopic), total: result.count ?? (rows ?? []).length };
+}
+
+export async function loadTopic(number: number): Promise<TopicEntry | null> {
+  const row = check(await adminClient().from("news_events").select(TOPIC_COLUMNS).eq("number", number).maybeSingle(), "load topic");
+  return row ? mapTopic(row) : null;
 }
 
 /* ---------- spending ---------- */

@@ -60,6 +60,14 @@ describe("scheduled scout run", () => {
     expect(await response.json()).toEqual({ ok: true, status: "done" });
   });
 
+  it("a paused monitoring answers quietly: nothing started, nothing sent, the schedule itself untouched", async () => {
+    startMock.mockResolvedValue({ ok: false, reason: "paused" });
+    const response = await GET(request(`Bearer ${SECRET}`));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, status: "paused" });
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
   it("tells the editor in Telegram when the run could not even start", async () => {
     startMock.mockRejectedValue(new Error("db down"));
     const response = await GET(request(`Bearer ${SECRET}`));

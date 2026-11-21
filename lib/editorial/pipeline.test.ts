@@ -60,7 +60,9 @@ const runScoutMock = vi.fn<(options: unknown) => Promise<unknown>>();
 vi.mock("@/lib/editorial/scout-run", () => ({ runScout: (options: unknown) => runScoutMock(options) }));
 const peekRun = vi.fn<(date: string, kind: string) => Promise<unknown>>(async () => null);
 const undoUndelivered = vi.fn<(runId: string, numbers: number[]) => Promise<undefined>>(async () => undefined);
+const loadScoutSettings = vi.fn<() => Promise<{ paused: boolean; pausedAt: string | null; resumedAt: string | null }>>(async () => ({ paused: false, pausedAt: null, resumedAt: null }));
 vi.mock("@/lib/editorial/scout-store", () => ({
+  loadScoutSettings: () => loadScoutSettings(),
   peekRun: (date: string, kind: string) => peekRun(date, kind),
   undoUndelivered: (runId: string, numbers: number[]) => undoUndelivered(runId, numbers),
 }));
@@ -616,6 +618,26 @@ describe("the News Scout job", () => {
     const result = await startScoutJob({ kind: "real", trigger: "manual" });
     expect(result).toEqual({ ok: true, jobId: 42 });
     expect(store.enqueueJob).toHaveBeenCalledWith(null, "scout", { kind: "real", trigger: "manual" });
+  });
+
+  it("a paused monitoring turns down every real run before any job, run record or OpenAI call; a test run still starts", async () => {
+    loadScoutSettings.mockResolvedValue({ paused: true, pausedAt: "2026-11-21T10:00:00Z", resumedAt: null });
+    try {
+      expect(await startScoutJob({ kind: "real", trigger: "schedule" })).toEqual({ ok: false, reason: "paused" });
+      expect(await startScoutJob({ kind: "real", trigger: "manual" })).toEqual({ ok: false, reason: "paused" });
+      expect(store.enqueueJob).not.toHaveBeenCalled();
+      expect(peekRun).not.toHaveBeenCalled();
+      expect(runScoutMock).not.toHaveBeenCalled();
+      expect(await startScoutJob({ kind: "test", trigger: "manual" })).toMatchObject({ ok: true });
+    } finally {
+      loadScoutSettings.mockResolvedValue({ paused: false, pausedAt: null, resumedAt: null });
+    }
+  });
+
+  it("an unreadable pause state never starts a paid run", async () => {
+    loadScoutSettings.mockRejectedValueOnce(new Error("scout settings: down"));
+    await expect(startScoutJob({ kind: "real", trigger: "schedule" })).rejects.toThrow();
+    expect(store.enqueueJob).not.toHaveBeenCalled();
   });
 
   it("turns down a real run when today's is done, and any run while one is going on", async () => {

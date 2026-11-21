@@ -132,3 +132,37 @@ export function renderSourceLinks(topic: Pick<DigestTopic, "title" | "links">): 
     ...topic.links.map((link) => `• <a href="${escapeHtml(link.url)}">${escapeHtml(link.title || link.url)}</a>`),
   ].join("\n");
 }
+
+/* ---------- history of found topics ---------- */
+
+/** Where a topic stands. Decided by the article's real record in the database, never by a button press. */
+export type TopicState = "not_started" | "draft" | "published" | "skipped" | "archived" | "failed";
+
+export const TOPIC_STATE_LABEL: Record<TopicState, string> = {
+  not_started: "🆕 Не начата",
+  draft: "📝 Черновик",
+  published: "✅ Опубликовано",
+  skipped: "⏭ Пропущена",
+  archived: "🗄 Статья в архиве",
+  failed: "⚠️ Ошибка в черновике",
+};
+
+/**
+ * The state of a topic from its event and the article it points to (null: no article, or it was
+ * deleted: the link is then empty and the topic can be written again). "Published" only for an
+ * article whose status is really published; an errored or archived article is never shown as published.
+ */
+export function topicState(event: { status: string }, post: { status: string } | null): TopicState {
+  if (post) {
+    if (post.status === "published") return "published";
+    if (post.status === "archived") return "archived";
+    if (post.status === "failed") return "failed";
+    return "draft";
+  }
+  return event.status === "skipped" ? "skipped" : "not_started";
+}
+
+/** A date of the history as dd.mm.yyyy in Cyprus time. */
+export function topicDate(iso: string): string {
+  return dateLabel(iso);
+}

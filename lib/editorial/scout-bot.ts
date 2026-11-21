@@ -1,27 +1,48 @@
 import "server-only";
 
 import type { TelegramCallbackQuery } from "./auth";
-import { editorialLimits, openAiModel, utilityModel } from "./config";
+import { POST_STATUS_LABEL, publicUrl } from "./cards";
+import { editorialLimits, openAiModel, siteOrigin, utilityModel } from "./config";
 import { MODEL_PRICES } from "./pricing";
 import { startScoutJob } from "./pipeline";
 import { checkSource, type Fetcher } from "./scout-sources";
 import { cyprusDate } from "./scout";
-import { eventMaterial, renderDigestHeader, renderSourceLinks, renderTopic, topicKeyboard, type DigestTopic, type ScoutOutcome } from "./scout-render";
+import {
+  eventMaterial,
+  renderDigestHeader,
+  renderSourceLinks,
+  renderTopic,
+  TOPIC_STATE_LABEL,
+  topicDate,
+  topicKeyboard,
+  topicState,
+  type DigestTopic,
+  type ScoutOutcome,
+} from "./scout-render";
 import {
   claimForWork,
+  discardPendingItems,
+  lastRealRun,
   listSkipped,
   listSources,
+  listTopicsPage,
   loadEvent,
+  loadScoutSettings,
+  loadTopic,
   recordSourceCheck,
   restoreEvent,
   scoutSpentSince,
+  setScoutPaused,
   setSourceEnabled,
   skipEvent,
   SKIPPED_DAYS,
+  TOPICS_PAGE,
   type NewsEvent,
   type NewsSource,
+  type ScoutSettings,
+  type TopicEntry,
 } from "./scout-store";
-import { createPost, createStartedImport, deletePost } from "./store";
+import { createPost, createStartedImport, deletePost, type EditorialPost } from "./store";
 import { cyprusMonthStart } from "./limits";
 import { answerCallback, editMessage, escapeHtml, sendMessage, type InlineKeyboard } from "./telegram";
 
@@ -43,8 +64,12 @@ function testModel(word: string): string | null | undefined {
 /** `/scout` (real run) and `/scout test [luna|terra|<model>]` (test run on all sources, nothing saved). */
 export async function handleScoutCommand(chatId: number, argument: string): Promise<void> {
   const [mode, modelWord = ""] = argument.trim().split(/\s+/);
+  if (mode?.toLowerCase() === "menu") {
+    await sendScoutMenu(chatId);
+    return;
+  }
   if (mode && mode.toLowerCase() !== "test") {
-    await sendMessage(chatId, "Команды: /scout — мониторинг сейчас, /scout test — тестовый запуск (ничего не сохраняется), /scout test luna — то же на дешёвой модели для сравнения.");
+    await sendMessage(chatId, "Команды: /scout — мониторинг сейчас, /scout menu — управление (найденные темы, пауза), /scout test — тестовый запуск (ничего не сохраняется), /scout test luna — то же на дешёвой модели для сравнения.");
     return;
   }
   const test = Boolean(mode);
@@ -57,16 +82,18 @@ export async function handleScoutCommand(chatId: number, argument: string): Prom
   if (!result.ok) {
     await sendMessage(
       chatId,
-      result.reason === "done"
-        ? "Мониторинг за сегодня уже выполнен, дайджест отправлен. Следующий — завтра в 09:00 по Кипру. Проверить источники без сохранения: /scout test."
-        : "Мониторинг уже выполняется. Пришлю результат, как только он будет готов.",
+      result.reason === "paused"
+        ? "⏸ Мониторинг приостановлен, поэтому поиск не запущен. Возобновить: /scout menu. Платный тестовый запуск без сохранения остаётся доступным: /scout test."
+        : result.reason === "done"
+          ? "Мониторинг за сегодня уже выполнен, дайджест отправлен. Следующий — завтра в 09:00 по Кипру. Проверить источники без сохранения: /scout test."
+          : "Мониторинг уже выполняется. Пришлю результат, как только он будет готов.",
     );
     return;
   }
   await sendMessage(
     chatId,
     test
-      ? `🧪 Запускаю тестовый мониторинг${model ? ` (модель <code>${escapeHtml(model)}</code>)` : ""} по всем источникам, включая ещё не утверждённые. Обычно 2–4 минуты.`
+      ? `🧪 Запускаю тестовый мониторинг${model ? ` (модель <code>${escapeHtml(model)}</code>)` : ""} по всем источникам, включая ещё не утверждённые. Это платный запуск OpenAI, результат не сохраняется. Обычно 2–4 минуты.`
       : "🔎 Запускаю мониторинг новостей по утверждённым источникам. Обычно 2–4 минуты; пришлю дайджест.",
   );
 }
@@ -148,7 +175,7 @@ export async function sendSources(chatId: number): Promise<void> {
   await sendMessage(chatId, view.text, { keyboard: view.keyboard });
 }
 
-export const SCOUT_ACTIONS = new Set(["srcon", "srcoff", "srcchk", "scw", "sco", "scs", "scr", "scrl"]);
+export const SCOUT_ACTIONS = new Set(["srcon", "srcoff", "srcchk", "scw", "sco", "scs", "scr", "scrl", "scm", "scpause", "scresume", "sct", "sctc"]);
 
 /** What the topic buttons need from the editor's side of the bot (injected, so tests need no bot). */
 export interface ScoutDeps {
@@ -243,6 +270,174 @@ export async function sendSkipped(chatId: number): Promise<void> {
   await sendMessage(chatId, view.text, view.keyboard.length ? { keyboard: view.keyboard } : {});
 }
 
+/* ---------- control menu: state, pause, found topics ---------- */
+
+function stampLabel(iso: string): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Nicosia",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+    .format(new Date(iso))
+    .replace(", ", " ");
+}
+
+const RUN_LABEL: Record<string, string> = { done: "выполнен", failed: "не выполнен", running: "идёт" };
+
+export interface ScoutMenuView {
+  settings: ScoutSettings;
+  lastRun: { runDate: string; status: string; errorCode: string | null } | null;
+  enabledSources: number;
+  totalSources: number;
+  spentLine: string;
+}
+
+/** The Scout's control panel: current state of the monitoring and the two actions. */
+export function renderScoutMenu(view: ScoutMenuView, note?: string): { text: string; keyboard: InlineKeyboard } {
+  const { settings } = view;
+  const [year, month, day] = (view.lastRun?.runDate ?? "").split("-");
+  const lines = [
+    ...(note ? [note, ""] : []),
+    "📰 <b>Мониторинг новостей (Scout)</b>",
+    settings.paused
+      ? `Состояние: ⏸ <b>приостановлен</b>${settings.pausedAt ? ` с ${stampLabel(settings.pausedAt)}` : ""}`
+      : "Состояние: ✅ <b>работает</b> — ежедневный запуск в 09:00 по Кипру",
+    ...(settings.paused
+      ? [
+          "Поиск и отбор по расписанию не выполняются, расходов OpenAI нет. Найденные темы, черновики и статьи сохранены и доступны.",
+          "Ручной <code>/scout test</code> работает: это платный тестовый запуск, результат не сохраняется.",
+        ]
+      : []),
+    view.lastRun
+      ? `Последний запуск: ${day}.${month}.${year} — ${RUN_LABEL[view.lastRun.status] ?? view.lastRun.status}${view.lastRun.errorCode ? ` (${escapeHtml(view.lastRun.errorCode)})` : ""}`
+      : "Последний запуск: ещё не было",
+    `Утверждённых источников: ${view.enabledSources} из ${view.totalSources} (список: /sources)`,
+    escapeHtml(view.spentLine),
+  ];
+  return {
+    text: lines.join("\n"),
+    keyboard: [
+      [{ text: "🗂 Найденные темы", callback_data: "sct:1" }],
+      [settings.paused ? { text: "▶️ Возобновить Scout", callback_data: "scresume" } : { text: "⏸ Приостановить Scout", callback_data: "scpause" }],
+    ],
+  };
+}
+
+async function loadMenuView(): Promise<ScoutMenuView> {
+  const [settings, lastRun, sources, spentLines] = await Promise.all([loadScoutSettings(), lastRealRun(), listSources(), scoutUsageLines()]);
+  return {
+    settings,
+    lastRun,
+    enabledSources: sources.filter((source) => source.enabled).length,
+    totalSources: sources.length,
+    spentLine: spentLines[0] ?? "",
+  };
+}
+
+export async function sendScoutMenu(chatId: number): Promise<void> {
+  const view = renderScoutMenu(await loadMenuView());
+  await sendMessage(chatId, view.text, { keyboard: view.keyboard });
+}
+
+/** «⏸ Приостановить» / «▶️ Возобновить»: sets exactly the state the button names; a repeat changes nothing. */
+async function changePause(query: TelegramCallbackQuery, pause: boolean): Promise<void> {
+  const chatId = query.message!.chat.id;
+  const messageId = query.message!.message_id;
+  const changed = await setScoutPaused(pause);
+  if (changed && !pause) {
+    // What was fetched before the pause but never looked at must not come back after it.
+    await discardPendingItems().catch(() => console.error("scout: could not close pending items on resume"));
+  }
+  await answerCallback(query.id, changed ? (pause ? "Мониторинг приостановлен" : "Мониторинг возобновлён") : pause ? "Уже приостановлен" : "Уже работает");
+  const note = !changed
+    ? undefined
+    : pause
+      ? "⏸ <b>Scout приостановлен.</b> Расписание Vercel не тронуто, но запуски ничего не делают: ни поиска, ни расходов OpenAI. Если запуск уже шёл, он дойдёт до конца."
+      : "▶️ <b>Scout возобновлён.</b> Поиск сейчас не запускается: следующий запуск по прежнему расписанию, в 09:00 по Кипру. Новости, вышедшие за время паузы, не собираются: дайджест будет только по свежим публикациям.";
+  const view = renderScoutMenu(await loadMenuView(), note);
+  await editMessage(chatId, messageId, view.text, view.keyboard);
+}
+
+function topicLabel(entry: TopicEntry): string {
+  const label = TOPIC_STATE_LABEL[topicState(entry.event, entry.post)];
+  return entry.post && !label.startsWith("🆕") && !label.startsWith("⏭") ? `${label} #${entry.post.number}` : label;
+}
+
+export function renderTopics(rows: TopicEntry[], total: number, page: number): { text: string; keyboard: InlineKeyboard } {
+  const pages = Math.max(1, Math.ceil(total / TOPICS_PAGE));
+  const text = [
+    `<b>🗂 Найденные темы (${total})</b>${pages > 1 ? ` · страница ${page} из ${pages}` : ""}`,
+    "Сначала новые. Нажмите на тему: описание, источники и действия.",
+    "",
+    ...rows.map((entry) => `<b>${entry.event.number}.</b> ${escapeHtml(entry.event.titleRu)}\n   ${topicDate(entry.event.firstSeenAt)} · ${topicLabel(entry)}`),
+  ].join("\n");
+  const keyboard: InlineKeyboard = rows.map((entry) => [
+    { text: `${entry.event.number}. ${topicLabel(entry).split(" ")[0]} ${entry.event.titleRu.slice(0, 38)}`, callback_data: `sctc:${entry.event.number}:${page}` },
+  ]);
+  const nav = [
+    ...(page > 1 ? [{ text: "⬅️ Назад", callback_data: `sct:${page - 1}:e` }] : []),
+    ...(page < pages ? [{ text: "Далее ➡️", callback_data: `sct:${page + 1}:e` }] : []),
+  ];
+  if (nav.length) keyboard.push(nav);
+  return { text, keyboard };
+}
+
+export async function sendTopics(chatId: number, page = 1, messageId?: number): Promise<void> {
+  let current = Math.max(1, page);
+  let { rows, total } = await listTopicsPage(current, TOPICS_PAGE);
+  const pages = Math.max(1, Math.ceil(total / TOPICS_PAGE));
+  if (current > pages) {
+    current = pages;
+    ({ rows, total } = await listTopicsPage(current, TOPICS_PAGE));
+  }
+  if (total === 0) {
+    const text = "Scout пока не предлагал тем.";
+    if (messageId) await editMessage(chatId, messageId, text);
+    else await sendMessage(chatId, text);
+    return;
+  }
+  const view = renderTopics(rows, total, current);
+  if (messageId) await editMessage(chatId, messageId, view.text, view.keyboard);
+  else await sendMessage(chatId, view.text, { keyboard: view.keyboard });
+}
+
+/** A topic opened from the history: description, state and the actions that fit that state. */
+export function renderTopicCard(entry: TopicEntry, origin: string, page: number): { text: string; keyboard: InlineKeyboard } {
+  const state = topicState(entry.event, entry.post);
+  const { event, post } = entry;
+  const number = event.number;
+  const articleStatus = post && state === "draft" ? ` (${POST_STATUS_LABEL[post.status]})` : "";
+  const text = `${renderTopic(topicOf(event), null)}\n\n<b>Статус:</b> ${topicLabel(entry)}${articleStatus}`;
+  const sources = { text: "📎 Открыть источники", callback_data: `sco:${number}` };
+  const keyboard: InlineKeyboard = [];
+  if (state === "not_started") {
+    keyboard.push([{ text: "✍️ Написать статью", callback_data: `scw:${number}` }], [sources, { text: "⏭ Пропустить", callback_data: `scs:${number}` }]);
+  } else if (state === "skipped") {
+    keyboard.push([{ text: "↩️ Вернуть", callback_data: `scr:${number}` }], [sources]);
+  } else if (post) {
+    if (state === "published") keyboard.push([{ text: "🔗 Статья на сайте", url: publicUrl(origin, { slug: post.slug } as EditorialPost) }]);
+    keyboard.push([{ text: state === "draft" || state === "failed" ? `📝 Открыть черновик #${post.number}` : `📂 Открыть статью #${post.number}`, callback_data: `open:${post.number}` }], [sources]);
+  }
+  keyboard.push([{ text: "⬅️ К списку", callback_data: `sct:${page}:e` }]);
+  return { text, keyboard };
+}
+
+async function openTopicCard(query: TelegramCallbackQuery, rawNumber: string, rawPage: string | undefined): Promise<void> {
+  const number = Number(rawNumber);
+  const entry = Number.isInteger(number) ? await loadTopic(number) : null;
+  if (!entry) {
+    await answerCallback(query.id, NOT_FOUND);
+    return;
+  }
+  await answerCallback(query.id);
+  const view = renderTopicCard(entry, siteOrigin(), Math.max(1, Number(rawPage) || 1));
+  await editMessage(query.message!.chat.id, query.message!.message_id, view.text, view.keyboard);
+}
+
 async function handleTopicCallback(query: TelegramCallbackQuery, action: string, rawNumber: string, deps: ScoutDeps): Promise<void> {
   const chatId = query.message!.chat.id;
   const messageId = query.message!.message_id;
@@ -302,6 +497,24 @@ export async function handleScoutCallback(
   if (["scw", "sco", "scs", "scr", "scrl"].includes(action)) {
     await handleTopicCallback(query, action, rawNumber, options);
     return;
+  }
+  const slot = (query.data ?? "").split(":")[2];
+  switch (action) {
+    case "scm":
+      await answerCallback(query.id);
+      await sendScoutMenu(query.message!.chat.id);
+      return;
+    case "scpause":
+    case "scresume":
+      await changePause(query, action === "scpause");
+      return;
+    case "sct":
+      await answerCallback(query.id);
+      await sendTopics(query.message!.chat.id, Number(rawNumber) || 1, slot === "e" ? query.message!.message_id : undefined);
+      return;
+    case "sctc":
+      await openTopicCard(query, rawNumber, slot);
+      return;
   }
   const chatId = query.message!.chat.id;
   const messageId = query.message!.message_id;

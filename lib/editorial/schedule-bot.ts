@@ -108,6 +108,7 @@ export const MAIN_MENU: InlineKeyboard = [
     { text: "✅ Опубликовано", callback_data: "plh:1" },
     { text: "⚙️ Настройки публикаций", callback_data: "plset:0" },
   ],
+  [{ text: "📰 Мониторинг новостей", callback_data: "scm" }],
 ];
 
 /* ---------- approval ---------- */

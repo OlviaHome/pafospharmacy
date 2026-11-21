@@ -35,7 +35,9 @@ const db = {
   spent: 0,
   claim: { status: "claimed", runId: "run-1" } as { status: "claimed" | "done" | "running"; runId: string },
   lastSuccess: null as Date | null,
+  settings: { paused: false, pausedAt: null as string | null, resumedAt: null as string | null },
 };
+const claimRun = vi.fn(async () => db.claim);
 const finishRun = vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined);
 const insertItems = vi.fn(async (items: { url: string; title: string; summary: string; publishedAt: string | null; sourceId: string | null }[]) => {
   for (const item of items) {
@@ -64,7 +66,8 @@ const claimShown = vi.fn(async (ids: string[]) => {
 const recordSourceCheck = vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined);
 
 vi.mock("@/lib/editorial/scout-store", () => ({
-  claimRun: vi.fn(async () => db.claim),
+  claimRun: () => claimRun(),
+  loadScoutSettings: vi.fn(async () => db.settings),
   finishRun: (...args: unknown[]) => finishRun(...args),
   listSources: vi.fn(async () => db.sources),
   recordSourceCheck: (...args: unknown[]) => recordSourceCheck(...args),
@@ -134,6 +137,8 @@ beforeEach(() => {
   db.spent = 0;
   db.claim = { status: "claimed", runId: "run-1" };
   db.lastSuccess = null;
+  db.settings = { paused: false, pausedAt: null, resumedAt: null };
+  claimRun.mockClear();
   for (const key of Object.keys(FEEDS)) delete FEEDS[key];
   FEEDS["https://feed1.example/rss"] = () =>
     new Response(
@@ -358,5 +363,48 @@ describe("a test run", () => {
     selecting(() => []);
     await run({ kind: "real", model: "gpt-5.6-luna" });
     expect(callResponses.mock.calls[0][0].model).toBe("gpt-5.6-terra");
+  });
+});
+
+describe("pause", () => {
+  it("a paused real run does nothing: no run record, no budget check, no feed, no OpenAI", async () => {
+    db.settings = { paused: true, pausedAt: "2026-11-17T10:00:00Z", resumedAt: null };
+    selecting((ids) => [event({ item_ids: ids })]);
+    const requested: string[] = [];
+    const outcome = await run({ fetcher: async (url: string) => (requested.push(url), fetcher(url)) });
+    expect(outcome).toBeNull();
+    expect(claimRun).not.toHaveBeenCalled();
+    expect(usageSnapshot).not.toHaveBeenCalled();
+    expect(callResponses).not.toHaveBeenCalled();
+    expect(requested).toEqual([]);
+    for (const fn of [recordUsage, finishRun, insertItems, markItemsProcessed, createEvent, claimShown]) expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("a test run still works while paused", async () => {
+    db.settings = { paused: true, pausedAt: "2026-11-17T10:00:00Z", resumedAt: null };
+    selecting((ids) => [event({ item_ids: ids })]);
+    const outcome = await run({ kind: "test" });
+    expect(outcome).toMatchObject({ kind: "topics", test: true });
+    expect(callResponses).toHaveBeenCalled();
+  });
+
+  it("after a long pause only news from the resume on is looked at, not the backlog", async () => {
+    // Last success a week ago, resumed on the 17th at 12:00 (Cyprus 14:00): the feed items of
+    // the 17th 09:00 +0200 (07:00 UTC) came out during the pause.
+    db.lastSuccess = new Date("2026-11-11T07:00:00Z");
+    db.settings = { paused: false, pausedAt: "2026-11-12T08:00:00Z", resumedAt: "2026-11-17T12:00:00Z" };
+    selecting((ids) => [event({ item_ids: ids })]);
+    const outcome = await run();
+    expect(db.items).toEqual([]);
+    expect(callResponses).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({ kind: "empty" });
+  });
+
+  it("the window is the usual one when the resume is older than the last successful run", async () => {
+    db.lastSuccess = new Date("2026-11-17T06:00:00Z");
+    db.settings = { paused: false, pausedAt: "2026-11-10T08:00:00Z", resumedAt: "2026-11-12T12:00:00Z" };
+    selecting((ids) => [event({ item_ids: ids })]);
+    await run();
+    expect(db.items.map((item) => item.url)).toEqual(["https://feed1.example/a", "https://feed1.example/b"]);
   });
 });
