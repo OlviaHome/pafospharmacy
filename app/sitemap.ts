@@ -3,9 +3,11 @@ import type { MetadataRoute } from "next";
 import { translationLocales } from "@/lib/blog/content";
 import { blogPostPath } from "@/lib/blog/metadata";
 import { getPublishedPosts } from "@/lib/blog/repository";
+import { getPharmacyDataset } from "@/lib/data/pharmacies";
+import { dutyRosterLastmodByDistrict } from "@/lib/domain/duty-lastmod";
 import type { BlogPost } from "@/lib/blog/types";
 import { localePath, SUPPORTED_LOCALES } from "@/lib/i18n/config";
-import { DISTRICT_SLUGS } from "@/lib/i18n/district-pages";
+import { DISTRICT_BY_SLUG, DISTRICT_SLUGS } from "@/lib/i18n/district-pages";
 import { metadataBase } from "@/lib/i18n/metadata";
 
 export const revalidate = 3600;
@@ -41,12 +43,27 @@ function blogEntries(posts: BlogPost[]): MetadataRoute.Sitemap {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Today's duty roster is already included in the server-rendered pharmacy pages.
+  // Reuse that dataset and report lastmod only for districts where the roster
+  // changed from yesterday. Do not change dates merely because sitemap ran.
+  const now = new Date();
+  let dutyLastModified = new Map<string, Date>();
+  try {
+    const dataset = await getPharmacyDataset(now);
+    dutyLastModified = dutyRosterLastmodByDistrict(dataset.pharmacies, now);
+  } catch (error) {
+    // A temporary pharmacy-data failure must not hide the sitemap itself.
+    console.error("sitemap: could not determine duty updates", error);
+  }
+
   const pages = PAGES.flatMap(({ pathname, changeFrequency, priority }) => {
     const languages = Object.fromEntries(
       SUPPORTED_LOCALES.map((locale) => [locale, absolute(localePath(locale, pathname))]),
     );
+    const lastModified = pathname === "" ? dutyLastModified.get("Paphos") : undefined;
     return SUPPORTED_LOCALES.map((locale) => ({
       url: absolute(localePath(locale, pathname)),
+      ...(lastModified ? { lastModified } : {}),
       changeFrequency,
       priority,
       alternates: { languages },
@@ -58,8 +75,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const languages = Object.fromEntries(
       SUPPORTED_LOCALES.map((locale) => [locale, absolute(localePath(locale, pathname))]),
     );
+    const lastModified = dutyLastModified.get(DISTRICT_BY_SLUG[district]);
     return SUPPORTED_LOCALES.map((locale) => ({
       url: absolute(localePath(locale, pathname)),
+      ...(lastModified ? { lastModified } : {}),
       changeFrequency: "daily" as const,
       priority: 0.8,
       alternates: { languages },
