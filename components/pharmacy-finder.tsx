@@ -1118,16 +1118,40 @@ export function PharmacyFinder({
                 {districtNames[district]}
               </Link>
             ) : (
-              <button
+              // Home page: a real link to the district page, so crawlers can
+              // follow it, but a plain click still switches the list in place.
+              // A plain <a> (not next/link) avoids prefetching every district.
+              <a
                 key={district}
-                type="button"
+                href={localePath(locale, `/${SLUG_BY_DISTRICT[district]}`)}
                 data-district-tab={district}
-                aria-pressed={selectedDistrict === district}
-                onClick={() => chooseDistrict(district)}
+                aria-current={selectedDistrict === district ? "true" : undefined}
+                onClick={(event) => {
+                  // Modified or non-primary clicks keep the browser default
+                  // (new tab/window); only a plain click stays on this page.
+                  if (
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  chooseDistrict(district);
+                }}
+                onKeyDown={(event) => {
+                  // Space activated the former <button>; keep that for keyboard users.
+                  if (event.key === " ") {
+                    event.preventDefault();
+                    chooseDistrict(district);
+                  }
+                }}
                 className={className}
               >
                 {districtNames[district]}
-              </button>
+              </a>
             );
           })}
         </div>

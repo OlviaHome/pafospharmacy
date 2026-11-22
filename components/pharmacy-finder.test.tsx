@@ -601,7 +601,7 @@ describe("PharmacyFinder location controls", () => {
       "Paphos · Tue 1 Sept · 1 pharmacy · 1 on duty",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+    fireEvent.click(screen.getByRole("link", { name: "Nicosia" }));
 
     expect(screen.getByRole("heading", { name: "Pharmacy nicosia" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Pharmacy paphos" })).toBeNull();
@@ -622,18 +622,73 @@ describe("PharmacyFinder location controls", () => {
     ]);
     scrollIntoView.mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+    fireEvent.click(screen.getByRole("link", { name: "Nicosia" }));
 
     const selectedTabs = screen
-      .getAllByRole("button")
-      .filter((button) => button.getAttribute("data-district-tab"))
-      .filter((button) => button.getAttribute("aria-pressed") === "true");
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("data-district-tab"))
+      .filter((link) => link.getAttribute("aria-current") === "true");
     expect(selectedTabs).toHaveLength(1);
     expect(selectedTabs[0].className).toContain("after:h-0.5");
     expect(scrollIntoView).toHaveBeenCalledWith({
       block: "nearest",
       inline: "nearest",
     });
+  });
+
+  it.each([en, el, ru, ar])(
+    "renders the $locale home district tabs as server HTML links to same-language district pages",
+    (dictionary) => {
+      const markup = renderToStaticMarkup(
+        <PharmacyFinder
+          pharmacies={[pharmacy("paphos-link")]}
+          source="official_snapshot"
+          generatedAt={generatedAt}
+          ordinaryOpeningDataAvailable={false}
+          attribution={null}
+          coordinateAttributions={[]}
+          locale={dictionary.locale}
+          messages={dictionary.finder}
+          languageLabel={dictionary.languageSelectorLabel}
+        />,
+      );
+      for (const slug of ["nicosia", "limassol", "larnaca", "paphos", "famagusta"]) {
+        expect(markup).toMatch(
+          new RegExp(`<a[^>]*href="/${dictionary.locale}/${slug}"[^>]*data-district-tab=`),
+        );
+      }
+      expect(markup).not.toMatch(/<button[^>]*data-district-tab=/);
+    },
+  );
+
+  it("switches districts in place on a plain click and lets modified clicks open the page", () => {
+    renderFinder([
+      pharmacy("paphos-click"),
+      pharmacy("nicosia-click", { district: "Nicosia", locality: "Nicosia" }),
+    ]);
+    const nicosia = screen.getByRole("link", { name: "Nicosia" });
+    expect(nicosia.getAttribute("href")).toBe("/en/nicosia");
+
+    // fireEvent returns false when the handler called preventDefault.
+    expect(fireEvent.click(nicosia, { ctrlKey: true })).toBe(true);
+    expect(fireEvent.click(nicosia, { metaKey: true })).toBe(true);
+    expect(nicosia.getAttribute("aria-current")).toBeNull();
+
+    expect(fireEvent.click(nicosia)).toBe(false);
+    expect(nicosia.getAttribute("aria-current")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Pharmacy nicosia-click" })).toBeTruthy();
+  });
+
+  it("keeps Space activation on home district tabs", () => {
+    renderFinder([
+      pharmacy("paphos-key"),
+      pharmacy("limassol-key", { district: "Limassol", locality: "Limassol" }),
+    ]);
+    const limassol = screen.getByRole("link", { name: "Limassol" });
+
+    expect(fireEvent.keyDown(limassol, { key: " " })).toBe(false);
+    expect(limassol.getAttribute("aria-current")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Pharmacy limassol-key" })).toBeTruthy();
   });
 
   it.each(supportedDistricts)(
@@ -649,9 +704,9 @@ describe("PharmacyFinder location controls", () => {
         ),
       );
 
-      fireEvent.click(screen.getByRole("button", { name: selectedDistrict }));
+      fireEvent.click(screen.getByRole("link", { name: selectedDistrict }));
       expect(
-        screen.getByRole("button", { name: selectedDistrict }).getAttribute("aria-pressed"),
+        screen.getByRole("link", { name: selectedDistrict }).getAttribute("aria-current"),
       ).toBe("true");
       expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
       expect(
@@ -724,7 +779,7 @@ describe("PharmacyFinder location controls", () => {
     expect(screen.getByText("Peyia centre, Paphos, Cyprus")).toBeTruthy();
     expect(screen.getByText(/^≈ /)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Limassol" }));
+    fireEvent.click(screen.getByRole("link", { name: "Limassol" }));
 
     expect(screen.queryByText("Peyia centre, Paphos, Cyprus")).toBeNull();
     expect(screen.queryByText(/^≈ /)).toBeNull();
@@ -743,7 +798,7 @@ describe("PharmacyFinder location controls", () => {
     ]);
 
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+    fireEvent.click(screen.getByRole("link", { name: "Nicosia" }));
 
     expect(screen.getByText("Your location")).toBeTruthy();
     expect(screen.getByText(/^≈ /)).toBeTruthy();
@@ -767,7 +822,7 @@ describe("PharmacyFinder location controls", () => {
       target: { value: "Harbour" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
-    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+    fireEvent.click(screen.getByRole("link", { name: "Nicosia" }));
     await vi.advanceTimersByTimeAsync(500);
 
     expect(fetchMock).not.toHaveBeenCalled();
@@ -811,7 +866,7 @@ describe("PharmacyFinder location controls", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     expect(await screen.findByRole("button", { name: "Paphos Harbour" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Limassol" }));
+    fireEvent.click(screen.getByRole("link", { name: "Limassol" }));
     expect(screen.queryByRole("button", { name: "Paphos Harbour" })).toBeNull();
 
     fireEvent.change(screen.getByLabelText("District, address, or pharmacy name"), {
@@ -819,7 +874,7 @@ describe("PharmacyFinder location controls", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     expect(await screen.findByText("Location search is temporarily unavailable.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Nicosia" }));
+    fireEvent.click(screen.getByRole("link", { name: "Nicosia" }));
     expect(
       screen.queryByText("Location search is temporarily unavailable."),
     ).toBeNull();
@@ -844,7 +899,7 @@ describe("PharmacyFinder location controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
     fireEvent.click(screen.getByRole("button", { name: "Show all 12 pharmacies" }));
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(12);
-    fireEvent.click(screen.getByRole("button", { name: "Limassol" }));
+    fireEvent.click(screen.getByRole("link", { name: "Limassol" }));
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(10);
   });
 
@@ -873,7 +928,7 @@ describe("PharmacyFinder location controls", () => {
       pharmacy("limassol", { district: "Limassol", locality: "Limassol" }),
     ]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Limassol" }));
+    fireEvent.click(screen.getByRole("link", { name: "Limassol" }));
     fireEvent.change(screen.getByLabelText("District, address, or pharmacy name"), {
       target: { value: "Makariou Avenue" },
     });
@@ -1279,19 +1334,19 @@ describe("PharmacyFinder localization", () => {
       renderLocalizedFinder(dictionary, [pharmacy(`locale-${dictionary.locale}`)]);
 
       expect(
-        screen.getByRole("button", { name: dictionary.finder.districtNicosia }),
+        screen.getByRole("link", { name: dictionary.finder.districtNicosia }),
       ).toBeTruthy();
       expect(
-        screen.getByRole("button", { name: dictionary.finder.districtLimassol }),
+        screen.getByRole("link", { name: dictionary.finder.districtLimassol }),
       ).toBeTruthy();
       expect(
-        screen.getByRole("button", { name: dictionary.finder.districtLarnaca }),
+        screen.getByRole("link", { name: dictionary.finder.districtLarnaca }),
       ).toBeTruthy();
       expect(
-        screen.getByRole("button", { name: dictionary.finder.districtFamagusta }),
+        screen.getByRole("link", { name: dictionary.finder.districtFamagusta }),
       ).toBeTruthy();
       expect(
-        screen.getByRole("button", { name: dictionary.finder.districtPaphos }),
+        screen.getByRole("link", { name: dictionary.finder.districtPaphos }),
       ).toBeTruthy();
       expect(document.getElementById("results-heading")?.textContent).toContain(
         dictionary.finder.districtPaphos,
