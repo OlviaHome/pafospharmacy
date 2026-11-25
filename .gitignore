@@ -20,3 +20,6 @@
 *.log
 *.tsbuildinfo
 .vercel
+
+# SEO agent local runs (history storage is decided in stage 3)
+/.seo-runs/

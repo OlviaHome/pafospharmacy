@@ -1,0 +1,28 @@
+{
+  "$schema": "./contracts/site-config.v1.schema.json",
+  "site_id": "healthguide-cy",
+  "name": "HealthGuide.cy",
+  "origin": "https://healthguide.cy",
+  "timezone": "Asia/Nicosia",
+  "locales": ["en", "el", "ru", "ar"],
+  "default_locale": "en",
+  "sitemap": "https://healthguide.cy/sitemap.xml",
+  "robots": {
+    "must_contain": [
+      "Content-Signal: ai-train=no, search=yes, ai-input=yes",
+      "Disallow: /api/",
+      "Sitemap: https://healthguide.cy/sitemap.xml"
+    ],
+    "must_not_block": ["/en", "/el", "/ru", "/ar", "/en/paphos", "/ru/blog", "/sitemap.xml"]
+  },
+  "sitemap_min_urls": 60,
+  "localized_path_prefixes": [],
+  "key_paths": ["/en", "/el", "/ru", "/ar", "/en/paphos", "/ru/paphos", "/el/limassol", "/ar/nicosia", "/en/hospitals", "/ru/blog"],
+  "redirects": [
+    { "from": "https://pafospharmacy.vercel.app/", "to": "https://healthguide.cy/", "note": "D-051 legacy host" },
+    { "from": "https://pafospharmacy.vercel.app/ru/paphos", "to": "https://healthguide.cy/ru/paphos", "note": "D-051 legacy host keeps the path" },
+    { "from": "http://healthguide.cy/en", "to": "https://healthguide.cy/en", "note": "HTTPS" }
+  ],
+  "page_weight_warn_bytes": 512000,
+  "brand": { "name": "Health Guide Cyprus" }
+}

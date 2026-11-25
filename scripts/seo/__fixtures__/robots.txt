@@ -1,0 +1,7 @@
+User-Agent: *
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+Allow: /
+Disallow: /api/
+
+Host: https://healthguide.cy
+Sitemap: https://healthguide.cy/sitemap.xml

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oa.studio/schemas/oa.seo.site-config/v1",
+  "title": "OA Studio SEO agent site config",
+  "description": "Everything site-specific the agent needs. A new client site = a new copy of this file; the scripts and the seo-agent skill stay unchanged. No secrets here.",
+  "type": "object",
+  "required": ["site_id", "name", "origin", "timezone", "locales", "default_locale", "sitemap", "robots", "sitemap_min_urls", "localized_path_prefixes", "key_paths", "redirects", "page_weight_warn_bytes", "brand"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "site_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string" },
+    "origin": { "type": "string", "format": "uri" },
+    "timezone": { "type": "string" },
+    "locales": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "default_locale": { "type": "string" },
+    "sitemap": { "type": "string", "format": "uri" },
+    "robots": {
+      "type": "object",
+      "required": ["must_contain", "must_not_block"],
+      "properties": {
+        "must_contain": { "type": "array", "items": { "type": "string" }, "description": "Owner-decided lines; their disappearance is a critical finding" },
+        "must_not_block": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "sitemap_min_urls": { "type": "integer", "minimum": 1 },
+    "localized_path_prefixes": { "type": "array", "items": { "type": "string" }, "description": "Extra unprefixed paths that must carry hreflang; locale-prefixed paths always do" },
+    "key_paths": { "type": "array", "items": { "type": "string" }, "description": "Canonical URLs checked daily even if the sitemap breaks" },
+    "redirects": { "type": "array", "items": { "type": "object", "required": ["from", "to"], "properties": { "from": { "type": "string" }, "to": { "type": "string" }, "note": { "type": "string" } } } },
+    "page_weight_warn_bytes": { "type": "integer" },
+    "brand": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" } } }
+  }
+}

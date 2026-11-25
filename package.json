@@ -15,7 +15,8 @@
     "geocode:pharmacies": "tsx scripts/geocode-pharmacies.ts",
     "geocode:geoapify": "tsx scripts/geocode-geoapify.ts",
     "geocode:google": "tsx scripts/reconcile-google-places.ts",
-    "geocode:sync": "tsx scripts/sync-geocoding-snapshots.ts"
+    "geocode:sync": "tsx scripts/sync-geocoding-snapshots.ts",
+    "seo": "tsx scripts/seo/cli.ts"
   },
   "engines": {
     "node": ">=22"
@@ -44,6 +45,8 @@
     "@types/node": "26.4.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.3",
     "jsdom": "^29.1.1",

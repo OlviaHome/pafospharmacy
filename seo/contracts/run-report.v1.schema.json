@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oa.studio/schemas/oa.seo.run-report/v1",
+  "title": "OA Studio SEO agent run report",
+  "description": "One file per agent run. Append-only: a run is never edited after it is written.",
+  "type": "object",
+  "required": ["schema", "run_id", "site_id", "job", "trigger", "started_at", "finished_at", "local_time", "timezone", "status", "summary", "coverage", "findings", "metrics", "agent"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "oa.seo.run-report/v1" },
+    "run_id": { "type": "string", "pattern": "^[a-z0-9-]+\\.[a-z-]+\\.[0-9]{8}T[0-9]{6}Z$", "description": "<site_id>.<job>.<UTC start stamp>; unique and sortable" },
+    "site_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "job": { "enum": ["critical", "stats-indexing", "tech-audit", "weekly-report", "ai-visibility", "regression", "redirects", "drift-baseline"] },
+    "trigger": { "enum": ["schedule", "manual", "post-change"] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "local_time": { "type": "string", "description": "Start time in the site time zone, ISO without offset" },
+    "timezone": { "type": "string", "examples": ["Asia/Nicosia"] },
+    "status": { "enum": ["ok", "warn", "fail", "blocked"] },
+    "summary": {
+      "type": "object",
+      "required": ["PASS", "WARN", "FAIL", "BLOCKER", "NOT_CHECKED", "ABSENT"],
+      "additionalProperties": false,
+      "properties": {
+        "PASS": { "type": "integer" }, "WARN": { "type": "integer" }, "FAIL": { "type": "integer" },
+        "BLOCKER": { "type": "integer" }, "NOT_CHECKED": { "type": "integer" }, "ABSENT": { "type": "integer" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["discovered", "checked", "failed_fetch", "not_checked"],
+      "properties": {
+        "discovered": { "type": "integer" }, "checked": { "type": "integer" },
+        "failed_fetch": { "type": "integer" }, "not_checked": { "type": "integer" }
+      }
+    },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "metrics": { "type": "object", "additionalProperties": { "type": "number" }, "description": "Numeric facts of the run, e.g. sitemap_urls, gsc_clicks_7d, indexed_pages" },
+    "agent": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": { "name": { "type": "string" }, "version": { "type": "string" }, "git_sha": { "type": "string" } }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["id", "check", "verdict", "severity", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "Stable across runs for the same problem, so trends and dedupe work" },
+        "check": { "type": "string" },
+        "verdict": { "enum": ["PASS", "WARN", "FAIL", "BLOCKER", "NOT_CHECKED", "ABSENT"] },
+        "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+        "url": { "type": "string" },
+        "evidence": { "type": "string", "description": "Raw observed bytes or values, quoted, never a paraphrase" },
+        "expected": { "type": "string" },
+        "actual": { "type": "string" },
+        "rule": { "type": "string" },
+        "fix": { "type": "string" },
+        "owner_decision": { "type": "boolean", "description": "True when only the owner may change this (bots, AI opt-outs, public facts)" }
+      }
+    }
+  }
+}
