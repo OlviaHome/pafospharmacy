@@ -21,7 +21,7 @@ import { runCriticalCheck, runRedirectCheck } from "./checks";
 import { buildReport, exitCode, httpFetch, localTime, parseSitemap, type JobName, type RunReport, type SiteConfig } from "./core";
 import { BASELINE_SCHEMA, compareToBaseline, type DriftBaseline } from "./drift";
 import { createGscClient, gscClientWithToken, parseServiceAccount, type GscClient } from "./gsc";
-import { buildNotification } from "./notify";
+import { buildNotification, publicErrorLine, publicLogLine } from "./notify";
 import { runStatsIndexing } from "./stats";
 
 function option(name: string, fallback: string): string {
@@ -57,8 +57,7 @@ function save(out: string, site: SiteConfig, report: RunReport) {
   write(join(dir, `${report.run_id}.notify.json`), notification);
   write(join(out, site.site_id, report.job, "latest.json"), report);
   if (process.env.SEO_PUBLIC_LOGS === "1") {
-    const s = report.summary;
-    console.log(`${report.run_id}: ${report.status} (PASS ${s.PASS}, WARN ${s.WARN}, FAIL ${s.FAIL}, BLOCKER ${s.BLOCKER}, checked ${report.coverage.checked}/${report.coverage.discovered})`);
+    console.log(publicLogLine(report));
     return;
   }
   console.log(notification.text);
@@ -177,6 +176,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error(process.env.SEO_PUBLIC_LOGS === "1" ? publicErrorLine(error) : error);
   process.exitCode = 1;
 });

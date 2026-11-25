@@ -94,3 +94,22 @@ export function buildNotification(report: RunReport, siteName: string, maxItems 
     delivery: { mode: level === "critical" ? "immediate" : "digest", digest: "daily", for_date: report.local_time.slice(0, 10) },
   };
 }
+
+/**
+ * The only line printed in public CI logs (SEO_PUBLIC_LOGS=1). Built from fixed words, counts and
+ * verdicts only: no evidence, no URLs beyond the run id, no error text, no query, no token.
+ */
+export function publicLogLine(report: RunReport): string {
+  const s = report.summary;
+  const apis = report.findings
+    .filter((f) => f.check === "gsc-api")
+    .map((f) => `${f.id.replace("gsc.api.", "")}=${f.verdict}`)
+    .join(" ");
+  return `${report.run_id}: ${report.status} (PASS ${s.PASS}, WARN ${s.WARN}, FAIL ${s.FAIL}, BLOCKER ${s.BLOCKER}, checked ${report.coverage.checked}/${report.coverage.discovered})${apis ? ` apis: ${apis}` : ""}`;
+}
+
+/** Public CI logs get the error class only; the message may contain Google's response text. */
+export function publicErrorLine(error: unknown): string {
+  const name = error instanceof Error ? error.constructor.name.replace(/[^A-Za-z]/g, "") || "Error" : "Error";
+  return `SEO agent stopped with ${name}; details are withheld from public logs.`;
+}

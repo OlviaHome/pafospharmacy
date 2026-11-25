@@ -44,6 +44,10 @@ function totals(rows: SearchAnalyticsRow[]): Totals {
     : { clicks: 0, impressions: 0, ctr: 0, position: 0 };
 }
 
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function classifyInspection(url: string, result: UrlInspection): Finding {
   const path = new URL(url).pathname;
   const base = { id: `index:${path}`, check: "indexing", url, rule: "seo-geo-optimization §5, §6" };
@@ -103,12 +107,22 @@ export async function runStatsIndexing(
   const query = (period: Period, extra: Record<string, unknown> = {}) =>
     gsc.searchAnalytics({ startDate: period.start, endDate: period.end, type: "web", ...extra });
 
-  const [currentTotals, previousTotals, pages, queries] = await Promise.all([
-    query(range.current),
-    query(range.previous),
-    query(range.current, { dimensions: ["page"], rowLimit: 1000 }),
-    query(range.current, { dimensions: ["query"], rowLimit: 1000 }),
-  ]);
+  // Each API is confirmed separately (gsc.api.*), so a first run shows exactly which one works.
+  let currentTotals: SearchAnalyticsRow[] = [];
+  let previousTotals: SearchAnalyticsRow[] = [];
+  let pages: SearchAnalyticsRow[] = [];
+  let queries: SearchAnalyticsRow[] = [];
+  try {
+    [currentTotals, previousTotals, pages, queries] = await Promise.all([
+      query(range.current),
+      query(range.previous),
+      query(range.current, { dimensions: ["page"], rowLimit: 1000 }),
+      query(range.current, { dimensions: ["query"], rowLimit: 1000 }),
+    ]);
+    findings.push({ id: "gsc.api.search-analytics", check: "gsc-api", verdict: "PASS", severity: "high", evidence: `4 requests answered; ${pages.length} pages, ${queries.length} queries with impressions` });
+  } catch (error) {
+    findings.push({ id: "gsc.api.search-analytics", check: "gsc-api", verdict: "BLOCKER", severity: "high", evidence: errorText(error) });
+  }
   const current = totals(currentTotals);
   const previous = totals(previousTotals);
 
@@ -122,8 +136,18 @@ export async function runStatsIndexing(
     try {
       return { url, result: await gsc.inspect(url) };
     } catch (error) {
-      return { url, error: String(error instanceof Error ? error.message : error) };
+      return { url, error: errorText(error) };
     }
+  });
+  const inspectionErrors = inspections.filter((item) => item.error).length;
+  findings.push({
+    id: "gsc.api.url-inspection",
+    check: "gsc-api",
+    verdict: inspections.length > 0 && inspectionErrors < inspections.length ? "PASS" : "BLOCKER",
+    severity: "high",
+    evidence: inspections.length === 0
+      ? "no sitemap URLs to inspect"
+      : `${inspections.length - inspectionErrors} of ${inspections.length} answered${inspectionErrors ? `; first error: ${inspections.find((i) => i.error)?.error}` : ""}`,
   });
   let inspected = 0;
   const indexedByLocale: Record<string, number> = {};
@@ -145,6 +169,7 @@ export async function runStatsIndexing(
   let sitemaps: SitemapStatus[] = [];
   try {
     sitemaps = await gsc.sitemaps();
+    findings.push({ id: "gsc.api.sitemaps", check: "gsc-api", verdict: "PASS", severity: "high", evidence: `${sitemaps.length} sitemap(s) listed` });
     const ours = sitemaps.find((s) => s.path === site.sitemap);
     if (!ours) {
       findings.push({ id: "gsc.sitemap.submitted", check: "gsc", verdict: "WARN", severity: "high", url: site.sitemap, evidence: `submitted: ${sitemaps.map((s) => s.path).join(", ") || "(none)"}`, expected: `${site.sitemap} submitted`, owner_decision: true });
@@ -161,7 +186,7 @@ export async function runStatsIndexing(
       });
     }
   } catch (error) {
-    findings.push({ id: "gsc.sitemap.status", check: "gsc", verdict: "BLOCKER", severity: "medium", evidence: String(error instanceof Error ? error.message : error) });
+    findings.push({ id: "gsc.api.sitemaps", check: "gsc-api", verdict: "BLOCKER", severity: "high", evidence: errorText(error) });
   }
 
   const metrics: Record<string, number> = {

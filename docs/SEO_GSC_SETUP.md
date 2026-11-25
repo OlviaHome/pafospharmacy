@@ -6,7 +6,7 @@ Read-only. Two ways; the keyless one is preferred (D-067). Both are free and nee
 |---|---|---|
 | Long-lived secret | none | the key, valid until deleted |
 | If something leaks | a token that is read-only and expires in 15 minutes | the key reads Search Console data until revoked |
-| Who can use it | only GitHub Actions jobs of `OlviaHome/pafospharmacy`, branch `main`, environment `seo-readonly` | anyone holding the file |
+| Who can use it | only the `seo-agent.yml` workflow of `OlviaHome/pafospharmacy` on `main`, environment `seo-readonly` | anyone holding the file |
 | Blocked by Google's "Disable service account key creation" policy | no | yes |
 | Rotation | nothing to rotate | manual |
 | Setup | Cloud Shell: one copy-paste block, then 2 GitHub variables | ~10 console clicks, then 1 GitHub secret |
@@ -36,8 +36,8 @@ gcloud iam workload-identity-pools providers create-oidc pafospharmacy \
   --location=global --workload-identity-pool=github \
   --display-name="pafospharmacy main" \
   --issuer-uri="https://token.actions.githubusercontent.com" \
-  --attribute-mapping="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref,attribute.environment=assertion.environment" \
-  --attribute-condition="assertion.repository_owner_id == '${OWNER_ID}' && assertion.repository_id == '${REPO_ID}' && assertion.ref == 'refs/heads/main' && assertion.environment == 'seo-readonly'"
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.workflow_ref=assertion.workflow_ref,attribute.environment=assertion.environment" \
+  --attribute-condition="assertion.repository_owner_id == '${OWNER_ID}' && assertion.repository_id == '${REPO_ID}' && assertion.ref == 'refs/heads/main' && assertion.workflow_ref == 'OlviaHome/pafospharmacy/.github/workflows/seo-agent.yml@refs/heads/main' && assertion.environment == 'seo-readonly'"
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
 gcloud iam service-accounts add-iam-policy-binding "${SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role="roles/iam.workloadIdentityUser" \
@@ -47,6 +47,9 @@ echo "GSC_SERVICE_ACCOUNT=${SA}@${PROJECT_ID}.iam.gserviceaccount.com"
 ```
 
    The service account gets **no** project roles. The last two lines print the two values for step 4.
+   Google issues a token only when **all** of these hold: owner and repository by numeric ID, branch
+   `main`, the workflow file `.github/workflows/seo-agent.yml` on `main`, and environment `seo-readonly`.
+   Any other workflow, branch, fork or repository is refused.
 3. Search Console → healthguide.cy → Settings → Users and permissions → Add user → the
    `GSC_SERVICE_ACCOUNT` email → permission **Restricted**.
 4. GitHub → repository Settings → Environments → `seo-readonly` (deployment branches: `main` only)
@@ -54,6 +57,26 @@ echo "GSC_SERVICE_ACCOUNT=${SA}@${PROJECT_ID}.iam.gserviceaccount.com"
    `GSC_SERVICE_ACCOUNT`.
 5. Tell the agent the property type: Domain (`sc-domain:healthguide.cy`) or URL prefix
    (`https://healthguide.cy/`).
+
+## Checks done before connecting (2026-11-25)
+
+- **One workflow only.** GitHub's OIDC token carries `workflow_ref`
+  (`owner/repo/.github/workflows/<file>@<ref>`); the provider condition pins it to `seo-agent.yml`
+  on `main`. Note: `main` has no branch protection today, so anyone who can push to `main` could
+  change that file. A free branch rule (PRs required) closes this — owner decision.
+- **Restricted user is enough** for the three calls: Performance data (Search Analytics) is visible
+  to restricted users; URL Inspection is "fetch only" for them, which is exactly the read the API
+  does (no "request indexing"); the Sitemaps report is visible, only *submitting* needs Full.
+  The first real run confirms each API separately (`gsc.api.search-analytics`,
+  `gsc.api.url-inspection`, `gsc.api.sitemaps`). If one answers 403, first check the property
+  format (`sc-domain:` vs URL prefix with trailing `/`), then decide; nothing is raised automatically.
+- **Nothing private in public logs.** The job prints one line built only from fixed words, counts,
+  verdicts and per-API PASS/BLOCKER (`publicLogLine`); crashes print the error class only
+  (`publicErrorLine`); errors never contain the token or key; no artifacts are uploaded; the auth
+  step writes no credentials file. Do not enable GitHub "debug logging" for this workflow.
+- **No billing.** Search Console API and IAM (including Workload Identity Federation) are free;
+  billing is needed only for APIs that charge. Do not create a billing account for this project;
+  if the console or Cloud Shell asks for one, stop and tell the agent.
 
 ## B. JSON key (fallback, only if A is not possible)
 

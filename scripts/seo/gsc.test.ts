@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildReport, exitCode, type SiteConfig } from "./core";
 import { createGscClient, GSC_SCOPE, gscClientWithToken, parseServiceAccount, signedAssertion, type GscClient } from "./gsc";
-import { buildNotification } from "./notify";
+import { buildNotification, publicErrorLine, publicLogLine } from "./notify";
 import { classifyInspection, periods, runStatsIndexing } from "./stats";
 
 const site = JSON.parse(readFileSync(join(process.cwd(), "seo/site.json"), "utf8")) as SiteConfig;
@@ -149,6 +149,23 @@ describe("runStatsIndexing", () => {
     addFormats(ajv);
     const validate = ajv.compile(JSON.parse(readFileSync(join(process.cwd(), "seo/contracts/run-report.v1.schema.json"), "utf8")));
     expect(validate(report), JSON.stringify(validate.errors)).toBe(true);
+  });
+
+  it("confirms each API separately and keeps Google's error text out of the public log", async () => {
+    const leaky = "HTTP 400 Invalid filter 'private client query' (token ya29.LEAK)";
+    const broken: GscClient = { ...fake, async searchAnalytics() { throw new Error(`searchAnalytics.query: ${leaky}`); } };
+    const now = new Date("2026-11-30T06:15:00Z");
+    const result = await runStatsIndexing(site, broken, urls, now);
+    const report = buildReport({ site, job: "stats-indexing", trigger: "manual", started: now, finished: now, ...result });
+    expect(report.status).toBe("blocked");
+    expect(report.findings.find((f) => f.id === "gsc.api.search-analytics")).toMatchObject({ verdict: "BLOCKER" });
+    expect(report.findings.find((f) => f.id === "gsc.api.url-inspection")).toMatchObject({ verdict: "PASS", evidence: expect.stringContaining("2 of 3 answered") });
+    expect(report.findings.find((f) => f.id === "gsc.api.sitemaps")).toMatchObject({ verdict: "PASS" });
+
+    const line = publicLogLine(report);
+    expect(line).toBe("healthguide-cy.stats-indexing.20261130T061500Z: blocked (PASS 4, WARN 1, FAIL 0, BLOCKER 2, checked 2/3) apis: search-analytics=BLOCKER url-inspection=PASS sitemaps=PASS");
+    for (const secret of ["private client query", "ya29", "Invalid filter", "healthguide.cy/", "duty pharmacy"]) expect(line).not.toContain(secret);
+    expect(publicErrorLine(new TypeError(leaky))).toBe("SEO agent stopped with TypeError; details are withheld from public logs.");
   });
 
   it("is blocked, never ok, without Search Console access", async () => {
