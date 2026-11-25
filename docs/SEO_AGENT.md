@@ -67,9 +67,12 @@ that could not be fetched, no baseline) or another FAIL. A blocked run is never 
 ## Search Console (stage 2.1)
 
 - Access: a Google Cloud service account (`oa-seo-agent` project) added to the property as a
-  **Restricted** user; the agent requests only the `webmasters.readonly` scope. No Google SDK.
-- Secret: `GSC_SERVICE_ACCOUNT_JSON` in the GitHub environment `seo-readonly`, limited to `main`;
-  the workflow passes it only to the `stats-indexing` job. Never in the repository or chat.
+  **Restricted** user; only the `webmasters.readonly` scope. No Google SDK. Setup: `docs/SEO_GSC_SETUP.md`.
+- Preferred, keyless: Workload Identity Federation. Google trusts only GitHub Actions jobs of this
+  repository on `main` in environment `seo-readonly`; they get a 15-minute read-only token
+  (`GSC_ACCESS_TOKEN`). Two non-secret environment variables: `GCP_WIF_PROVIDER`, `GSC_SERVICE_ACCOUNT`.
+- Fallback: environment secret `GSC_SERVICE_ACCOUNT_JSON`, used only when keyless is not configured,
+  passed only to `stats-indexing`. Never in the repository or chat.
 - Data: totals for the last 28 complete days (ending 3 days ago) vs the 28 before, pages and
   queries (top 250 in the private data file), the owner's target queries, URL Inspection for every
   sitemap URL, sitemap status. Query text is private: it goes only to the `private: true` data file

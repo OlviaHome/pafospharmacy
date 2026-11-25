@@ -7,7 +7,7 @@ import addFormats from "ajv-formats";
 import { describe, expect, it } from "vitest";
 
 import { buildReport, exitCode, type SiteConfig } from "./core";
-import { createGscClient, GSC_SCOPE, parseServiceAccount, signedAssertion, type GscClient } from "./gsc";
+import { createGscClient, GSC_SCOPE, gscClientWithToken, parseServiceAccount, signedAssertion, type GscClient } from "./gsc";
 import { buildNotification } from "./notify";
 import { classifyInspection, periods, runStatsIndexing } from "./stats";
 
@@ -53,6 +53,19 @@ describe("service account auth", () => {
     expect(calls[0].body).toContain("grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer");
     expect(calls[1].url).toBe("https://searchconsole.googleapis.com/webmasters/v3/sites/sc-domain%3Ahealthguide.cy/searchAnalytics/query");
     expect(calls[2]).toMatchObject({ method: "GET" });
+  });
+});
+
+describe("keyless token", () => {
+  it("uses a token minted by Workload Identity Federation without any key", async () => {
+    const seen: string[] = [];
+    const client = gscClientWithToken("ya29.short-lived\n", "https://healthguide.cy/", async (url, init) => {
+      seen.push(`${url} ${(init.headers as Record<string, string>).authorization}`);
+      return new Response(JSON.stringify({ sitemap: [] }));
+    });
+    await client.sitemaps();
+    expect(seen).toEqual(["https://searchconsole.googleapis.com/webmasters/v3/sites/https%3A%2F%2Fhealthguide.cy%2F/sitemaps Bearer ya29.short-lived"]);
+    expect(() => gscClientWithToken("  ", "sc-domain:healthguide.cy")).toThrow("GSC_ACCESS_TOKEN is empty");
   });
 });
 

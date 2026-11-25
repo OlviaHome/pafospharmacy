@@ -1,9 +1,12 @@
 /**
  * Google Search Console client, read-only.
  *
- * Auth: a service account JSON key from the runner's secret store (env GSC_SERVICE_ACCOUNT_JSON),
- * exchanged for a short-lived token with the `webmasters.readonly` scope only. The service account
- * is a "Restricted" user of the property, so even a leaked token cannot change anything.
+ * Auth, preferred: keyless. In GitHub Actions, Workload Identity Federation exchanges the job's OIDC
+ * token for a short-lived access token of the service account (env GSC_ACCESS_TOKEN, scope
+ * `webmasters.readonly`); nothing long-lived is stored anywhere.
+ * Fallback: a service account JSON key (env GSC_SERVICE_ACCOUNT_JSON) exchanged here for the same
+ * short-lived, read-only token. Either way the service account is a "Restricted" user of the
+ * property, so even a leaked token cannot change anything.
  * No Google SDK: a signed JWT and three REST endpoints keep the dependency surface at zero.
  */
 import { createSign } from "node:crypto";
@@ -107,7 +110,13 @@ export async function createGscClient(key: ServiceAccountKey, property: string, 
     }),
     "token",
   );
-  const headers = { authorization: `Bearer ${token.access_token}`, "content-type": "application/json" };
+  return gscClientWithToken(token.access_token, property, http);
+}
+
+/** Keyless path: the token was minted outside (Workload Identity Federation) and lives about 15 minutes. */
+export function gscClientWithToken(accessToken: string, property: string, http: Http = fetch): GscClient {
+  if (!accessToken.trim()) throw new Error("GSC_ACCESS_TOKEN is empty");
+  const headers = { authorization: `Bearer ${accessToken.trim()}`, "content-type": "application/json" };
   const site = encodeURIComponent(property);
   return {
     async searchAnalytics(body) {

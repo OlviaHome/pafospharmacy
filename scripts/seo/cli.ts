@@ -20,7 +20,7 @@ import { dirname, join } from "node:path";
 import { runCriticalCheck, runRedirectCheck } from "./checks";
 import { buildReport, exitCode, httpFetch, localTime, parseSitemap, type JobName, type RunReport, type SiteConfig } from "./core";
 import { BASELINE_SCHEMA, compareToBaseline, type DriftBaseline } from "./drift";
-import { createGscClient, parseServiceAccount } from "./gsc";
+import { createGscClient, gscClientWithToken, parseServiceAccount, type GscClient } from "./gsc";
 import { buildNotification } from "./notify";
 import { runStatsIndexing } from "./stats";
 
@@ -139,9 +139,13 @@ async function main() {
     return;
   }
   if (command === "stats-indexing") {
-    let client: Awaited<ReturnType<typeof createGscClient>> | Error;
+    // Preferred: a short-lived token from Workload Identity Federation; fallback: a JSON key.
+    let client: GscClient | Error;
     try {
-      client = await createGscClient(parseServiceAccount(process.env.GSC_SERVICE_ACCOUNT_JSON), site.gsc?.property ?? "");
+      const property = site.gsc?.property ?? "";
+      if (process.env.GSC_ACCESS_TOKEN) client = gscClientWithToken(process.env.GSC_ACCESS_TOKEN, property);
+      else if (process.env.GSC_SERVICE_ACCOUNT_JSON) client = await createGscClient(parseServiceAccount(process.env.GSC_SERVICE_ACCOUNT_JSON), property);
+      else client = new Error("No Search Console credentials: set GSC_ACCESS_TOKEN (keyless) or GSC_SERVICE_ACCOUNT_JSON");
     } catch (error) {
       client = error instanceof Error ? error : new Error(String(error));
     }
