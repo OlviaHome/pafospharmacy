@@ -6,6 +6,7 @@
  *   npm run seo -- drift-baseline      snapshot SEO-critical tags before a change
  *   npm run seo -- regression          compare the live site with the latest baseline
  *   npm run seo -- stats-indexing      Search Console statistics, URL inspection, sitemaps (read-only)
+ *   npm run seo -- bing-stats          Bing Webmaster statistics, crawl, sitemaps, key pages (read-only OAuth)
  *
  * Options: --site <path> (default seo/site.json), --out <dir> (default .seo-runs),
  *          --trigger schedule|manual|post-change, --baseline <file>.
@@ -20,6 +21,8 @@ import { dirname, join } from "node:path";
 import { runCriticalCheck, runRedirectCheck } from "./checks";
 import { buildReport, exitCode, httpFetch, localTime, parseSitemap, type JobName, type RunReport, type SiteConfig } from "./core";
 import { BASELINE_SCHEMA, compareToBaseline, type DriftBaseline } from "./drift";
+import { createBingClient, readBingCredentials, type BingClient } from "./bing";
+import { runBingStats, type BingSiteConfig } from "./bing-stats";
 import { createGscClient, gscClientWithToken, parseServiceAccount, type GscClient } from "./gsc";
 import { buildNotification, publicErrorLine, publicLogLine } from "./notify";
 import { runStatsIndexing } from "./stats";
@@ -171,7 +174,33 @@ async function main() {
     process.exitCode = exitCode(report);
     return;
   }
-  console.error("Usage: npm run seo -- critical | redirects | stats-indexing | drift-baseline | regression [--site seo/site.json] [--out .seo-runs]");
+  if (command === "bing-stats") {
+    // Read-only OAuth (webmaster.read): refresh token -> one-hour access token. Never an API key.
+    let client: BingClient | Error;
+    const bingSite = site as BingSiteConfig;
+    try {
+      const credentials = readBingCredentials();
+      client = credentials instanceof Error ? credentials : await createBingClient(credentials, bingSite.bing?.site_url ?? "");
+    } catch (error) {
+      client = error instanceof Error ? error : new Error(String(error));
+    }
+    const result = await runBingStats(bingSite, client, started);
+    let artifacts: RunReport["artifacts"];
+    if (result.data) {
+      const stamp = started.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+      const name = `${site.site_id}.bing-stats.${stamp}.bing-data.json`;
+      artifacts = [{ name: "bing-data", path: name, schema: "oa.seo.bing-data/v1", private: true }];
+      write(join(runDir(out, site, "bing-stats", localTime(started, site.timezone)), name), result.data);
+    }
+    const report = buildReport({
+      site, job: "bing-stats", trigger, started, finished: new Date(), gitSha: sha,
+      findings: result.findings, coverage: result.coverage, metrics: result.metrics, artifacts,
+    });
+    save(out, site, report);
+    process.exitCode = exitCode(report);
+    return;
+  }
+  console.error("Usage: npm run seo -- critical | redirects | stats-indexing | bing-stats | drift-baseline | regression [--site seo/site.json] [--out .seo-runs]");
   process.exitCode = 1;
 }
 

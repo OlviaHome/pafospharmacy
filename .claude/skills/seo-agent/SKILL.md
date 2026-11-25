@@ -31,7 +31,8 @@ priorities and owner decisions are in that site's project skill (for HealthGuide
 | Job | When (site time zone) | What | Tooling |
 |---|---|---|---|
 | `critical` | daily 08:00 | robots.txt owner lines, sitemap, every sitemap URL and key path: status, noindex, canonical, hreflang, title, H1 | `npm run seo -- critical` |
-| `stats-indexing` | Monday 08:15 | Search Console clicks/impressions/CTR/position by page × query (28 d vs previous 28 d), URL Inspection for sitemap URLs, sitemap status; Bing Webmaster equivalents | stage 2 collector |
+| `stats-indexing` | Monday 08:15 | Search Console clicks/impressions/CTR/position by page × query (28 d vs previous 28 d), URL Inspection for sitemap URLs, sitemap status | `npm run seo -- stats-indexing` |
+| `bing-stats` | Monday 08:20 | Bing Webmaster (OAuth `webmaster.read`): clicks/impressions 28 d vs previous, crawl stats, sitemap feed, crawl issues, key-page crawl info | `npm run seo -- bing-stats` |
 | `tech-audit` | Wednesday 08:30 | full audit per `seo-geo-optimization` §25 on a template sample; page weight, structured data, internal links, integrity (§25.4) | `critical` output + agent review |
 | `weekly-report` | Friday 08:45 | what shipped, what moved (numbers with sources), what is broken, plan for next week, at most three asks of the owner | reads the week's reports |
 | `ai-visibility` | first Monday of the month 08:45 | fixed prompt panel per locale: is the site named or cited, which sources are cited, wrong facts | stage 4 |

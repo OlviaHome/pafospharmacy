@@ -66,6 +66,9 @@
   "gsc": {
     "property": "sc-domain:healthguide.cy"
   },
+  "bing": {
+    "site_url": "https://healthguide.cy/"
+  },
   "target_queries": [
     "duty pharmacy cyprus",
     "pharmacy on duty cyprus",

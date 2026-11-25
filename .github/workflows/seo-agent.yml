@@ -8,6 +8,10 @@
 #              GSC_SERVICE_ACCOUNT (not secrets); the Google side trusts only this repository's
 #              main branch, and the minted token is read-only and lives 15 minutes;
 #   fallback   environment secret GSC_SERVICE_ACCOUNT_JSON, used only if WIF is not configured.
+#
+# Bing Webmaster auth (D-069): OAuth 2.0 with scope webmaster.read only. Variable BING_CLIENT_ID,
+# environment secrets BING_CLIENT_SECRET and BING_REFRESH_TOKEN, handed only to bing-stats.
+# No Bing API key is used (it would grant full account access).
 name: SEO agent (manual)
 
 on:
@@ -18,7 +22,7 @@ on:
         type: choice
         required: true
         default: critical
-        options: [critical, redirects, stats-indexing]
+        options: [critical, redirects, stats-indexing, bing-stats]
 
 permissions:
   contents: read
@@ -65,4 +69,7 @@ jobs:
           GSC_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
           # Fallback only when keyless auth is not configured; handed only to stats-indexing.
           GSC_SERVICE_ACCOUNT_JSON: ${{ github.event.inputs.job == 'stats-indexing' && vars.GCP_WIF_PROVIDER == '' && secrets.GSC_SERVICE_ACCOUNT_JSON || '' }}
+          BING_CLIENT_ID: ${{ github.event.inputs.job == 'bing-stats' && vars.BING_CLIENT_ID || '' }}
+          BING_CLIENT_SECRET: ${{ github.event.inputs.job == 'bing-stats' && secrets.BING_CLIENT_SECRET || '' }}
+          BING_REFRESH_TOKEN: ${{ github.event.inputs.job == 'bing-stats' && secrets.BING_REFRESH_TOKEN || '' }}
         run: npm run seo -- "$JOB" --trigger manual
