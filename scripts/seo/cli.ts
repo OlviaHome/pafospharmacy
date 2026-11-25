@@ -5,6 +5,7 @@
  *   npm run seo -- redirects           legacy host / moved URL check
  *   npm run seo -- drift-baseline      snapshot SEO-critical tags before a change
  *   npm run seo -- regression          compare the live site with the latest baseline
+ *   npm run seo -- stats-indexing      Search Console statistics, URL inspection, sitemaps (read-only)
  *
  * Options: --site <path> (default seo/site.json), --out <dir> (default .seo-runs),
  *          --trigger schedule|manual|post-change, --baseline <file>.
@@ -17,9 +18,11 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 
 import { dirname, join } from "node:path";
 
 import { runCriticalCheck, runRedirectCheck } from "./checks";
-import { buildReport, exitCode, httpFetch, type JobName, type RunReport, type SiteConfig } from "./core";
+import { buildReport, exitCode, httpFetch, localTime, parseSitemap, type JobName, type RunReport, type SiteConfig } from "./core";
 import { BASELINE_SCHEMA, compareToBaseline, type DriftBaseline } from "./drift";
-import { buildNotification } from "./notify";
+import { createGscClient, gscClientWithToken, parseServiceAccount, type GscClient } from "./gsc";
+import { buildNotification, publicErrorLine, publicLogLine } from "./notify";
+import { runStatsIndexing } from "./stats";
 
 function option(name: string, fallback: string): string {
   const index = process.argv.indexOf(`--${name}`);
@@ -39,12 +42,24 @@ function write(path: string, data: unknown) {
   writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`);
 }
 
+function runDir(out: string, site: SiteConfig, job: string, localTime: string) {
+  return join(out, site.site_id, job, localTime.slice(0, 7));
+}
+
+/**
+ * SEO_PUBLIC_LOGS=1 (set in CI of a public repository): print only the run status and counts.
+ * Findings, metrics and private side files stay in the output directory.
+ */
 function save(out: string, site: SiteConfig, report: RunReport) {
-  const dir = join(out, site.site_id, report.job, report.local_time.slice(0, 7));
+  const dir = runDir(out, site, report.job, report.local_time);
   write(join(dir, `${report.run_id}.json`), report);
   const notification = buildNotification(report, site.name);
   write(join(dir, `${report.run_id}.notify.json`), notification);
   write(join(out, site.site_id, report.job, "latest.json"), report);
+  if (process.env.SEO_PUBLIC_LOGS === "1") {
+    console.log(publicLogLine(report));
+    return;
+  }
   console.log(notification.text);
   console.log(`\n→ ${join(dir, `${report.run_id}.json`)}`);
 }
@@ -122,11 +137,45 @@ async function main() {
     process.exitCode = exitCode(report);
     return;
   }
-  console.error("Usage: npm run seo -- critical | redirects | drift-baseline | regression [--site seo/site.json] [--out .seo-runs]");
+  if (command === "stats-indexing") {
+    // Preferred: a short-lived token from Workload Identity Federation; fallback: a JSON key.
+    let client: GscClient | Error;
+    try {
+      const property = site.gsc?.property ?? "";
+      if (process.env.GSC_ACCESS_TOKEN) client = gscClientWithToken(process.env.GSC_ACCESS_TOKEN, property);
+      else if (process.env.GSC_SERVICE_ACCOUNT_JSON) client = await createGscClient(parseServiceAccount(process.env.GSC_SERVICE_ACCOUNT_JSON), property);
+      else client = new Error("No Search Console credentials: set GSC_ACCESS_TOKEN (keyless) or GSC_SERVICE_ACCOUNT_JSON");
+    } catch (error) {
+      client = error instanceof Error ? error : new Error(String(error));
+    }
+    const sitemap = await httpFetch(site.sitemap);
+    const urls = sitemap.status === 200 ? parseSitemap(sitemap.body).entries.map((e) => e.loc) : [];
+    const result = await runStatsIndexing(site, client, urls, started);
+    const findings = sitemap.status === 200 ? result.findings : [
+      ...result.findings,
+      { id: "sitemap.status", check: "sitemap", verdict: "BLOCKER" as const, severity: "high" as const, url: site.sitemap, evidence: sitemap.error ?? `HTTP ${sitemap.status}` },
+    ];
+    let artifacts: RunReport["artifacts"];
+    if (result.data) {
+      // Same start stamp as the run id, so the data file sits next to its report.
+      const stamp = started.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+      const name = `${site.site_id}.stats-indexing.${stamp}.gsc-data.json`;
+      artifacts = [{ name: "gsc-data", path: name, schema: "oa.seo.gsc-data/v1", private: true }];
+      write(join(runDir(out, site, "stats-indexing", localTime(started, site.timezone)), name), result.data);
+    }
+    const report = buildReport({
+      site, job: "stats-indexing", trigger, started, finished: new Date(), gitSha: sha,
+      findings, coverage: result.coverage, metrics: result.metrics, artifacts,
+    });
+    save(out, site, report);
+    process.exitCode = exitCode(report);
+    return;
+  }
+  console.error("Usage: npm run seo -- critical | redirects | stats-indexing | drift-baseline | regression [--site seo/site.json] [--out .seo-runs]");
   process.exitCode = 1;
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error(process.env.SEO_PUBLIC_LOGS === "1" ? publicErrorLine(error) : error);
   process.exitCode = 1;
 });
