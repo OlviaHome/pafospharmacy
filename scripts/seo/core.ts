@@ -273,13 +273,7 @@ export function buildReport(args: {
 }): RunReport {
   const summary: Record<Verdict, number> = { PASS: 0, WARN: 0, FAIL: 0, BLOCKER: 0, NOT_CHECKED: 0, ABSENT: 0 };
   for (const finding of args.findings) summary[finding.verdict] += 1;
-  const status: RunReport["status"] = summary.BLOCKER > 0 && summary.PASS === 0
-    ? "blocked"
-    : summary.FAIL > 0
-      ? "fail"
-      : summary.WARN > 0 || summary.BLOCKER > 0
-        ? "warn"
-        : "ok";
+  const status = runStatus(summary, args.coverage);
   const stamp = args.started.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
   return {
     schema: REPORT_SCHEMA,
@@ -298,6 +292,25 @@ export function buildReport(args: {
     metrics: args.metrics ?? {},
     agent: { name: AGENT_NAME, version: AGENT_VERSION, ...(args.gitSha ? { git_sha: args.gitSha } : {}) },
   };
+}
+
+/**
+ * A run is "ok" only when every check actually ran. A check that could not run (BLOCKER) or a URL
+ * that could not be fetched makes the run "blocked", never "ok" or "warn": unknown is not success.
+ * Precedence: fail > blocked > warn > ok.
+ */
+export function runStatus(summary: Record<Verdict, number>, coverage: RunReport["coverage"]): RunReport["status"] {
+  if (summary.FAIL > 0) return "fail";
+  if (summary.BLOCKER > 0 || coverage.failed_fetch > 0 || coverage.checked === 0) return "blocked";
+  if (summary.WARN > 0) return "warn";
+  return "ok";
+}
+
+/** Process exit code for schedulers: 0 ok/warn, 2 critical FAIL, 3 any check could not run. */
+export function exitCode(report: RunReport): number {
+  if (report.findings.some((f) => f.severity === "critical" && f.verdict === "FAIL")) return 2;
+  if (report.status === "blocked" || report.status === "fail") return 3;
+  return 0;
 }
 
 export function sameUrl(a?: string, b?: string): boolean {

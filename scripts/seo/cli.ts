@@ -9,14 +9,15 @@
  * Options: --site <path> (default seo/site.json), --out <dir> (default .seo-runs),
  *          --trigger schedule|manual|post-change, --baseline <file>.
  * Output: <out>/<site_id>/<job>/<YYYY-MM>/<run_id>.json, a matching .notify.json and latest.json.
- * Exit code 2 when a critical finding fails, so a scheduler can mark the run red.
+ * Exit codes: 0 ok/warn, 2 a critical check failed, 3 a check could not run or another FAIL —
+ * a scheduler must never read a blocked run as a successful one.
  */
 import { execSync } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { runCriticalCheck, runRedirectCheck } from "./checks";
-import { buildReport, httpFetch, type JobName, type RunReport, type SiteConfig } from "./core";
+import { buildReport, exitCode, httpFetch, type JobName, type RunReport, type SiteConfig } from "./core";
 import { BASELINE_SCHEMA, compareToBaseline, type DriftBaseline } from "./drift";
 import { buildNotification } from "./notify";
 
@@ -67,13 +68,14 @@ async function main() {
     const result = await runCriticalCheck(site, httpFetch);
     const report = buildReport({ site, job: "critical", trigger, started, finished: new Date(), gitSha: sha, ...result });
     save(out, site, report);
-    process.exitCode = report.findings.some((f) => f.severity === "critical" && f.verdict === "FAIL") ? 2 : 0;
+    process.exitCode = exitCode(report);
     return;
   }
   if (command === "redirects") {
     const result = await runRedirectCheck(site, httpFetch);
     const report = buildReport({ site, job: "redirects", trigger, started, finished: new Date(), gitSha: sha, ...result });
     save(out, site, report);
+    process.exitCode = exitCode(report);
     return;
   }
   if (command === "drift-baseline") {
@@ -88,8 +90,18 @@ async function main() {
   if (command === "regression") {
     const baselinePath = option("baseline", latestBaseline(out, site) ?? "");
     if (!baselinePath || !existsSync(baselinePath)) {
-      console.error("No baseline. Run `npm run seo -- drift-baseline` before the change ships.");
-      process.exitCode = 1;
+      // A regression check without a baseline did not happen: record it as blocked, do not stay silent.
+      const report = buildReport({
+        site, job: "regression", trigger: "post-change", started, finished: new Date(), gitSha: sha,
+        coverage: { discovered: 0, checked: 0, failed_fetch: 0, not_checked: 1 },
+        findings: [{
+          id: "regression.baseline", check: "drift", verdict: "BLOCKER", severity: "high",
+          evidence: baselinePath ? `baseline not found: ${baselinePath}` : "no drift baseline captured before the change",
+          fix: "Run `npm run seo -- drift-baseline` before the next SEO change ships.",
+        }],
+      });
+      save(out, site, report);
+      process.exitCode = exitCode(report);
       return;
     }
     const baseline = JSON.parse(readFileSync(baselinePath, "utf8")) as DriftBaseline;
@@ -107,7 +119,7 @@ async function main() {
       metrics: { ...current.metrics, baseline_pages: baseline.pages.length },
     });
     save(out, site, report);
-    process.exitCode = findings.some((f) => f.severity === "critical" && f.verdict === "FAIL") ? 2 : 0;
+    process.exitCode = exitCode(report);
     return;
   }
   console.error("Usage: npm run seo -- critical | redirects | drift-baseline | regression [--site seo/site.json] [--out .seo-runs]");

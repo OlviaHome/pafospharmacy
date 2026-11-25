@@ -39,17 +39,30 @@ rules, CC BY 4.0).
 
 ## Schedule (target, stage 3)
 
-| Job | Asia/Nicosia |
-|---|---|
-| `critical` | daily 08:00 |
-| `stats-indexing` | Monday 08:30 |
-| `tech-audit` | Wednesday 08:30 |
-| `weekly-report` | Friday 16:00 |
-| `ai-visibility` | first Monday of the month, 10:00 |
-| `regression` | after each production deploy that changes SEO files, or on request |
+All scheduled runs finish before 09:30 Asia/Nicosia so their notifications reach the OA Studio
+Daily Digest, which the orchestrator sends at 10:00. Envelopes carry
+`delivery = { mode, digest: "daily", for_date }`: `digest` waits for the digest; `immediate`
+(only `critical` level) is sent at once and is listed in the digest as well.
 
+| Job | Asia/Nicosia | Must be written by |
+|---|---|---|
+| `critical` | daily 08:00 | 08:30 |
+| `stats-indexing` | Monday 08:15 | 09:15 |
+| `tech-audit` | Wednesday 08:30 | 09:30 |
+| `weekly-report` (+ plan for next week) | Friday 08:45 | 09:30 |
+| `ai-visibility` | first Monday of the month 08:45 | 09:30 |
+| `redirects` | Monday 08:05 | 08:30 |
+| `regression` | after each production deploy that changes SEO files, or on request | — (immediate if critical) |
+
+A run that has not written its report by its deadline is itself reported as missing in the digest.
 Schedulers that only speak UTC fire at both possible UTC hours and the job runs only when the local
 hour matches, so daylight-saving changes cannot shift or double a run.
+
+## Exit codes and blocked runs
+
+`0` ok or warnings only · `2` a critical check failed · `3` a check could not run (BLOCKER, a URL
+that could not be fetched, no baseline) or another FAIL. A blocked run is never "ok": its status is
+`blocked`, its notification says the result is unknown, and it needs action.
 
 ## Safety
 

@@ -4,33 +4,165 @@
   "title": "OA Studio notification envelope",
   "description": "Written by any OA Studio agent, delivered by the orchestrator. Agents never hold chat ids or bot tokens: the orchestrator maps destination.route to a chat and topic (for site:healthguide-cy, the HealthGuide.cy topic of 'OA Studio · Command Center').",
   "type": "object",
-  "required": ["schema", "id", "created_at", "source", "destination", "level", "title", "text", "facts", "links", "dedupe_key", "requires_action"],
+  "required": [
+    "schema",
+    "id",
+    "created_at",
+    "source",
+    "destination",
+    "level",
+    "title",
+    "text",
+    "facts",
+    "links",
+    "dedupe_key",
+    "requires_action",
+    "delivery"
+  ],
   "additionalProperties": false,
   "properties": {
-    "schema": { "const": "oa.notify/v1" },
-    "id": { "type": "string", "description": "Unique; the orchestrator treats a repeated id as already delivered" },
-    "created_at": { "type": "string", "format": "date-time" },
+    "schema": {
+      "const": "oa.notify/v1"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique; the orchestrator treats a repeated id as already delivered"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "source": {
       "type": "object",
-      "required": ["system", "site_id", "job", "run_id"],
+      "required": [
+        "system",
+        "site_id",
+        "job",
+        "run_id"
+      ],
       "properties": {
-        "system": { "type": "string", "examples": ["seo-agent", "blog-bot"] },
-        "site_id": { "type": "string" },
-        "job": { "type": "string" },
-        "run_id": { "type": "string" }
+        "system": {
+          "type": "string",
+          "examples": [
+            "seo-agent",
+            "blog-bot"
+          ]
+        },
+        "site_id": {
+          "type": "string"
+        },
+        "job": {
+          "type": "string"
+        },
+        "run_id": {
+          "type": "string"
+        }
       }
     },
     "destination": {
       "type": "object",
-      "required": ["route"],
-      "properties": { "route": { "type": "string", "pattern": "^(site|studio):[a-z0-9-]+$", "examples": ["site:healthguide-cy", "studio:ops"] } }
+      "required": [
+        "route"
+      ],
+      "properties": {
+        "route": {
+          "type": "string",
+          "pattern": "^(site|studio):[a-z0-9-]+$",
+          "examples": [
+            "site:healthguide-cy",
+            "studio:ops"
+          ]
+        }
+      }
     },
-    "level": { "enum": ["critical", "warning", "info"], "description": "critical: send now; warning: send now, no repeat while dedupe_key is unchanged; info: may be batched into the next digest" },
-    "title": { "type": "string", "maxLength": 200 },
-    "text": { "type": "string", "maxLength": 3500, "description": "Plain text, ready to send; no Markdown or HTML, so no escaping is needed" },
-    "facts": { "type": "array", "items": { "type": "object", "required": ["label", "value"], "properties": { "label": { "type": "string" }, "value": { "type": "string" } } } },
-    "links": { "type": "array", "items": { "type": "object", "required": ["label", "url"], "properties": { "label": { "type": "string" }, "url": { "type": "string", "format": "uri" } } } },
-    "dedupe_key": { "type": "string", "description": "Same key as the previous notification for this route means nothing changed" },
-    "requires_action": { "type": "boolean" }
+    "level": {
+      "enum": [
+        "critical",
+        "warning",
+        "info"
+      ],
+      "description": "critical: send now; warning: send now, no repeat while dedupe_key is unchanged; info: may be batched into the next digest"
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 3500,
+      "description": "Plain text, ready to send; no Markdown or HTML, so no escaping is needed"
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "value"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "url"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "dedupe_key": {
+      "type": "string",
+      "description": "Same key as the previous notification for this route means nothing changed"
+    },
+    "requires_action": {
+      "type": "boolean"
+    },
+    "delivery": {
+      "type": "object",
+      "required": [
+        "mode",
+        "digest",
+        "for_date"
+      ],
+      "additionalProperties": false,
+      "description": "immediate: deliver now and also list in the digest; digest: deliver only inside the named digest for for_date (the daily digest goes out at 10:00 Asia/Nicosia).",
+      "properties": {
+        "mode": {
+          "enum": [
+            "immediate",
+            "digest"
+          ]
+        },
+        "digest": {
+          "enum": [
+            "daily"
+          ]
+        },
+        "for_date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "Local date in the site time zone"
+        }
+      }
+    }
   }
 }

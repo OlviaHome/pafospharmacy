@@ -99,7 +99,7 @@ export async function runCriticalCheck(site: SiteConfig, fetcher: Fetcher) {
   // 3. pages: every sitemap URL plus the key paths
   const urls = [...new Set([...entries.map((e) => e.loc), ...site.key_paths.map((p) => new URL(p, site.origin).toString())])];
   const alternatesByUrl = new Map(entries.map((e) => [e.loc, e.alternates]));
-  const pages = await mapLimit(urls, 4, async (url) => extractPage(await fetcher(url)));
+  const pages = await mapLimit(urls, 4, async (url) => extractPage({ ...(await fetcher(url)), url }));
   let failedFetch = 0;
   for (const page of pages) {
     if (page.status === 0) failedFetch += 1;

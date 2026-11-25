@@ -23,6 +23,7 @@ export interface NotificationEnvelope {
   links: Array<{ label: string; url: string }>;
   dedupe_key: string;
   requires_action: boolean;
+  delivery: { mode: "immediate" | "digest"; digest: "daily"; for_date: string };
 }
 
 const JOB_TITLES: Record<string, string> = {
@@ -46,15 +47,23 @@ function problem(finding: Finding): boolean {
 export function buildNotification(report: RunReport, siteName: string, maxItems = 8): NotificationEnvelope {
   const problems = report.findings.filter(problem).sort((a, b) => RANK[a.severity] - RANK[b.severity]);
   const critical = problems.some((f) => f.severity === "critical" && f.verdict !== "WARN");
-  const level: NotificationEnvelope["level"] = critical ? "critical" : problems.some((f) => f.severity === "high") ? "warning" : "info";
+  const blocked = report.status === "blocked";
+  const level: NotificationEnvelope["level"] = critical
+    ? "critical"
+    : blocked || report.status === "fail" || problems.some((f) => f.severity === "high")
+      ? "warning"
+      : "info";
   const icon = { critical: "🔴", warning: "🟠", info: "🟢" }[level];
+  const verdictLine = report.status === "ok"
+    ? `Всё в порядке. Проверено: ${report.coverage.checked} из ${report.coverage.discovered}.`
+    : blocked && report.summary.FAIL === 0
+      ? `⚠️ Проверка выполнена не полностью: результат неизвестен, это не «всё в порядке». Не проверено: ${report.summary.BLOCKER + report.coverage.failed_fetch + report.coverage.not_checked}.`
+      : `Проблем: ${problems.length} (FAIL ${report.summary.FAIL}, WARN ${report.summary.WARN}, BLOCKER ${report.summary.BLOCKER}). Проверено: ${report.coverage.checked} из ${report.coverage.discovered}.`;
   const lines = [
     `${icon} ${siteName} · ${JOB_TITLES[report.job] ?? report.job}`,
     `${report.local_time.replace("T", " ")} (${report.timezone})`,
     "",
-    problems.length
-      ? `Проблем: ${problems.length} (FAIL ${report.summary.FAIL}, WARN ${report.summary.WARN}, BLOCKER ${report.summary.BLOCKER}). Проверено: ${report.coverage.checked} из ${report.coverage.discovered}.`
-      : `Всё в порядке. Проверено: ${report.coverage.checked} из ${report.coverage.discovered}.`,
+    verdictLine,
   ];
   for (const finding of problems.slice(0, maxItems)) {
     const where = finding.url ? ` ${new URL(finding.url).pathname}` : "";
@@ -81,5 +90,7 @@ export function buildNotification(report: RunReport, siteName: string, maxItems 
     // One alert per site, job and set of problems: an unchanged problem is not re-sent every day.
     dedupe_key: `${report.site_id}:${report.job}:${createHash("sha256").update(problems.map((f) => f.id).sort().join("|") || "ok").digest("hex").slice(0, 16)}`,
     requires_action: level !== "info",
+    // Morning runs feed the 10:00 Asia/Nicosia Daily Digest; critical problems also go out at once.
+    delivery: { mode: level === "critical" ? "immediate" : "digest", digest: "daily", for_date: report.local_time.slice(0, 10) },
   };
 }

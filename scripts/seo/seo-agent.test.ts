@@ -6,7 +6,7 @@ import addFormats from "ajv-formats";
 import { describe, expect, it } from "vitest";
 
 import { blockedPaths, checkPage, runCriticalCheck, runRedirectCheck } from "./checks";
-import { buildReport, extractPage, parseSitemap, type FetchResult, type Fetcher, type SiteConfig } from "./core";
+import { buildReport, exitCode, extractPage, parseSitemap, type FetchResult, type Fetcher, type SiteConfig } from "./core";
 import { BASELINE_SCHEMA, compareToBaseline } from "./drift";
 import { buildNotification } from "./notify";
 
@@ -203,5 +203,58 @@ describe("contracts", () => {
   it("the site config matches its schema", () => {
     const validate = ajv.compile(contract("site-config.v1.schema.json"));
     expect(validate(site), JSON.stringify(validate.errors)).toBe(true);
+  });
+});
+
+describe("checks that could not run", () => {
+  const unreachable: FetchResult = { url: "", status: 0, headers: {}, body: "", bytes: 0, error: "ECONNRESET" };
+  const run = async (overrides: Record<string, FetchResult>) => {
+    const result = await runCriticalCheck(smallSite, fakeFetcher(overrides));
+    return buildReport({ site, job: "critical", trigger: "schedule", started: new Date("2026-11-25T06:00:00Z"), finished: new Date("2026-11-25T06:01:00Z"), ...result });
+  };
+
+  it("one unreachable page makes the run blocked, not ok, even when everything else passes", async () => {
+    const report = await run({ "https://healthguide.cy/en/hospitals": unreachable });
+    expect(report.summary.FAIL).toBe(0);
+    expect(report.summary.BLOCKER).toBeGreaterThan(0);
+    expect(report.coverage.failed_fetch).toBe(1);
+    expect(report.status).toBe("blocked");
+    expect(exitCode(report)).toBe(3);
+    const notification = buildNotification(report, site.name);
+    expect(notification.level).not.toBe("info");
+    expect(notification.requires_action).toBe(true);
+    expect(notification.text).toContain("не полностью");
+    expect(notification.text).not.toContain("Всё в порядке");
+  });
+
+  it("a site that cannot be reached at all is blocked and alerts at once", async () => {
+    const report = await run({
+      "https://healthguide.cy/robots.txt": unreachable,
+      "https://healthguide.cy/sitemap.xml": unreachable,
+      ...Object.fromEntries(site.key_paths.map((p) => [new URL(p, site.origin).toString(), unreachable])),
+    });
+    expect(report.summary.PASS).toBe(0);
+    expect(report.status).toBe("blocked");
+    expect(exitCode(report)).toBe(3);
+    const notification = buildNotification(report, site.name);
+    expect(notification.level).toBe("critical");
+    expect(notification.delivery.mode).toBe("immediate");
+  });
+
+  it("a critical FAIL outranks blocked and exits 2", async () => {
+    const report = await run({
+      "https://healthguide.cy/robots.txt": page("https://healthguide.cy/robots.txt", "User-Agent: *\nDisallow: /\n"),
+      "https://healthguide.cy/en/hospitals": unreachable,
+    });
+    expect(report.status).toBe("fail");
+    expect(exitCode(report)).toBe(2);
+  });
+
+  it("a clean run is ok, exits 0 and goes to the daily digest", async () => {
+    const report = await run({});
+    expect(report.status).toBe("warn"); // the known brand-name warning only
+    expect(exitCode(report)).toBe(0);
+    const notification = buildNotification(report, site.name);
+    expect(notification.delivery).toEqual({ mode: "digest", digest: "daily", for_date: "2026-11-25" });
   });
 });

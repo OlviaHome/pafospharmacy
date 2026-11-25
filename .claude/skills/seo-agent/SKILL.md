@@ -31,15 +31,19 @@ priorities and owner decisions are in that site's project skill (for HealthGuide
 | Job | When (site time zone) | What | Tooling |
 |---|---|---|---|
 | `critical` | daily 08:00 | robots.txt owner lines, sitemap, every sitemap URL and key path: status, noindex, canonical, hreflang, title, H1 | `npm run seo -- critical` |
-| `stats-indexing` | Monday | Search Console clicks/impressions/CTR/position by page × query (28 d vs previous 28 d), URL Inspection for sitemap URLs, sitemap status; Bing Webmaster equivalents | stage 2 collector |
-| `tech-audit` | Wednesday | full audit per `seo-geo-optimization` §25 on a template sample; page weight, structured data, internal links, integrity (§25.4) | `critical` output + agent review |
-| `weekly-report` | Friday | what shipped, what moved (numbers with sources), what is broken, plan for next week, at most three asks of the owner | reads the week's reports |
-| `ai-visibility` | first Monday of the month | fixed prompt panel per locale: is the site named or cited, which sources are cited, wrong facts | stage 4 |
+| `stats-indexing` | Monday 08:15 | Search Console clicks/impressions/CTR/position by page × query (28 d vs previous 28 d), URL Inspection for sitemap URLs, sitemap status; Bing Webmaster equivalents | stage 2 collector |
+| `tech-audit` | Wednesday 08:30 | full audit per `seo-geo-optimization` §25 on a template sample; page weight, structured data, internal links, integrity (§25.4) | `critical` output + agent review |
+| `weekly-report` | Friday 08:45 | what shipped, what moved (numbers with sources), what is broken, plan for next week, at most three asks of the owner | reads the week's reports |
+| `ai-visibility` | first Monday of the month 08:45 | fixed prompt panel per locale: is the site named or cited, which sources are cited, wrong facts | stage 4 |
 | `drift-baseline` | before an SEO PR is merged | snapshot of SEO-critical tags | `npm run seo -- drift-baseline` |
 | `regression` | after an SEO change is live | compare with the baseline plus the critical check | `npm run seo -- regression` |
-| `redirects` | weekly and after domain changes | legacy hosts and moved URLs: one permanent hop to a 200 | `npm run seo -- redirects` |
+| `redirects` | Monday 08:05 and after domain changes | legacy hosts and moved URLs: one permanent hop to a 200 | `npm run seo -- redirects` |
 
 ## Output
+
+Scheduled runs must finish before 09:30 site time: their notifications feed the 10:00 Daily Digest.
+A run that could not check something is `blocked` (exit code 3), never reported as fine.
+
 
 Every run writes `<out>/<site_id>/<job>/<YYYY-MM>/<run_id>.json` (validated by
 `seo/contracts/run-report.v1.schema.json`), a matching `.notify.json`, and `latest.json`.
