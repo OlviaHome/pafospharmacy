@@ -31,7 +31,7 @@ rules, CC BY 4.0).
 | # | Stage | Needs Olga | Status |
 |---|---|---|---|
 | 1 | Foundation: skills, config, contracts, `critical`, `redirects`, `drift-baseline`, `regression`, tests | review the PR | done (#27) |
-| 2 | Search Console (read-only) + Bing Webmaster + IndexNow; `stats-indexing` collector | grant access (Google, Bing), approve IndexNow | 2.1 GSC: in progress |
+| 2 | Search Console (read-only) + Bing Webmaster + IndexNow; `stats-indexing` collector | grant access (Google, Bing), approve IndexNow | 2.1 GSC: **done** 2026-11-25 (#28, first run 45677685864: Search Analytics, URL Inspection, Sitemaps all PASS). 2.2 Bing: next. IndexNow: separate decision |
 | 3 | Runtime, schedules (Asia/Nicosia) and permanent history storage; post-deploy regression trigger | choose storage, approve secrets and migration | after 2 |
 | 4 | Agent jobs: Wednesday tech audit, Friday report and plan, monthly AI-visibility panel | approve AI-panel budget | after 3 |
 | 5 | Telegram delivery through the OA Studio orchestrator | separate project | contract ready |
