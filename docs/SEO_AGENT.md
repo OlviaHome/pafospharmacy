@@ -31,7 +31,7 @@ rules, CC BY 4.0).
 | # | Stage | Needs Olga | Status |
 |---|---|---|---|
 | 1 | Foundation: skills, config, contracts, `critical`, `redirects`, `drift-baseline`, `regression`, tests | review the PR | done (#27) |
-| 2 | Search Console (read-only) + Bing Webmaster + IndexNow; `stats-indexing` collector | grant access (Google, Bing), approve IndexNow | 2.1 GSC: **done** 2026-11-25 (#28, first run 45677685864: Search Analytics, URL Inspection, Sitemaps all PASS). 2.2 Bing: next. IndexNow: separate decision |
+| 2 | Search Console (read-only) + Bing Webmaster + IndexNow; `stats-indexing` collector | grant access (Google, Bing), approve IndexNow | 2.1 GSC: **done** 2026-11-25 (#28, first run 45677685864: Search Analytics, URL Inspection, Sitemaps all PASS). 2.2 Bing: collector `bing-stats` (D-069), OAuth `webmaster.read`; first live run after merge. IndexNow: separate decision |
 | 3 | Runtime, schedules (Asia/Nicosia) and permanent history storage; post-deploy regression trigger | choose storage, approve secrets and migration | after 2 |
 | 4 | Agent jobs: Wednesday tech audit, Friday report and plan, monthly AI-visibility panel | approve AI-panel budget | after 3 |
 | 5 | Telegram delivery through the OA Studio orchestrator | separate project | contract ready |
@@ -48,6 +48,7 @@ Daily Digest, which the orchestrator sends at 10:00. Envelopes carry
 |---|---|---|
 | `critical` | daily 08:00 | 08:30 |
 | `stats-indexing` | Monday 08:15 | 09:15 |
+| `bing-stats` | Monday 08:20 | 09:15 |
 | `tech-audit` | Wednesday 08:30 | 09:30 |
 | `weekly-report` (+ plan for next week) | Friday 08:45 | 09:30 |
 | `ai-visibility` | first Monday of the month 08:45 | 09:30 |
@@ -81,6 +82,21 @@ that could not be fetched, no baseline) or another FAIL. A blocked run is never 
   Google-chosen canonical differs, fetch failure → FAIL high; robots/noindex block → FAIL critical.
 - Public repository: CI prints only status counts and uploads nothing until stage 3 provides
   private storage. Manual runs: Actions → "SEO agent (manual)" → Run workflow.
+
+## Bing Webmaster Tools (stage 2.2)
+
+- Access: OAuth 2.0 client "OA SEO Agent (read-only)" with the `webmaster.read` scope only (D-069).
+  No API key — it would give full account access. Variable `BING_CLIENT_ID`, environment secrets
+  `BING_CLIENT_SECRET` and `BING_REFRESH_TOKEN` in `seo-readonly`; passed only to `bing-stats`.
+  Each run trades the refresh token for a one-hour access token.
+- Data (`GetUserSites`, `GetRankAndTrafficStats`, `GetQueryStats`, `GetCrawlStats`, `GetFeeds`,
+  `GetCrawlIssues`, `GetUrlInfo` for key paths): clicks/impressions for 28 days vs the 28 before,
+  latest crawl day (crawled, in index, 4xx/5xx, robots-blocked, malware), sitemap feed status,
+  key-page crawl status. Query text and issue URLs only in the private `oa.seo.bing-data/v1` file.
+- Verdicts: site not verified → FAIL; sitemap missing → WARN (owner decision); feed error → FAIL;
+  processing → WARN; no data yet → WARN; malware → FAIL critical; any API error → BLOCKER for that API.
+- If Bing answers InvalidToken: re-authorise the same read-only client and replace
+  `BING_REFRESH_TOKEN`. Never switch to an API key.
 
 ## Safety
 

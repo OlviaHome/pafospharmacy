@@ -16,6 +16,7 @@ export type Severity = "critical" | "high" | "medium" | "low" | "info";
 export type JobName =
   | "critical"
   | "stats-indexing"
+  | "bing-stats"
   | "tech-audit"
   | "weekly-report"
   | "ai-visibility"

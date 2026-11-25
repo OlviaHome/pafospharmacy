@@ -29,6 +29,7 @@ export interface NotificationEnvelope {
 const JOB_TITLES: Record<string, string> = {
   critical: "Ежедневная проверка",
   "stats-indexing": "Статистика и индексация",
+  "bing-stats": "Статистика Bing",
   "tech-audit": "Технический аудит",
   "weekly-report": "Недельный отчёт",
   "ai-visibility": "Видимость в AI Search",
@@ -102,8 +103,8 @@ export function buildNotification(report: RunReport, siteName: string, maxItems 
 export function publicLogLine(report: RunReport): string {
   const s = report.summary;
   const apis = report.findings
-    .filter((f) => f.check === "gsc-api")
-    .map((f) => `${f.id.replace("gsc.api.", "")}=${f.verdict}`)
+    .filter((f) => f.check === "gsc-api" || f.check === "bing-api")
+    .map((f) => `${f.id.replace(/^(gsc|bing)\.api\./, "")}=${f.verdict}`)
     .join(" ");
   return `${report.run_id}: ${report.status} (PASS ${s.PASS}, WARN ${s.WARN}, FAIL ${s.FAIL}, BLOCKER ${s.BLOCKER}, checked ${report.coverage.checked}/${report.coverage.discovered})${apis ? ` apis: ${apis}` : ""}`;
 }

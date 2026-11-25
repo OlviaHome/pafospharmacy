@@ -139,6 +139,18 @@
         }
       }
     },
+    "bing": {
+      "type": "object",
+      "required": [
+        "site_url"
+      ],
+      "properties": {
+        "site_url": {
+          "type": "string",
+          "description": "The site exactly as Bing Webmaster Tools lists it, e.g. https://example.com/"
+        }
+      }
+    },
     "target_queries": {
       "type": "array",
       "items": {

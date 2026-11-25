@@ -54,7 +54,7 @@ questions.
   items built from official data only (no Google Places content, per AGENTS.md).
 - HTML weight: `/ru/paphos` ≈ 520 KB, `/` ≈ 1.1 MB of HTML. Check field Core Web Vitals before
   calling it a problem.
-- Search Console is connected read-only and keyless (stage 2.1, D-067); Bing Webmaster and IndexNow are not connected yet.
+- Search Console is connected read-only and keyless (stage 2.1, D-067); Bing Webmaster is connected read-only through OAuth `webmaster.read` (stage 2.2, D-069; site verified by DNS CNAME, sitemap submitted 2026-11-25). IndexNow is not connected.
 
 ## Checks specific to this site
 

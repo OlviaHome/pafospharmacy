@@ -39,6 +39,7 @@
       "enum": [
         "critical",
         "stats-indexing",
+        "bing-stats",
         "tech-audit",
         "weekly-report",
         "ai-visibility",
