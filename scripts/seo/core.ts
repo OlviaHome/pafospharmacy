@@ -39,6 +39,10 @@ export interface SiteConfig {
   redirects: Array<{ from: string; to: string; note?: string }>;
   page_weight_warn_bytes: number;
   brand: { name: string };
+  /** Search Console property, e.g. "sc-domain:example.com" or "https://example.com/". */
+  gsc?: { property: string };
+  /** Owner's target queries, tracked by position; never mixed into notifications with other queries. */
+  target_queries?: string[];
 }
 
 export interface Finding {
@@ -70,6 +74,8 @@ export interface RunReport {
   coverage: { discovered: number; checked: number; failed_fetch: number; not_checked: number };
   findings: Finding[];
   metrics: Record<string, number>;
+  /** Side files of the run (e.g. private Search Console tables), relative to the report file. */
+  artifacts?: Array<{ name: string; path: string; schema: string; private: boolean }>;
   agent: { name: string; version: string; git_sha?: string };
 }
 
@@ -269,6 +275,7 @@ export function buildReport(args: {
   findings: Finding[];
   coverage: RunReport["coverage"];
   metrics?: Record<string, number>;
+  artifacts?: RunReport["artifacts"];
   gitSha?: string;
 }): RunReport {
   const summary: Record<Verdict, number> = { PASS: 0, WARN: 0, FAIL: 0, BLOCKER: 0, NOT_CHECKED: 0, ABSENT: 0 };
@@ -290,6 +297,7 @@ export function buildReport(args: {
     coverage: args.coverage,
     findings: args.findings,
     metrics: args.metrics ?? {},
+    ...(args.artifacts?.length ? { artifacts: args.artifacts } : {}),
     agent: { name: AGENT_NAME, version: AGENT_VERSION, ...(args.gitSha ? { git_sha: args.gitSha } : {}) },
   };
 }

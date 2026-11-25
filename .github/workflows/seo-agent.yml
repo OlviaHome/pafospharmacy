@@ -1,0 +1,45 @@
+# SEO agent — manual runs only (stage 2). Schedules come in stage 3.
+# This repository is public: logs and artifacts are visible to anyone, so the agent prints only
+# status counts (SEO_PUBLIC_LOGS=1) and nothing is uploaded. Search Console data never leaves
+# the runner until private history storage exists (stage 3).
+name: SEO agent (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job to run
+        type: choice
+        required: true
+        default: critical
+        options: [critical, redirects, stats-indexing]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seo-agent-${{ github.event.inputs.job }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # Environment "seo-readonly" is limited to the main branch and holds GSC_SERVICE_ACCOUNT_JSON.
+    environment: seo-readonly
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Run SEO agent
+        env:
+          JOB: ${{ github.event.inputs.job }}
+          SEO_PUBLIC_LOGS: "1"
+          # The Search Console key is handed only to the job that needs it.
+          GSC_SERVICE_ACCOUNT_JSON: ${{ github.event.inputs.job == 'stats-indexing' && secrets.GSC_SERVICE_ACCOUNT_JSON || '' }}
+        run: npm run seo -- "$JOB" --trigger manual

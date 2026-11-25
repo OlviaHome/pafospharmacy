@@ -30,8 +30,8 @@ rules, CC BY 4.0).
 
 | # | Stage | Needs Olga | Status |
 |---|---|---|---|
-| 1 | Foundation: skills, config, contracts, `critical`, `redirects`, `drift-baseline`, `regression`, tests | review the PR | this PR |
-| 2 | Search Console (read-only) + Bing Webmaster + IndexNow; `stats-indexing` collector | grant access (Google, Bing), approve IndexNow | next |
+| 1 | Foundation: skills, config, contracts, `critical`, `redirects`, `drift-baseline`, `regression`, tests | review the PR | done (#27) |
+| 2 | Search Console (read-only) + Bing Webmaster + IndexNow; `stats-indexing` collector | grant access (Google, Bing), approve IndexNow | 2.1 GSC: in progress |
 | 3 | Runtime, schedules (Asia/Nicosia) and permanent history storage; post-deploy regression trigger | choose storage, approve secrets and migration | after 2 |
 | 4 | Agent jobs: Wednesday tech audit, Friday report and plan, monthly AI-visibility panel | approve AI-panel budget | after 3 |
 | 5 | Telegram delivery through the OA Studio orchestrator | separate project | contract ready |
@@ -63,6 +63,21 @@ hour matches, so daylight-saving changes cannot shift or double a run.
 `0` ok or warnings only · `2` a critical check failed · `3` a check could not run (BLOCKER, a URL
 that could not be fetched, no baseline) or another FAIL. A blocked run is never "ok": its status is
 `blocked`, its notification says the result is unknown, and it needs action.
+
+## Search Console (stage 2.1)
+
+- Access: a Google Cloud service account (`oa-seo-agent` project) added to the property as a
+  **Restricted** user; the agent requests only the `webmasters.readonly` scope. No Google SDK.
+- Secret: `GSC_SERVICE_ACCOUNT_JSON` in the GitHub environment `seo-readonly`, limited to `main`;
+  the workflow passes it only to the `stats-indexing` job. Never in the repository or chat.
+- Data: totals for the last 28 complete days (ending 3 days ago) vs the 28 before, pages and
+  queries (top 250 in the private data file), the owner's target queries, URL Inspection for every
+  sitemap URL, sitemap status. Query text is private: it goes only to the `private: true` data file
+  (`oa.seo.gsc-data/v1`), never into findings, notifications or logs.
+- Indexing verdicts: indexed → PASS; not yet indexed/unknown → WARN (normal for a new domain);
+  Google-chosen canonical differs, fetch failure → FAIL high; robots/noindex block → FAIL critical.
+- Public repository: CI prints only status counts and uploads nothing until stage 3 provides
+  private storage. Manual runs: Actions → "SEO agent (manual)" → Run workflow.
 
 ## Safety
 
